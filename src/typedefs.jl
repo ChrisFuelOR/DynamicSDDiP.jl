@@ -122,8 +122,8 @@ mutable struct NonlinearCut
     sigma::Float64
     # references to variables and constraints of the cut projection closure
     ############################################################################
-    cutVariables::Vector{JuMP.VariableRef}
-    cutConstraints::Vector{JuMP.ConstraintRef}
+    cut_variables::Vector{JuMP.VariableRef}
+    cut_constraints::Vector{JuMP.ConstraintRef}
     # SDDP-specific stuff
     ############################################################################
     obj_y::Union{Nothing,NTuple{N,Float64} where {N}}
@@ -144,7 +144,7 @@ mutable struct IterationResult{T,S}
     scenario_path :: Vector{Tuple{T,S}}
     has_converged :: Bool
     status :: Symbol # solution status (i.e. number of iterations) # TODO
-    nonlinearCuts :: Dict{T, Vector{Any}} # TODO: Do we really need this?
+    nonlinear_cuts :: Dict{T, Vector{Any}} # TODO: Do we really need this?
     # only required for logging, binary expansion
     # however, then also binary precision / K should be stored for interpretability
 end
