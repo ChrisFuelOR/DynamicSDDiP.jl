@@ -17,97 +17,135 @@
 
 import JuMP
 import Revise
-#import SDDP
 
-# Struct for algorithmic parameters
-# ------------------------------------------------------------------------------------------------------------------
-# epsilon_innerLoop: optimality tolerance for inner loop
-# binaryPrecision: epsilons for latest/current binary expansion (better use vector instead of dict?)
-# sigma: parameters used to obtain the regularized problem (better vector?)
-# ------------------------------------------------------------------------------------------------------------------
-# possible extensions:
-# maxcuts ::  Int64 # maximum number of cuts to be stored (for storage efficiency)
-# dropcuts ::  Int64 # number of cuts dropped so far
-# what about number of constraints and variables in the model?
-# what about differences in the binary expansion of different components?
-
-# Mutable struct for algorithmic parameters that may change during the iterations
-# Vector{Float64} or Dict{Int64, Float64}?
-mutable struct AlgoParams
-    epsilon :: Float64 # optimality tolerance for loop (relative!)
-    binaryPrecision :: Dict{Symbol, Float64}
-    sigma :: Vector{Float64} # parameters used to obtain the regularized problem (better vector?)
-    sigma_factor :: Float64
-    infiltrate_state :: Symbol
-    lagrangian_atol :: Float64
-    lagrangian_rtol :: Float64
-    lagrangian_iteration_limit :: Int
-    dual_initialization_regime :: Symbol
-    lagrangian_method :: Symbol
+# Mutable struct for bundle parameters if level bundle method is used
+mutable struct BundleParams
     bundle_alpha :: Float64
     bundle_factor :: Float64
     level_factor :: Float64
+
+# Mutable struct for algorithmic parameters
+mutable struct AlgoParams
+    # optimality tolerances for the MILP
+    ############################################################################
+    opt_rtol :: Float64
+    opt_atol :: Float64
+    # binary approximation parameters
+    ############################################################################
+    binary_approx :: Bool
+    binary_precision :: Dict{Symbol, Float64} #TODO: so far, same for all stages
+    # regularization parameters
+    ############################################################################
+    regularization :: Bool
+    sigma :: Vector{Float64}
+    sigma_factor :: Float64
+    # lagrangian dual specific parameters
+    ############################################################################
+    lagrangian_atol :: Float64
+    lagrangian_rtol :: Float64
+    lagrangian_iteration_limit :: Int
+    dual_initialization_method :: Symbol
+    dual_solution_method :: Symbol
+    dual_status_regime :: Symbol
+    magnanti_wong :: Bool
+    bundle_params :: Union{Nothing,DynamicSDDiP.BundleParams}
+    #TODO: BOUNDING ETC., SIEHE JAKOB
+    # nonlinear cut parameters
+    ############################################################################
+    cut_projection_method :: Symbol
     cut_selection :: Bool
-    lag_status_regime :: Symbol
+    # debugging parameter
+    ############################################################################
+    infiltrate_state :: Symbol
 end
 
 # Struct for initial algorithmic parameters that remain fixed and characterize a model run
 struct InitialAlgoParams
-    epsilon :: Float64
-    binaryPrecision :: Dict{Symbol, Float64}
-    plaPrecision :: Array{Vector{Float64},1}
+    # optimality tolerances for the MILP
+    ############################################################################
+    opt_rtol :: Float64
+    opt_atol :: Float64
+    # binary approximation parameters
+    ############################################################################
+    binary_approx :: Bool
+    binary_precision :: Dict{Symbol, Float64} #TODO: so far, same for all stages
+    # regularization parameters
+    ############################################################################
+    regularization :: Bool
     sigma :: Vector{Float64}
     sigma_factor :: Float64
+    # lagrangian dual specific parameters
+    ############################################################################
     lagrangian_atol :: Float64
     lagrangian_rtol :: Float64
     lagrangian_iteration_limit :: Int
-    dual_initialization_regime :: Symbol
-    lagrangian_method :: Symbol
-    bundle_alpha :: Float64
-    bundle_factor :: Float64
-    level_factor :: Float64
+    dual_initialization_method :: Symbol
+    dual_solution_method :: Symbol
+    dual_status_regime :: Symbol
+    magnanti_wong :: Bool
+    bundle_params :: Union{Nothing,DynamicSDDiP.BundleParams}
+    #TODO: BOUNDING ETC., SIEHE JAKOB
+    # nonlinear cut parameters
+    ############################################################################
+    cut_projection_method :: Symbol
     cut_selection :: Bool
-    lag_status_regime :: Symbol
+    # debugging parameter
+    ############################################################################
+    infiltrate_state :: Symbol
 end
 
-# struct for solvers to be used (maybe mutable)
+# struct for solvers to be used
+# TODO: Should this be mutable?
 struct AppliedSolvers
     LP :: Any
     MILP :: Any
     NLP :: Any
-    Lagrange :: Any
+    Lagrange :: Any # can be specified separately if numerical issues occur
 end
 
 # Struct to store information on a nonlinear cut
 mutable struct NonlinearCut
-    intercept::Float64 # intercept of the cut (Lagrangian function value)
+    # cut coefficients (in binary space)
+    ############################################################################
+    intercept::Float64 # intercept of the cut (dual function value)
     coefficients::Dict{Symbol,Float64} # optimal dual variables in binary space
-    trial_state::Dict{Symbol,Float64} # point at which cut should have been created
-    anchor_state::Dict{Symbol,Float64} # point at which this cut was created
-    binary_state::Dict{Symbol,BinaryState} # point in binary space where cut was created
+    # cut construction point
+    ############################################################################
+    # TODO: not sure if all of these have to be stored (anchor_state can be
+    # determined from other information for example)
+    trial_state::Dict{Symbol,Float64} # trial point at which cut should have been created
+    anchor_state::Dict{Symbol,Float64} # anchor point at which this cut was created
+    binary_state::Dict{Symbol,BinaryState} # binary representation of anchor point
     binary_precision::Dict{Symbol,Float64} # binary precision at moment of creation
+    # sigma at moment of creation
+    ############################################################################
     sigma::Float64
+    # references to variables and constraints of the cut projection closure
+    ############################################################################
     cutVariables::Vector{JuMP.VariableRef}
     cutConstraints::Vector{JuMP.ConstraintRef}
-    obj_y::Union{Nothing,NTuple{N,Float64} where {N}} # SDDP
-    belief_y::Union{Nothing,Dict{T,Float64} where {T}} # SDDP
+    # SDDP-specific stuff
+    ############################################################################
+    obj_y::Union{Nothing,NTuple{N,Float64} where {N}}
+    belief_y::Union{Nothing,Dict{T,Float64} where {T}}
+    # number of non-dominated cuts (required for cut selection)
+    ############################################################################
     non_dominated_count::Int # SDDP
+    # iteration in which cut was created
+    ############################################################################
     iteration::Int64
 end
-    # TODO:
-    # 1) So far, binary precision is the same for all components.
-    # 2) Should we also store the expression of this cut in binary space?
 
-# struct for inner loop iteration results
-mutable struct InnerLoopIterationResult{T,S}
-    # pid
+# mutable struct for iteration results
+mutable struct IterationResult{T,S}
     lower_bound :: Float64
-    upper_bound :: Float64 # should be renamed as cumulative_value as in SDDP if we solve stochastic problems
-    current_sol :: Array{Dict{Symbol,Float64},1} #Vector{Dict{Symbol, Float64}} # current solution of state variables (also required for binary refinement)
+    upper_bound :: Float64 # statistical if we solve stochastic problems
+    current_sol :: Array{Dict{Symbol,Float64},1} # current state (also required for binary refinement)
     scenario_path :: Vector{Tuple{T,S}}
     has_converged :: Bool
-    status :: Symbol # solution status (i.e. number of iterations)
-    nonlinearCuts :: Dict{T, Vector{Any}} # only required for logging, binary explanation
+    status :: Symbol # solution status (i.e. number of iterations) # TODO
+    nonlinearCuts :: Dict{T, Vector{Any}} # TODO: Do we really need this?
+    # only required for logging, binary expansion
     # however, then also binary precision / K should be stored for interpretability
 end
 
