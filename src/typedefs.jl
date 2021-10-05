@@ -34,7 +34,7 @@ import Revise
 # Mutable struct for algorithmic parameters that may change during the iterations
 # Vector{Float64} or Dict{Int64, Float64}?
 mutable struct AlgoParams
-    epsilon_innerLoop :: Float64 # optimality tolerance for inner loop (relative!)
+    epsilon :: Float64 # optimality tolerance for loop (relative!)
     binaryPrecision :: Dict{Symbol, Float64}
     sigma :: Vector{Float64} # parameters used to obtain the regularized problem (better vector?)
     sigma_factor :: Float64
@@ -53,7 +53,7 @@ end
 
 # Struct for initial algorithmic parameters that remain fixed and characterize a model run
 struct InitialAlgoParams
-    epsilon_innerLoop :: Float64
+    epsilon :: Float64
     binaryPrecision :: Dict{Symbol, Float64}
     plaPrecision :: Array{Vector{Float64},1}
     sigma :: Vector{Float64}
