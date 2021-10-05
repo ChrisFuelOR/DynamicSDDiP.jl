@@ -82,25 +82,21 @@ end
 mutable struct NonlinearCut
     intercept::Float64 # intercept of the cut (Lagrangian function value)
     coefficients::Dict{Symbol,Float64} # optimal dual variables in binary space
-    trial_state::Dict{Symbol,Float64} # point at which this cut was created
+    trial_state::Dict{Symbol,Float64} # point at which cut should have been created
+    anchor_state::Dict{Symbol,Float64} # point at which this cut was created
     binary_state::Dict{Symbol,BinaryState} # point in binary space where cut was created
     binary_precision::Dict{Symbol,Float64} # binary precision at moment of creation
     sigma::Float64
     cutVariables::Vector{JuMP.VariableRef}
     cutConstraints::Vector{JuMP.ConstraintRef}
-    cutVariables_lin::Vector{JuMP.VariableRef}
-    cutConstraints_lin::Vector{JuMP.ConstraintRef}
     obj_y::Union{Nothing,NTuple{N,Float64} where {N}} # SDDP
     belief_y::Union{Nothing,Dict{T,Float64} where {T}} # SDDP
     non_dominated_count::Int # SDDP
     iteration::Int64
 end
     # TODO:
-    # 1) Do we need to store the trial point also in binary form (even though
-    # we can always determine it using trial_state and binary_precision)?
-    # 2) So far, binary precision is the same for all components.
-    # 3) Should we also store the expression of this cut in binary space?
-    # 4) Do we want to store the iteration as well?
+    # 1) So far, binary precision is the same for all components.
+    # 2) Should we also store the expression of this cut in binary space?
 
 # struct for inner loop iteration results
 mutable struct InnerLoopIterationResult{T,S}
