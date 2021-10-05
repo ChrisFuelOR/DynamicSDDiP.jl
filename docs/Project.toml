@@ -1,0 +1,3 @@
+[deps]
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+DynamicSDDiP = "13dd0c9c-319d-47c7-ae8d-0241c720e43f"
