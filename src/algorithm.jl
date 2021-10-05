@@ -1,13 +1,13 @@
 # The functions
-# > "inner_loop_iteration",
-# > "inner_loop_forward_pass",
-# > "solve_subproblem_forward_inner",
+# > "iteration",
+# > "forward_pass",
+# > "solve_subproblem_forward",
 # > "solve_all_children",
 # > "solve_subproblem_backward",
 # > "get_dual_variables_backward",
 # > "calculate_bound",
 # > "solve_first_stage_problem"
-# > "inner_loop_forward_sigma_test"
+# > "forward_sigma_test"
 # > "solve_subproblem_sigma_test"
 # are derived from similar named functions (iteration, forward_pass, backward_pass,
 # solve_all_children, solve_subproblem, get_dual_variables, calculate_bound,
@@ -24,15 +24,15 @@
 ################################################################################
 
 """
-Executing an inner loop iteration for NC-NBD.
+Executing an inner loop iteration for DynamicSDDiP.
 """
-function inner_loop_iteration(
+function iteration(
     model::SDDP.PolicyGraph{T},
-    options::NCNBD.Options,
-    algoParams::NCNBD.AlgoParams,
-    appliedSolvers::NCNBD.AppliedSolvers,
-    previousSolution::Union{Vector{Dict{Symbol,Float64}},Nothing},
-    boundCheck::Bool,
+    options::DynamicSDDiP.Options,
+    algo_params::DynamicSDDiP.AlgoParams,
+    applied_solvers::DynamicSDDiP.AppliedSolvers,
+    previous_solution::Union{Vector{Dict{Symbol,Float64}},Nothing},
+    bound_check::Bool,
     sigma_increased::Bool
     ) where {T}
 
@@ -46,40 +46,38 @@ function inner_loop_iteration(
 
     # FORWARD PASS
     ############################################################################
-    TimerOutputs.@timeit NCNBD_TIMER "forward_pass" begin
-        forward_trajectory = NCNBD.inner_loop_forward_pass(model, options, algoParams, appliedSolvers, options.forward_pass)
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "forward_pass" begin
+        forward_trajectory = DynamicSDDiP.forward_pass(model, options, algo_params, applied_solvers, options.forward_pass)
     end
-
-    #@infiltrate model.ext[:iteration] == 13
 
     # BINARY REFINEMENT
     ############################################################################
     # If the forward pass solution did not change during the last iteration, then
     # increase the binary precision (for all stages)
-    solutionCheck = true
-    binaryRefinement = :none
+    solution_check = true
+    binary_refinement = :none
 
     if !isnothing(previousSolution)
-        TimerOutputs.@timeit NCNBD_TIMER "bin_refinement" begin
-            solutionCheck = NCNBD.binary_refinement_check(model, previousSolution, forward_trajectory.sampled_states, solutionCheck)
-            if solutionCheck || boundCheck
+        TimerOutputs.@timeit DynamicSDDiP_TIMER "bin_refinement" begin
+            solution_check = DynamicSDDiP.binary_refinement_check(model, previous_solution, forward_trajectory.sampled_states, solution_check)
+            if solution_check || bound_check
                 # Increase binary precision such that K = K + 1
-                binaryRefinement = NCNBD.binary_refinement(model, algoParams, binaryRefinement)
+                binary_refinement = DynamicSDDiP.binary_refinement(model, algo_params, binary_refinement)
             end
         end
     end
-    boundCheck = true
+    bound_check = true
 
-    @infiltrate algoParams.infiltrate_state in [:all, :inner]
+    @infiltrate algoParams.infiltrate_state in [:all]
 
     # BACKWARD PASS
     ############################################################################
-    TimerOutputs.@timeit NCNBD_TIMER "backward_pass" begin
-        cuts = NCNBD.inner_loop_backward_pass(
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "backward_pass" begin
+        cuts = DynamicSDDiP.backward_pass(
             model,
             options,
-            algoParams,
-            appliedSolvers,
+            algo_params,
+            applied_solvers,
             forward_trajectory.scenario_path,
             forward_trajectory.sampled_states,
             forward_trajectory.objective_states,
@@ -89,32 +87,32 @@ function inner_loop_iteration(
 
     # CALCULATE LOWER BOUND
     ############################################################################
-    TimerOutputs.@timeit NCNBD_TIMER "calculate_bound" begin
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "calculate_bound" begin
         first_stage_results = calculate_bound(model)
     end
     bound = first_stage_results.bound
-    subproblem_size = first_stage_results.problem_size[1]
 
     # CHECK IF BEST KNOWN SOLUTION HAS BEEN IMPROVED
     ############################################################################
     if model.objective_sense == JuMP.MOI.MIN_SENSE
-        if forward_trajectory.cumulative_value < model.ext[:best_inner_loop_objective] || sigma_increased
+        if forward_trajectory.cumulative_value < model.ext[:best_objective] || sigma_increased
             # udpate best upper bound
-            model.ext[:best_inner_loop_objective] = forward_trajectory.cumulative_value
+            model.ext[:best_objective] = forward_trajectory.cumulative_value
             # update best point so far
-            model.ext[:best_inner_loop_point] = forward_trajectory.sampled_states
+            model.ext[:best_point] = forward_trajectory.sampled_states
         end
     else
-        if forward_trajectory.cumulative_value > model.ext[:best_inner_loop_objective] || sigma_increased
+        if forward_trajectory.cumulative_value > model.ext[:best_objective] || sigma_increased
             # udpate best lower bound
-            model.ext[:best_inner_loop_objective] = forward_trajectory.cumulative_value
+            model.ext[:best_objective] = forward_trajectory.cumulative_value
             # update best point so far
-            model.ext[:best_inner_loop_point] = forward_trajectory.sampled_states
+            model.ext[:best_point] = forward_trajectory.sampled_states
         end
     end
 
     # PREPARE LOGGING
     ############################################################################
+    subproblem_size = first_stage_results.problem_size[1]
     model.ext[:total_cuts] = 0
     model.ext[:active_cuts] = 0
 
@@ -129,23 +127,18 @@ function inner_loop_iteration(
     end
 
     push!(
-         options.log_inner,
+         options.log,
          Log(
-             model.ext[:outer_iteration],
-             model.ext[:iteration], #length(options.log) + 1,
+             model.ext[:iteration],
              bound,
-             model.ext[:best_inner_loop_objective],
+             model.ext[:best_objective],
              forward_trajectory.cumulative_value,
              forward_trajectory.sampled_states,
              time() - options.start_time,
-             #Distributed.myid(),
-             #model.ext[:total_solves],
-             #algoParams.sigma,
-             #algoParams.binaryPrecision,
              sigma_increased,
-             binaryRefinement,
+             binary_refinement,
              subproblem_size,
-             algoParams.epsilon_innerLoop,
+             algo_params.opt_atol,
              model.ext[:lag_iterations],
              model.ext[:lag_status],
              model.ext[:total_cuts],
@@ -153,17 +146,17 @@ function inner_loop_iteration(
          ),
      )
 
-    # CHECK IF THE INNER LOOP CONVERGED YET
+    # CHECK IF THE LOOP CONVERGED YET
     ############################################################################
-    has_converged, status = convergence_test(model, options.log_inner, options.stopping_rules, :inner)
+    has_converged, status = convergence_test(model, options.log, options.stopping_rules)
 
-    @infiltrate algoParams.infiltrate_state in [:all, :inner]
+    @infiltrate algo_params.infiltrate_state in [:all]
 
-    return NCNBD.InnerLoopIterationResult(
+    return DynamicSDDiP.IterationResult(
         #Distributed.myid(),
         bound,
-        model.ext[:best_inner_loop_objective],
-        model.ext[:best_inner_loop_point],
+        model.ext[:best_objective],
+        model.ext[:best_point],
         forward_trajectory.scenario_path,
         has_converged,
         status,
@@ -173,29 +166,25 @@ end
 
 
 """
-Executing the forward pass of an inner loop iteration for NC-NBD.
+Executing the forward pass of an inner loop iteration for DynamicSDDiP.
 """
-function inner_loop_forward_pass(model::SDDP.PolicyGraph{T}, options::NCNBD.Options,
-    algoParams::NCNBD.AlgoParams, appliedSolvers::NCNBD.AppliedSolvers,
+function forward_pass(model::SDDP.PolicyGraph{T}, options::DynamicSDDiP.Options,
+    algoParams::DynamicSDDiP.AlgoParams, appliedSolvers::DynamicSDDiP.AppliedSolvers,
     ::SDDP.DefaultForwardPass) where {T}
 
     # SAMPLING AND INITIALIZATION (JUST LIKE IN SDDP)
     ############################################################################
     # First up, sample a scenario. Note that if a cycle is detected, this will
     # return the cycle node as well.
-    #TimerOutputs.@timeit NCNBD_TIMER "sample_scenario" begin
-    scenario_path, terminated_due_to_cycle =
-            SDDP.sample_scenario(model, options.sampling_scheme)
-    #end
+    scenario_path, terminated_due_to_cycle = SDDP.sample_scenario(model, options.sampling_scheme)
 
-    #TODO: Has something here to be adapted such that it relates to the linearizedSubproblem?
     # Storage for the list of outgoing states that we visit on the forward pass.
     sampled_states = Dict{Symbol,Float64}[]
     # Storage for the belief states: partition index and the belief dictionary.
     belief_states = Tuple{Int,Dict{T,Float64}}[]
     current_belief = SDDP.initialize_belief(model)
     # Our initial incoming state.
-    incoming_state_value = copy(model.ext[:lin_initial_root_state])
+    incoming_state_value = copy(model.initial_root_state)
     # A cumulator for the stage-objectives.
     cumulative_value = 0.0
     # Objective state interpolation.
@@ -204,7 +193,7 @@ function inner_loop_forward_pass(model::SDDP.PolicyGraph{T}, options::NCNBD.Opti
 
     # ACTUAL ITERATION
     ########################################################################
-    # Iterate down the scenario.
+    # Iterate down the scenario tree.
     for (depth, (node_index, noise)) in enumerate(scenario_path)
         node = model[node_index]
 
@@ -244,24 +233,22 @@ function inner_loop_forward_pass(model::SDDP.PolicyGraph{T}, options::NCNBD.Opti
         # ===== End: starting state for infinite horizon =====
 
         # Set sigma for regularization
-        sigma = algoParams.sigma[node_index]
+        sigma = algo_params.sigma[node_index]
 
         # Set optimizer to MILP optimizer
-        linearizedSubproblem = node.ext[:linSubproblem]
-
-        if appliedSolvers.MILP == "CPLEX"
-            set_optimizer(linearizedSubproblem, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>appliedSolvers.MILP, "optcr"=>0.0, "numericalemphasis"=>0))
-        elseif appliedSolvers.MILP == "Gurobi"
-            set_optimizer(linearizedSubproblem, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>appliedSolvers.MILP, "optcr"=>0.0, "NumericFocus"=>1))
+        if applied_solvers.MILP == "CPLEX"
+            set_optimizer(node.subproblem, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.MILP, "optcr"=>0.0, "numericalemphasis"=>0))
+        elseif applied_solvers.MILP == "Gurobi"
+            set_optimizer(node.subproblem, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.MILP, "optcr"=>0.0, "NumericFocus"=>1))
         else
-            set_optimizer(linearizedSubproblem, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>appliedSolvers.MILP, "optcr"=>0.0))
+            set_optimizer(node.subproblem, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.MILP, "optcr"=>0.0))
         end
 
         # SUBPROBLEM SOLUTION
         ############################################################################
         # Solve the subproblem, note that `require_duals = false`.
-        TimerOutputs.@timeit NCNBD_TIMER "solve_FP" begin
-            subproblem_results = solve_subproblem_forward_inner(
+        TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_FP" begin
+            subproblem_results = solve_subproblem_forward(
                 model,
                 node,
                 node_index,
@@ -269,8 +256,7 @@ function inner_loop_forward_pass(model::SDDP.PolicyGraph{T}, options::NCNBD.Opti
                 noise,
                 scenario_path[1:depth],
                 sigma,
-                algoParams.infiltrate_state,
-                require_duals = false,
+                algo_params.infiltrate_state,
             )
         end
         # Cumulate the stage_objective.
@@ -312,13 +298,13 @@ end
 
 
 """
-Solving the subproblem within the forward pass of an inner loop of NC-NBD.
+Solving the subproblem within the forward pass of a loop of DynamicSDDiP.
 """
 # Internal function: solve the subproblem associated with node given the
 # incoming state variables state and realization of the stagewise-independent
 # noise term noise. If require_duals=true, also return the dual variables
 # associated with the fixed constraint of the incoming state variables.
-function solve_subproblem_forward_inner(
+function solve_subproblem_forward(
     model::SDDP.PolicyGraph{T},
     node::SDDP.Node{T},
     node_index::Int64,
@@ -327,39 +313,32 @@ function solve_subproblem_forward_inner(
     scenario_path::Vector{Tuple{T,S}},
     sigma::Float64,
     infiltrate_state::Symbol;
-    require_duals::Bool,
 ) where {T,S}
     #TODO: We can actually delete the duals part here
 
-    # MODEL PARAMETRIZATION (-> LINEARIZED SUBPROBLEM!)
-    ############################################################################
-    linearizedSubproblem = node.ext[:linSubproblem]
+    subproblem = node.subproblem
 
+    # MODEL PARAMETRIZATION
+    ############################################################################
     # Parameterize the model. First, fix the value of the incoming state
     # variables. Then parameterize the model depending on `noise`. Finally,
     # set the objective.
-    set_incoming_lin_state(node, state)
-    parameterize_lin(node, noise)
+    set_incoming_state(node, state)
+    parameterize(node, noise)
 
-    # pre_optimize_ret = if node.pre_optimize_hook !== nothing
-    #     node.pre_optimize_hook(model, node, state, noise, scenario_path, require_duals)
-    # else
-    #     nothing
-    # end
+    # TODO: Maybe use pre-optimization hook as in SDDP
 
     # REGULARIZE SUBPROBLEM
     ############################################################################
-    if node_index > 1
-        # storage for regularization data
+    if node_index > 1 && algo_params.regularization
         node.ext[:regularization_data] = Dict{Symbol,Any}()
-
-        regularize_subproblem!(node, linearizedSubproblem, sigma)
+        regularize_subproblem!(node, subproblem, sigma)
     end
 
     # SOLUTION
     ############################################################################
-    @infiltrate infiltrate_state in [:all, :inner]
-    JuMP.optimize!(linearizedSubproblem)
+    @infiltrate infiltrate_state in [:all]
+    JuMP.optimize!(subproblem)
 
     if haskey(model.ext, :total_solves)
         model.ext[:total_solves] += 1
@@ -367,33 +346,19 @@ function solve_subproblem_forward_inner(
         model.ext[:total_solves] = 1
     end
 
-    # if JuMP.primal_status(node.ext[:linSubproblem]) != JuMP.MOI.FEASIBLE_POINT
-    #     SDDP.attempt_numerical_recovery(node)
-    # end
+    # TODO: Attempt numerical recovery as in SDDP
 
     state = get_outgoing_state(node)
-    objective = JuMP.objective_value(node.ext[:linSubproblem])
-    stage_objective = objective - JuMP.value(bellman_term(node.ext[:lin_bellman_function]))
-    @infiltrate infiltrate_state in [:all, :inner]
+    objective = JuMP.objective_value(subproblem)
+    stage_objective = objective - JuMP.value(bellman_term(node.bellman_function))
+    @infiltrate infiltrate_state in [:all]
 
-    # If require_duals = true, check for dual feasibility and return a dict with
-    # the dual on the fixed constraint associated with each incoming state
-    # variable. If require_duals=false, return an empty dictionary for
-    # type-stability.
-    dual_values = if require_duals
-        get_dual_variables(node, node.integrality_handler)
-    else
-        Dict{Symbol,Float64}()
-    end
-
-    # if node.post_optimize_hook !== nothing
-    #     node.post_optimize_hook(pre_optimize_ret)
-    # end
+    # TODO: Maybe use post-optimization hook as in SDDP
 
     # DE-REGULARIZE SUBPROBLEM
     ############################################################################
-    if node_index > 1
-        deregularize_subproblem!(node, linearizedSubproblem)
+    if node_index > 1 && algo_params.regularization
+        deregularize_subproblem!(node, subproblem)
     end
 
     return (
@@ -406,13 +371,13 @@ end
 
 
 """
-Executing the backward pass of an inner loop of NC-NBD.
+Executing the backward pass of a loop of DynamicSDDiP.
 """
-function inner_loop_backward_pass(
+function backward_pass(
     model::SDDP.PolicyGraph{T},
-    options::NCNBD.Options,
-    algoParams::NCNBD.AlgoParams,
-    appliedSolvers::NCNBD.AppliedSolvers,
+    options::DynamicSDDiP.Options,
+    algo_params::DynamicSDDiP.AlgoParams,
+    applied_solvers::DynamicSDDiP.AppliedSolvers,
     scenario_path::Vector{Tuple{T,NoiseType}},
     sampled_states::Vector{Dict{Symbol,Float64}},
     objective_states::Vector{NTuple{N,Float64}},
@@ -429,43 +394,7 @@ function inner_loop_backward_pass(
         partition_index, belief_state = get(belief_states, index, (0, nothing))
         items = BackwardPassItems(T, SDDP.Noise)
         if belief_state !== nothing
-            # # Update the cost-to-go function for partially observable model.
-            #print("blubb")
-            # for (node_index, belief) in belief_state
-            #     belief == 0.0 && continue
-            #     solve_all_children(
-            #         model,
-            #         model[node_index],
-            #         items,
-            #         belief,
-            #         belief_state,
-            #         objective_state,
-            #         outgoing_state,
-            #         options.backward_sampling_scheme,
-            #         scenario_path[1:index],
-            #     )
-            # end
-            # # We need to refine our estimate at all nodes in the partition.
-            # for node_index in model.belief_partition[partition_index]
-            #     node = model[node_index]
-            #     # Update belief state, etc.
-            #     current_belief = node.belief_state::BeliefState{T}
-            #     for (idx, belief) in belief_state
-            #         current_belief.belief[idx] = belief
-            #     end
-            #     new_cuts = refine_bellman_function(
-            #         model,
-            #         node,
-            #         node.bellman_function,
-            #         options.risk_measures[node_index],
-            #         outgoing_state,
-            #         items.duals,
-            #         items.supports,
-            #         items.probability .* items.belief,
-            #         items.objectives,
-            #     )
-            #     push!(cuts[node_index], new_cuts)
-            #end
+            # TODO: SDDP: Update the cost-to-go function for partially observable model.
         else
             node_index, _ = scenario_path[index]
             node = model[node_index]
@@ -493,26 +422,25 @@ function inner_loop_backward_pass(
                 outgoing_state,
                 options.backward_sampling_scheme,
                 scenario_path[1:index],
-                algoParams,
-                appliedSolvers
+                algo_params,
+                applied_solvers
             )
 
-            # RECONSTRUCT USED TRIAL POINTS IN BACKWARD PASS
+            # RECONSTRUCT ANCHOR POINTS IN BACKWARD PASS
             ####################################################################
-            used_trial_points = Dict{Symbol,Float64}()
-            #epsilon = algoParams.binaryPrecision[node_index]
+            anchor_points = Dict{Symbol,Float64}()
             for (name, value) in outgoing_state
-                state_comp = node.ext[:lin_states][name]
-                epsilon = algoParams.binaryPrecision[name]
-                (approx_state_value, )  = determine_used_trial_states(state_comp, value, epsilon)
-                used_trial_points[name] = approx_state_value
+                state_comp = node.states[name]
+                epsilon = algo_params.binary_precision[name]
+                (approx_state_value, )  = determine_anchor_states(state_comp, value, epsilon)
+                anchor_points[name] = approx_state_value
             end
 
             @infiltrate algoParams.infiltrate_state in [:all, :inner]
 
             # REFINE BELLMAN FUNCTION BY ADDING CUTS
             ####################################################################
-            TimerOutputs.@timeit NCNBD_TIMER "update_bellman" begin
+            TimerOutputs.@timeit DynamicSDDiP_TIMER "update_bellman" begin
                 new_cuts = refine_bellman_function(
                     model,
                     node,
@@ -520,14 +448,14 @@ function inner_loop_backward_pass(
                     node.bellman_function,
                     options.risk_measures[node_index],
                     outgoing_state,
-                    used_trial_points,
+                    anchor_points,
                     items.bin_state,
                     items.duals,
                     items.supports,
                     items.probability,
                     items.objectives,
-                    algoParams,
-                    appliedSolvers
+                    algo_params,
+                    applied_solvers
                 )
             end
             push!(cuts[node_index], new_cuts)
@@ -535,32 +463,8 @@ function inner_loop_backward_pass(
             #TODO: Has to be adapted for stochastic case
             push!(model.ext[:lag_status], items.lag_status[1])
 
-            #TODO: No cut-sharing allowed so far
-            # if options.refine_at_similar_nodes
-            #     # Refine the bellman function at other nodes with the same
-            #     # children, e.g., in the same stage of a Markovian policy graph.
-            #     for other_index in options.similar_children[node_index]
-            #         copied_probability = similar(items.probability)
-            #         other_node = model[other_index]
-            #         for (idx, child_index) in enumerate(items.nodes)
-            #             copied_probability[idx] =
-            #                 get(options.Φ, (other_index, child_index), 0.0) *
-            #                 items.supports[idx].probability
-            #         end
-            #         new_cuts = refine_bellman_function(
-            #             model,
-            #             other_node,
-            #             other_node.bellman_function,
-            #             options.risk_measures[other_index],
-            #             outgoing_state,
-            #             items.duals,
-            #             items.supports,
-            #             copied_probability,
-            #             items.objectives,
-            #         )
-            #         push!(cuts[other_index], new_cuts)
-            #     end
-            # end
+            #TODO: Implement cut-sharing as in SDDP
+
         end
     end
     return cuts
@@ -581,8 +485,8 @@ function solve_all_children(
     outgoing_state::Dict{Symbol,Float64},
     backward_sampling_scheme::SDDP.AbstractBackwardSamplingScheme,
     scenario_path,
-    algoParams::NCNBD.AlgoParams,
-    appliedSolvers::NCNBD.AppliedSolvers
+    algo_params::DynamicSDDiP.AlgoParams,
+    applied_solvers::DynamicSDDiP.AppliedSolvers
 ) where {T}
     length_scenario_path = length(scenario_path)
     for child in node.children
@@ -625,7 +529,7 @@ function solve_all_children(
                         noise.term,
                     )
                 end
-                TimerOutputs.@timeit NCNBD_TIMER "solve_BP" begin
+                TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_BP" begin
                     subproblem_results = solve_subproblem_backward(
                         model,
                         child_node,
@@ -633,9 +537,8 @@ function solve_all_children(
                         outgoing_state,
                         noise.term,
                         scenario_path,
-                        require_duals = true, #TODO: Delete (also in forward pass)
-                        algoParams,
-                        appliedSolvers
+                        algo_params,
+                        applied_solvers
                     )
                 end
                 push!(items.duals, subproblem_results.duals)
@@ -675,14 +578,13 @@ function solve_subproblem_backward(
     state::Dict{Symbol,Float64},
     noise,
     scenario_path::Vector{Tuple{T,S}},
-    algoParams::NCNBD.AlgoParams,
-    appliedSolvers::NCNBD.AppliedSolvers;
-    require_duals::Bool
+    algo_params::DynamicSDDiP.AlgoParams,
+    applied_solvers::DynamicSDDiP.AppliedSolvers;
 ) where {T,S}
 
-    # MODEL PARAMETRIZATION (-> LINEARIZED SUBPROBLEM!)
+    # MODEL PARAMETRIZATION
     ############################################################################
-    linearizedSubproblem = node.ext[:linSubproblem]
+    subproblem = node.subproblem
 
     # storage for backward pass data
     node.ext[:backward_data] = Dict{Symbol,Any}()
@@ -690,50 +592,48 @@ function solve_subproblem_backward(
     # Parameterize the model. First, fix the value of the incoming state
     # variables. Then parameterize the model depending on `noise`. Finally,
     # set the objective.
-    set_incoming_lin_state(node, state)
+    set_incoming_state(node, state)
     parameterize(node, noise)
 
-    # pre_optimize_ret = if node.pre_optimize_hook !== nothing
-    #     node.pre_optimize_hook(model, node, state, noise, scenario_path, require_duals)
-    # else
-    #     nothing
-    # end
+    # TODO: Maybe use pre-optimization hook as in SDDP.
 
     # BACKWARD PASS PREPARATION
     ############################################################################
-    @infiltrate algoParams.infiltrate_state in [:all, :inner]
+    @infiltrate algo_params.infiltrate_state in [:all]
 
     # Also adapt solver here
-    TimerOutputs.@timeit NCNBD_TIMER "space_change" begin
-        changeToBinarySpace!(node, linearizedSubproblem, state, algoParams.binaryPrecision)
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "space_change" begin
+        changeToBinarySpace!(node, subproblem, state, algo_params.binary_precision)
     end
 
     # INITIALIZE DUALS
     ############################################################################
-    TimerOutputs.@timeit NCNBD_TIMER "dual_initialization" begin
-        dual_vars_initial = initialize_duals(node, linearizedSubproblem, algoParams.dual_initialization_regime)
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "dual_initialization" begin
+        dual_vars_initial = initialize_duals(node, subproblem, algo_params.dual_initialization_method)
     end
 
     # reset solver as it may have been changed
-    if appliedSolvers.MILP == "CPLEX"
-        set_optimizer(linearizedSubproblem, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>appliedSolvers.MILP, "optcr"=>0.0, "numericalemphasis"=>0))
-    elseif appliedSolvers.MILP == "Gurobi"
-        set_optimizer(linearizedSubproblem, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>appliedSolvers.MILP, "optcr"=>0.0, "NumericFocus"=>1))
+    if applied_solvers.MILP == "CPLEX"
+        set_optimizer(subproblem, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.MILP, "optcr"=>0.0, "numericalemphasis"=>0))
+    elseif applied_solvers.MILP == "Gurobi"
+        set_optimizer(subproblem, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.MILP, "optcr"=>0.0, "NumericFocus"=>1))
     else
-        set_optimizer(linearizedSubproblem, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>appliedSolvers.MILP, "optcr"=>0.0))
+        set_optimizer(subproblem, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.MILP, "optcr"=>0.0))
     end
 
-    # REGULARIZE ALSO FOR BACKWARD PASS (FOR PRIMAL SOLUTION TO BOUND LAGRANGIAN DUAL)
+    # GET PRIMAL SOLUTION TO BOUND LAGRANGIAN DUAL
     ############################################################################
-    @infiltrate algoParams.infiltrate_state in [:all, :inner]
+    @infiltrate algo_params.infiltrate_state in [:all]
 
-    node.ext[:regularization_data] = Dict{Symbol,Any}()
-    regularize_backward!(node, linearizedSubproblem, algoParams.sigma[node_index])
+    # REGULARIZATION
+    if algo_params.regularization
+        node.ext[:regularization_data] = Dict{Symbol,Any}()
+        regularize_backward!(node, subproblem, algo_params.sigma[node_index])
+    end
 
-    # PRIMAL SOLUTION
-    ############################################################################
-    TimerOutputs.@timeit NCNBD_TIMER "solve_primal_reg" begin
-        JuMP.optimize!(linearizedSubproblem)
+    # SOLVE PRIMAL PROBLEM (REGULARIZED OR NOT)
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_primal" begin
+        JuMP.optimize!(subproblem)
     end
 
     if haskey(model.ext, :total_solves)
@@ -742,53 +642,41 @@ function solve_subproblem_backward(
         model.ext[:total_solves] = 1
     end
 
-    # if JuMP.primal_status(node.subproblem) != JuMP.MOI.FEASIBLE_POINT
-    #     attempt_numerical_recovery(node)
-    # end
+    # TODO: Attempt numerical recovery as in SDDP
 
-    solver_obj = JuMP.objective_value(linearizedSubproblem)
-    @assert JuMP.termination_status(linearizedSubproblem) == MOI.OPTIMAL
+    solver_obj = JuMP.objective_value(subproblem)
+    @assert JuMP.termination_status(subproblem) == MOI.OPTIMAL
 
-    @infiltrate algoParams.infiltrate_state in [:all, :inner]
+    @infiltrate algo_params.infiltrate_state in [:all]
 
     # PREPARE ACTUAL BACKWARD PASS METHOD BY DEREGULARIZATION
     ############################################################################
-    deregularize_backward!(node, linearizedSubproblem)
+    if algo_params.regularization
+        deregularize_backward!(node, subproblem)
+    end
 
     # DUAL SOLUTION
     ############################################################################
-    # If require_duals = true, check for dual feasibility and return a dict with
-    # the dual on the fixed constraint associated with each incoming state
-    # variable. If require_duals=false, return an empty dictionary for
-    # type-stability.
-    if require_duals
-        TimerOutputs.@timeit NCNBD_TIMER "solve_lagrange" begin
-            lagrangian_results = get_dual_variables_backward(node, node_index, solver_obj, algoParams, appliedSolvers, dual_vars_initial)
-        end
-        dual_values = lagrangian_results.dual_values
-        bin_state = lagrangian_results.bin_state
-        objective = lagrangian_results.intercept
-        iterations = lagrangian_results.iterations
-        lag_status = lagrangian_results.lag_status
-    else
-        #NOTE: not required in my implementation
-        dual_values = Dict{Symbol,Float64}()
-        bin_state = Dict{Symbol,BinaryState}()
-        objective = solver_obj
-        iterations = 0
-        lag_status = :none
+    # Check for dual feasibility and return a dict with
+    # the dual on the fixed constraint associated with each incoming state variable.
+
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_lagrange" begin
+        lagrangian_results = get_dual_variables_backward(node, node_index, solver_obj, algo_params, applied_solvers, dual_vars_initial)
     end
+    dual_values = lagrangian_results.dual_values
+    bin_state = lagrangian_results.bin_state
+    objective = lagrangian_results.intercept
+    iterations = lagrangian_results.iterations
+    lag_status = lagrangian_results.lag_status
 
-    @infiltrate algoParams.infiltrate_state in [:all, :inner]
+    @infiltrate algo_params.infiltrate_state in [:all]
 
-    # if node.post_optimize_hook !== nothing
-    #     node.post_optimize_hook(pre_optimize_ret)
-    # end
+    # TODO: Maybe use post-optimization hook as in SDDP.
 
     #TODO: REGAIN ORIGINAL MODEL
     ############################################################################
-    TimerOutputs.@timeit NCNBD_TIMER "space_change" begin
-        changeToOriginalSpace!(node, linearizedSubproblem, state)
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "space_change" begin
+        changeToOriginalSpace!(node, subproblem, state)
     end
 
     return (
@@ -809,8 +697,8 @@ function get_dual_variables_backward(
     node::SDDP.Node,
     node_index::Int64,
     solver_obj::Float64,
-    algoParams::NCNBD.AlgoParams,
-    appliedSolvers::NCNBD.AppliedSolvers,
+    algo_params::DynamicSDDiP.AlgoParams,
+    applied_solvers::DynamicSDDiP.AppliedSolvers,
     dual_vars_initial::Vector{Float64}
     )
 
@@ -829,12 +717,12 @@ function get_dual_variables_backward(
     lag_status = :none
 
     # Create an SDDiP integrality_handler here to store the Lagrangian dual information
-    #TODO: Store tolerances in algoParams
-    integrality_handler = SDDP.SDDiP(iteration_limit = algoParams.lagrangian_iteration_limit, atol = algoParams.lagrangian_atol, rtol = algoParams.lagrangian_rtol)
-    integrality_handler = SDDP.update_integrality_handler!(integrality_handler, appliedSolvers.MILP, number_of_states)
+    #TODO: Store tolerances in algo_params
+    integrality_handler = SDDP.SDDiP(iteration_limit = algo_params.lagrangian_iteration_limit, atol = algo_params.lagrangian_atol, rtol = algo_params.lagrangian_rtol)
+    integrality_handler = SDDP.update_integrality_handler!(integrality_handler, applied_solvers.MILP, number_of_states)
     node.ext[:lagrange] = integrality_handler
 
-    # DETERMINE AND ADD BOUNDS FOR DUALVARIABLES
+    # DETERMINE AND ADD BOUNDS FOR DUAL VARIABLES
     ############################################################################
     #TODO: Determine a norm of B (coefficient matrix of binary expansion)
     # We use the column sum norm here
@@ -842,24 +730,26 @@ function get_dual_variables_backward(
     # upper bound of all state variables as a bound
 
     B_norm_bound = 0
-    for (name, state_comp) in node.ext[:lin_states]
+    for (name, state_comp) in node.states
         if state_comp.info.in.upper_bound > B_norm_bound
             B_norm_bound = state_comp.info.in.upper_bound
         end
     end
-    dual_bound = algoParams.sigma[node_index] * B_norm_bound
+    dual_bound = algo_params.sigma[node_index] * B_norm_bound
 
-    @infiltrate algoParams.infiltrate_state in [:all, :inner, :lagrange] #|| node.ext[:linSubproblem].ext[:sddp_policy_graph].ext[:iteration] == 12
+    @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
+    #|| node.ext[:linSubproblem].ext[:sddp_policy_graph].ext[:iteration] == 12
+
     try
         # SOLUTION WITHOUT BOUNDED DUAL VARIABLES (BETTER TO OBTAIN BASIC SOLUTIONS)
         ########################################################################
-        if algoParams.lagrangian_method == :kelley
-            results = _kelley(node, node_index, solver_obj, dual_vars, integrality_handler, algoParams, appliedSolvers, nothing)
+        if algo_params.lagrangian_method == :kelley
+            results = _kelley(node, node_index, solver_obj, dual_vars, integrality_handler, algo_params, applied_solvers, nothing)
             lag_obj = results.lag_obj
             lag_iterations = results.iterations
             lag_status = results.lag_status
-        elseif algoParams.lagrangian_method == :bundle_level
-            results = _bundle_level(node, node_index, solver_obj, dual_vars, integrality_handler, algoParams, appliedSolvers, nothing)
+        elseif algo_params.lagrangian_method == :bundle_level
+            results = _bundle_level(node, node_index, solver_obj, dual_vars, integrality_handler, algo_params, applied_solvers, nothing)
             lag_obj = results.lag_obj
             lag_iterations = results.iterations
             lag_status = results.lag_status
@@ -867,7 +757,7 @@ function get_dual_variables_backward(
 
         # OPTIMAL VALUE CHECKS
         ########################################################################
-        if algoParams.lag_status_regime == :rigorous
+        if algo_params.lag_status_regime == :rigorous
             if lag_status == :conv
                 error("Lagrangian dual converged to value < solver_obj.")
             elseif lag_status == :sub
@@ -876,7 +766,7 @@ function get_dual_variables_backward(
                 error("Solving Lagrangian dual exceeded iteration limit.")
             end
 
-        elseif algoParams.lag_status_regime == :lax
+        elseif algo_params.lag_status_regime == :lax
             # all cuts will be used as they are valid even though not necessarily tight
         end
 
@@ -884,14 +774,14 @@ function get_dual_variables_backward(
         ########################################################################
         # if one of the dual variables exceeds the bounds (e.g. in case of an
         # discontinuous value function), use bounded version of Kelley's method
-        boundCheck = true
+        bound_check = true
         for dual_var in dual_vars
             if dual_var > dual_bound
-                boundCheck = false
+                bound_check = false
             end
         end
 
-        @infiltrate algoParams.infiltrate_state in [:all, :inner, :lagrange]
+        @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
     catch e
         SDDP.write_subproblem_to_file(node, "subproblem.mof.json", throw_error = false)
@@ -971,7 +861,6 @@ function calculate_bound(
                 root_state,
                 noise.term,
                 Tuple{T,Any}[(child.term, noise.term)],
-                require_duals = false,
             )
             push!(objectives, subproblem_results.objective)
             push!(probabilities, child.probability * noise.probability)
@@ -1004,30 +893,24 @@ function solve_first_stage_problem(
     state::Dict{Symbol,Float64},
     noise,
     scenario_path::Vector{Tuple{T,S}};
-    require_duals::Bool,
 ) where {T,S}
     #TODO: We can actually delete the duals part here
 
     # MODEL PARAMETRIZATION (-> LINEARIZED SUBPROBLEM!)
     ############################################################################
-    linearizedSubproblem = node.ext[:linSubproblem]
+    subproblem = node.subproblem
 
     # Parameterize the model. First, fix the value of the incoming state
     # variables. Then parameterize the model depending on `noise`. Finally,
     # set the objective.
-    set_incoming_lin_state(node, state)
-    parameterize_lin(node, noise)
+    set_incoming_state(node, state)
+    parameterize(node, noise)
 
-    # pre_optimize_ret = if node.pre_optimize_hook !== nothing
-    #     node.pre_optimize_hook(model, node, state, noise, scenario_path, require_duals)
-    # else
-    #     nothing
-    # end
+    #TODO: Use pre-optimization hook as in SDDP
 
     # SOLUTION
     ############################################################################
-    #set_optimizer(linearizedSubproblem, optimizer_with_attributes(Gurobi.Optimizer))
-    JuMP.optimize!(linearizedSubproblem)
+    JuMP.optimize!(subproblem)
 
     if haskey(model.ext, :total_solves)
         model.ext[:total_solves] += 1
@@ -1035,38 +918,24 @@ function solve_first_stage_problem(
         model.ext[:total_solves] = 1
     end
 
-    # if JuMP.primal_status(node.ext[:linSubproblem]) != JuMP.MOI.FEASIBLE_POINT
-    #     SDDP.attempt_numerical_recovery(node)
-    # end
+    # TODO: Attempt numerical recovery as in SDDP
 
     state = get_outgoing_state(node)
-    stage_objective = JuMP.value(node.ext[:lin_stage_objective])
-    #stage_objective_value(node.ext[:lin_stage_objective])
-    objective = JuMP.objective_value(node.ext[:linSubproblem])
+    stage_objective = JuMP.value(node.stage_objective)
+    objective = JuMP.objective_value(subproblem)
+    dual_values = get_dual_variables(node, node.integrality_handler)
 
-    # If require_duals = true, check for dual feasibility and return a dict with
-    # the dual on the fixed constraint associated with each incoming state
-    # variable. If require_duals=false, return an empty dictionary for
-    # type-stability.
-    dual_values = if require_duals
-        get_dual_variables(node, node.integrality_handler)
-    else
-        Dict{Symbol,Float64}()
-    end
-
-    # if node.post_optimize_hook !== nothing
-    #     node.post_optimize_hook(pre_optimize_ret)
-    # end
+    # TODO: Use post-optimization hook as in SDDP
 
     # DETERMINE THE PROBLEM SIZE
     ############################################################################
     problem_size = Dict{Symbol,Int64}()
-    problem_size[:total_var] = size(JuMP.all_variables(linearizedSubproblem),1)
-    problem_size[:bin_var] = JuMP.num_constraints(linearizedSubproblem, VariableRef, MOI.ZeroOne)
-    problem_size[:int_var] = JuMP.num_constraints(linearizedSubproblem, VariableRef, MOI.Integer)
-    problem_size[:total_con] = JuMP.num_constraints(linearizedSubproblem, GenericAffExpr{Float64,VariableRef}, MOI.LessThan{Float64})
-                                + JuMP.num_constraints(linearizedSubproblem, GenericAffExpr{Float64,VariableRef}, MOI.GreaterThan{Float64})
-                                + JuMP.num_constraints(linearizedSubproblem, GenericAffExpr{Float64,VariableRef}, MOI.EqualTo{Float64})
+    problem_size[:total_var] = size(JuMP.all_variables(subproblem),1)
+    problem_size[:bin_var] = JuMP.num_constraints(subproblem, VariableRef, MOI.ZeroOne)
+    problem_size[:int_var] = JuMP.num_constraints(subproblem, VariableRef, MOI.Integer)
+    problem_size[:total_con] = JuMP.num_constraints(subproblem, GenericAffExpr{Float64,VariableRef}, MOI.LessThan{Float64})
+                                + JuMP.num_constraints(subproblem, GenericAffExpr{Float64,VariableRef}, MOI.GreaterThan{Float64})
+                                + JuMP.num_constraints(subproblem, GenericAffExpr{Float64,VariableRef}, MOI.EqualTo{Float64})
 
     return (
         state = state,
@@ -1080,19 +949,16 @@ end
 
 """
 Executing a forward pass to check if parameter sigma is chosen sufficiently
-large in NC-NBD.
+large in DynamicSDDiP.
 """
-function inner_loop_forward_sigma_test(
+function forward_sigma_test(
     model::SDDP.PolicyGraph{T}, options::NCNBD.Options,
-    algoParams::NCNBD.AlgoParams, appliedSolvers::NCNBD.AppliedSolvers,
+    algo_params::DynamicSDDiP.AlgoParams, applied_solvers::DynamicSDDiP.AppliedSolvers,
     scenario_path::Vector{Tuple{T,S}}, ::SDDP.DefaultForwardPass,
     sigma_increased::Bool) where {T,S}
 
     # INITIALIZATION (NO SAMPLING HERE!)
     ############################################################################
-    # scenario path is given as an argument
-
-    #TODO: Has something here to be adapted such that it relates to the linearizedSubproblem?
     # Storage for the list of outgoing states that we visit on the forward pass.
     sampled_states = Dict{Symbol,Float64}[]
     # Storage for the belief states: partition index and the belief dictionary.
@@ -1108,7 +974,7 @@ function inner_loop_forward_sigma_test(
 
     # ACTUAL ITERATION
     ########################################################################
-    # Iterate down the scenario.
+    # Iterate down the scenario tree.
     for (depth, (node_index, noise)) in enumerate(scenario_path)
         node = model[node_index]
 
@@ -1142,13 +1008,13 @@ function inner_loop_forward_sigma_test(
         # ===== End: starting state for infinite horizon =====
 
         # Set optimizer to MILP optimizer
-        linearizedSubproblem = node.ext[:linSubproblem]
-        if appliedSolvers.MILP == "CPLEX"
-            set_optimizer(linearizedSubproblem, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>appliedSolvers.MILP, "optcr"=>0.0, "numericalemphasis"=>1))
-        elseif appliedSolvers.MILP == "Gurobi"
-            set_optimizer(linearizedSubproblem, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>appliedSolvers.MILP, "optcr"=>0.0, "NumericFocus"=>1))
+        subproblem = node.subproblem
+        if applied_solvers.MILP == "CPLEX"
+            set_optimizer(subproblem, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.MILP, "optcr"=>0.0, "numericalemphasis"=>1))
+        elseif applied_solvers.MILP == "Gurobi"
+            set_optimizer(subproblem, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.MILP, "optcr"=>0.0, "NumericFocus"=>1))
         else
-            set_optimizer(linearizedSubproblem, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>appliedSolvers.MILP, "optcr"=>0.0))
+            set_optimizer(subproblem, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.MILP, "optcr"=>0.0))
         end
 
         # SOLVE REGULARIZED PROBLEM
@@ -1159,17 +1025,16 @@ function inner_loop_forward_sigma_test(
         # all stages, but only where it is needed
 
         # Solve the subproblem, note that `require_duals = false`.
-        TimerOutputs.@timeit NCNBD_TIMER "solve_sigma_test_reg" begin
-            reg_results = solve_subproblem_forward_inner(
+        TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_sigma_test_reg" begin
+            reg_results = solve_subproblem_forward(
                 model,
                 node,
                 node_index,
                 incoming_state_value, # only values, no State struct!
                 noise,
                 scenario_path[1:depth],
-                algoParams.sigma[node_index],
-                algoParams.infiltrate_state,
-                require_duals = false,
+                algo_params.sigma[node_index],
+                algo_params.infiltrate_state,
             )
         end
 
@@ -1178,16 +1043,15 @@ function inner_loop_forward_sigma_test(
         # SOLVE NON-REGULARIZED PROBLEM
         ########################################################################
         # Solve the subproblem, note that `require_duals = false`.
-        TimerOutputs.@timeit NCNBD_TIMER "solve_sigma_test" begin
+        TimerOutputs.@timeit DynamicSDDiP "solve_sigma_test" begin
             non_reg_results = solve_subproblem_sigma_test(
                 model,
                 node,
                 incoming_state_value, # only values, no State struct!
                 noise,
                 scenario_path[1:depth],
-                algoParams.sigma[node_index],
-                algoParams.infiltrate_state,
-                require_duals = false,
+                algo_params.sigma[node_index],
+                algo_params.infiltrate_state,
             )
         end
 
@@ -1196,7 +1060,7 @@ function inner_loop_forward_sigma_test(
         if !isapprox(reg_results.objective, non_reg_results.objective)
             # if stage objectives are not approximately equal, then the
             # regularization is not exact and sigma should be increased
-            algoParams.sigma[node_index] = algoParams.sigma[node_index] * algoParams.sigma_factor
+            algo_params.sigma[node_index] = algo_params.sigma[node_index] * algo_params.sigma_factor
             # marker if new inner loop iteration should be started
             # instead of heading to outer loop
             sigma_increased = true
@@ -1214,22 +1078,6 @@ function inner_loop_forward_sigma_test(
         push!(sampled_states, incoming_state_value)
 
     end
-    # if terminated_due_to_cycle
-    #     # Get the last node in the scenario.
-    #     final_node_index = scenario_path[end][1]
-    #     # We terminated due to a cycle. Here is the list of possible starting
-    #     # states for that node:
-    #     starting_states = options.starting_states[final_node_index]
-    #     # We also need the incoming state variable to the final node, which is
-    #     # the outgoing state value of the last node:
-    #     incoming_state_value = sampled_states[end]
-    #     # If this incoming state value is more than δ away from another state,
-    #     # add it to the list.
-    #     if distance(starting_states, incoming_state_value) >
-    #        options.cycle_discretization_delta
-    #         push!(starting_states, incoming_state_value)
-    #     end
-    # end
 
     # ===== End: drop off starting state if terminated due to cycle =====
     return (
@@ -1254,29 +1102,24 @@ function solve_subproblem_sigma_test(
     scenario_path::Vector{Tuple{T,S}},
     sigma::Float64,
     infiltrate_state::Symbol;
-    require_duals::Bool,
 ) where {T,S}
     #TODO: We can actually delete the duals part here
 
-    # MODEL PARAMETRIZATION (-> LINEARIZED SUBPROBLEM!)
+    # MODEL PARAMETRIZATION
     ############################################################################
-    linearizedSubproblem = node.ext[:linSubproblem]
+    subproblem = node.subproblem
 
     # Parameterize the model. First, fix the value of the incoming state
     # variables. Then parameterize the model depending on `noise`. Finally,
     # set the objective.
-    set_incoming_lin_state(node, state)
-    parameterize_lin(node, noise)
+    set_incoming_state(node, state)
+    parameterize(node, noise)
 
-    # pre_optimize_ret = if node.pre_optimize_hook !== nothing
-    #     node.pre_optimize_hook(model, node, state, noise, scenario_path, require_duals)
-    # else
-    #     nothing
-    # end
+    # TODO: Use post-optimization hook as in SDDP
 
     # SOLUTION
     ############################################################################
-    JuMP.optimize!(linearizedSubproblem)
+    JuMP.optimize!(subproblem)
 
     if haskey(model.ext, :total_solves)
         model.ext[:total_solves] += 1
@@ -1284,45 +1127,15 @@ function solve_subproblem_sigma_test(
         model.ext[:total_solves] = 1
     end
 
-    # if JuMP.primal_status(node.ext[:linSubproblem]) != JuMP.MOI.FEASIBLE_POINT
-    #     SDDP.attempt_numerical_recovery(node)
-    # end
+    # TODO: Attempt numeric recovery as in SDDP
 
     state = get_outgoing_state(node)
-    objective = JuMP.objective_value(node.ext[:linSubproblem])
-    stage_objective = objective - JuMP.value(bellman_term(node.ext[:lin_bellman_function])) #JuMP.value(node.ext[:lin_stage_objective])
+    objective = JuMP.objective_value(subproblem)
+    stage_objective = objective - JuMP.value(bellman_term(node.bellman_function))
 
-    #@infiltrate model.ext[:iteration] == 14
+    dual_values = Dict{Symbol,Float64}()
 
-    # If require_duals = true, check for dual feasibility and return a dict with
-    # the dual on the fixed constraint associated with each incoming state
-    # variable. If require_duals=false, return an empty dictionary for
-    # type-stability.
-    dual_values = if require_duals
-        get_dual_variables(node, node.integrality_handler)
-    else
-        Dict{Symbol,Float64}()
-    end
-
-    # if node.post_optimize_hook !== nothing
-    #     node.post_optimize_hook(pre_optimize_ret)
-    # end
-
-    # STORE RESULTS FOR NL-CONSTRAINT VARIABLES FOR PLA REFINEMENT
-    ############################################################################
-    number_of_nonlinearities = size(node.ext[:nlFunctions], 1)
-
-    for i = 1:number_of_nonlinearities
-        nlFunction = node.ext[:nlFunctions][i]
-        dimension = size(nlFunction.variablesContained, 1)
-
-        nlFunction.ext[:optSolution] = Dict{JuMP.VariableRef, Float64}()
-
-        for j = 1:dimension
-            variableReference = nlFunction.variablesContained[j]
-            nlFunction.ext[:optSolution][variableReference] = JuMP.value(variableReference)
-        end
-    end
+    # TODO: Use post-optimization hook as in SDDP
 
     return (
         state = state,

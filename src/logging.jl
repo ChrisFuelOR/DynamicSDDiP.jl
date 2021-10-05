@@ -123,8 +123,7 @@ end
 
 struct Results
     status::Symbol
-    log_inner::Vector{Log}
-    log_outer::Vector{Log}
+    log::Vector{Log}
 end
 
 function print_helper(f, io, args...)

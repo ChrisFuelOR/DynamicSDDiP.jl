@@ -15,14 +15,15 @@
 ################################################################################
 
 """
-Solves the `model`. In contrast to SDDP.jl, here in algoParams (and initialAlgoParams)
-DynamicSDDiP specific parameters are given to the function.
+Solves the `model`. In contrast to SDDP.jl, here in algoParams specific parameters
+configuring the solution procedure are given to the function.
 """
 function solve(
     model::SDDP.PolicyGraph,
-    algoParams::DynamicSDDiP.AlgoParams,
-    initialAlgoParams::DynamicSDDiP.InitialAlgoParams,
-    appliedSolvers::DynamicSDDiP.AppliedSolvers;
+    algo_params::DynamicSDDiP.AlgoParams,
+    initial_algo_params::DynamicSDDiP.InitialAlgoParams,
+    applied_solvers::DynamicSDDiP.AppliedSolvers;
+    ############################################################################
     iteration_limit::Union{Int,Nothing} = nothing,
     time_limit::Union{Real,Nothing} = nothing,
     print_level::Int = 1,
@@ -44,7 +45,7 @@ function solve(
 
     # INITIALIZATION (AS IN SDDP)
     ############################################################################
-    # Reset the TimerOutput.
+    # Reset the TimerOutput and define logging-specific variables
     TimerOutputs.reset_timer!(DynamicSDDiP_TIMER)
     log_file_handle = open(log_file, "a")
     log = Log[]
@@ -54,19 +55,10 @@ function solve(
     end
 
     if print_level > 1
-        print_helper(print_parameters, log_file_handle, initialAlgoParams, appliedSolvers)
+        print_helper(print_parameters, log_file_handle, initial_algo_params, appliedSolvers)
     end
 
-    # if run_numerical_stability_report
-    #     report =
-    #         sprint(io -> SDDP.numerical_stability_report(io, model, print = print_level > 0))
-    #     print_helper(print, log_file_handle, report)
-    # end
-
-    # if print_level > 0
-    #     print_helper(io -> println(io, "Solver: ", parallel_scheme, "\n"), log_file_handle)
-    #     print_helper(print_iteration_header, log_file_handle)
-    # end
+    # TODO: Add run_numerical_stability_report as in SDDP?
 
     # Convert the vector to an AbstractStoppingRule. Otherwise if the user gives
     # something like stopping_rules = [SDDP.IterationLimit(100)], the vector
@@ -101,17 +93,13 @@ function solve(
         end
     end
 
-    # Perform relaxations required by integrality_handler
-    # binaries, integers =
-    #    relax_integrality(model, last(first(model.nodes)).integrality_handler)
-
     dashboard_callback = if dashboard
         launch_dashboard()
     else
         (::Any, ::Any) -> nothing
     end
 
-    sddpOptions = Options(
+    SDDP_options = DynamicSDDiP.Options(
         model,
         model.initial_root_state,
         sampling_scheme,
@@ -133,7 +121,7 @@ function solve(
     ############################################################################
     status = :not_solved
     try
-        status = solve_DynamicSDDiP(parallel_scheme, model, sddpOptions, algoParams, initialAlgoParams, appliedSolvers)
+        status = solve_DynamicSDDiP(parallel_scheme, model, sddp_options, algo_params, initial_algo_params, applied_solvers)
     catch ex
         if isa(ex, InterruptException)
             status = :interrupted
@@ -143,19 +131,16 @@ function solve(
             rethrow(ex)
         end
     finally
-        # # Remember to reset any relaxed integralities.
-        # enforce_integrality(binaries, integers)
-        # # And close the dashboard callback if necessary.
-        # dashboard_callback(nothing, true)
     end
-    results = Results(status, log_inner, log_outer)
+
+    # lOG MODEL RESULTS
+    ############################################################################
+    results = DynamicSDDiP.Results(status, log)
     model.ext[:results] = results
     if print_level > 0
         print_helper(print_footer, log_file_handle, results)
         if print_level > 1
             print_helper(TimerOutputs.print_timer, log_file_handle, DynamicSDDiP_TIMER)
-            # Annoyingly, TimerOutputs doesn't end the print section with `\n`,
-            # so we do it here.
             print_helper(println, log_file_handle)
         end
     end
@@ -168,9 +153,9 @@ Solves the `model` using DynamicSDDiP in a serial scheme.
 """
 
 function solve_DynamicSDDiP(parallel_scheme::SDDP.Serial, model::SDDP.PolicyGraph{T},
-    options::DynamicSDDiP.Options, algoParams::DynamicSDDiP.AlgoParams,
-    initialAlgoParams::DynamicSDDiP.InitialAlgoParams,
-    appliedSolvers::DynamicSDDiP.AppliedSolvers) where {T}
+    options::DynamicSDDiP.Options, algo_params::DynamicSDDiP.AlgoParams,
+    initial_algo_params::DynamicSDDiP.InitialAlgoParams,
+    applied_solvers::DynamicSDDiP.AppliedSolvers) where {T}
 
     # SET UP SOME STUFF
     ############################################################################
@@ -210,15 +195,14 @@ function solve_DynamicSDDiP(parallel_scheme::SDDP.Serial, model::SDDP.PolicyGrap
         for oracle in node.bellman_function.local_thetas
             oracle.cut_oracle.deletion_minimum = deletion_minimum
         end
-
     end
 
-    @infiltrate algoParams.infiltrate_state == :all
+    @infiltrate algo_params.infiltrate_state == :all
 
     # CALL ACTUAL SOLUTION PROCEDURE
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "loop" begin
-        status = master_loop(parallel_scheme, model, options, algoParams, appliedSolvers)
+        status = master_loop(parallel_scheme, model, options, algo_params, applied_solvers)
     end
     return status
 
@@ -230,13 +214,13 @@ Loop function of DynamicSDDiP.
 """
 
 function master_loop(parallel_scheme::SDDP.Serial, model::SDDP.PolicyGraph{T},
-    options::DynamicSDDiP.Options, algoParams::DynamicSDDiP.AlgoParams,
-    appliedSolvers::DynamicSDDiP.AppliedSolvers) where {T}
+    options::DynamicSDDiP.Options, algo_params::DynamicSDDiP.AlgoParams,
+    applied_solvers::DynamicSDDiP.AppliedSolvers) where {T}
 
-    previousSolution = nothing
-    previousBound = nothing
+    previous_solution = nothing
+    previous_bound = nothing
     sigma_increased = false
-    boundCheck = false
+    bound_check = false
 
     # INITIALIZE BEST KNOWN POINT AND OBJECTIVE VALUE
     ############################################################################
@@ -248,7 +232,7 @@ function master_loop(parallel_scheme::SDDP.Serial, model::SDDP.PolicyGraph{T},
     while true
         # start an iteration
         TimerOutputs.@timeit DynamicSDDiP_TIMER "iterations" begin
-            result = iteration(model, options, algoParams, appliedSolvers, previousSolution, boundCheck, sigma_increased)
+            result = iteration(model, options, algo_params, applied_solvers, previous_solution, bound_check, sigma_increased)
         end
 
         # logging
@@ -258,32 +242,28 @@ function master_loop(parallel_scheme::SDDP.Serial, model::SDDP.PolicyGraph{T},
         sigma_increased = false
 
         # initialize boundCheck
-        boundCheck = true
-        @infiltrate algoParams.infiltrate_state in [:all, :sigma]
+        bound_check = true
+        @infiltrate algo_params.infiltrate_state in [:all, :sigma]
 
         # IF CONVERGENCE IS ACHIEVED, CHECK IF ACTUAL OR ONLY REGULARIZED PROBLEM IS SOLVED
         ########################################################################
         if result.has_converged
-
             TimerOutputs.@timeit DynamicSDDiP_TIMER "sigma_test" begin
-                sigma_test_results = forward_sigma_test(model, options, algoParams, appliedSolvers, result.scenario_path, options.forward_pass, sigma_increased)
+                sigma_test_results = forward_sigma_test(model, options, algo_params, applied_solvers, result.scenario_path, options.forward_pass, sigma_increased)
             end
             sigma_increased = sigma_test_results.sigma_increased
 
-            @infiltrate algoParams.infiltrate_state in [:all, :sigma, :outer] #|| model.ext[:iteration] == 14
+            @infiltrate algoParams.infiltrate_state in [:all, :sigma]
 
             if !sigma_increased
-                # return all results here
                 # TODO: return result or sigma_test_results, i.e. upper bound and solution from sigma test?
-
-                # return status
                 return result.status
 
             else
                 # reset previous values
-                previousSolution = nothing
-                previousBound = nothing
-                boundCheck = false # only refine bin. approx if sigma is not refined
+                previous_solution = nothing
+                previous_bound = nothing
+                bound_check = false # only refine bin. approx if sigma is not refined
             end
 
         # IF NO CONVERGENCE IS ACHIEVED, DO DIFFERENT CHECKS
@@ -295,30 +275,30 @@ function master_loop(parallel_scheme::SDDP.Serial, model::SDDP.PolicyGraph{T},
             # so binary approximation should be refined in the next iteration
             # NOTE: This could also happen in other situations, e.g., if different trial solutions give
             # the same lower bound. However, this is hard to rule out.
-            if !isnothing(previousBound)
-                if ! isapprox(previousBound, result.lower_bound)
-                    boundCheck = false
+            if !isnothing(previous_bound)
+                if !isapprox(previous_bound, result.lower_bound)
+                    bound_check = false
                 end
             else
-                boundCheck = false
+                bound_check = false
             end
 
             # CHECK IF SIGMA SHOULD BE INCREASED (DUE TO LB > UB)
             ############################################################################
-            if result.upper_bound - result.lower_bound < - algoParams.epsilon * 0.1
+            if result.upper_bound - result.lower_bound < - algo_params.opt_atol * 0.1
                 # increase sigma
-                algoParams.sigma = algoParams.sigma * algoParams.sigma_factor
+                algo_params.sigma = algo_params.sigma * algo_params.sigma_factor
                 sigma_increased = true
-                previousSolution = nothing
-                previousBound = nothing
-                boundCheck = false # only refine bin. approx if sigma is not refined
+                previous_solution = nothing
+                previous_bound = nothing
+                bound_check = false # only refine bin. approx if sigma is not refined
             else
                 sigma_increased = false
             end
 
         end
 
-        previousSolution = result.current_sol
-        previousBound = result.lower_bound
+        previous_solution = result.current_sol
+        previous_bound = result.lower_bound
     end
 end
