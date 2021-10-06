@@ -15,7 +15,7 @@
 ################################################################################
 
 """
-Solves the `model`. In contrast to SDDP.jl, here in algoParams specific parameters
+Solves the `model`. In contrast to SDDP.jl, here in algo_params specific parameters
 configuring the solution procedure are given to the function.
 """
 function solve(
@@ -55,7 +55,7 @@ function solve(
     end
 
     if print_level > 1
-        print_helper(print_parameters, log_file_handle, initial_algo_params, appliedSolvers)
+        print_helper(print_parameters, log_file_handle, initial_algo_params, applied_solvers)
     end
 
     # TODO: Add run_numerical_stability_report as in SDDP?
@@ -253,7 +253,7 @@ function master_loop(parallel_scheme::SDDP.Serial, model::SDDP.PolicyGraph{T},
             end
             sigma_increased = sigma_test_results.sigma_increased
 
-            @infiltrate algoParams.infiltrate_state in [:all, :sigma]
+            @infiltrate algo_params.infiltrate_state in [:all, :sigma]
 
             if !sigma_increased
                 # TODO: return result or sigma_test_results, i.e. upper bound and solution from sigma test?

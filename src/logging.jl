@@ -142,7 +142,7 @@ function print_banner(io)
     flush(io)
 end
 
-function print_parameters(io, initialAlgoParams::NCNBD.InitialAlgoParams, appliedSolvers::NCNBD.AppliedSolvers)
+function print_parameters(io, initialAlgoParams::NCNBD.InitialAlgoParams, applied_solvers::NCNBD.AppliedSolvers)
 
     # Printing the time
     println(io, Dates.now())
@@ -180,11 +180,11 @@ function print_parameters(io, initialAlgoParams::NCNBD.InitialAlgoParams, applie
     println(io, initialAlgoParams.outer_loop_strategy)
 
     println(io, "Used solvers:")
-    println(io, "LP:", appliedSolvers.LP)
-    println(io, "MILP:", appliedSolvers.MILP)
-    println(io, "MINLP:", appliedSolvers.MINLP)
-    println(io, "NLP:", appliedSolvers.NLP)
-    println(io, "Lagrange:", appliedSolvers.Lagrange)
+    println(io, "LP:", applied_solvers.LP)
+    println(io, "MILP:", applied_solvers.MILP)
+    println(io, "MINLP:", applied_solvers.MINLP)
+    println(io, "NLP:", applied_solvers.NLP)
+    println(io, "Lagrange:", applied_solvers.Lagrange)
 
     # println(io, "Sigma factor:")
     # println(io, initialAlgoParams.sigma_factor)
@@ -310,7 +310,7 @@ Write the log of the most recent training to a csv for post-analysis.
 
 Assumes that the model has been trained via [`NCNBD.solve`](@ref).
 """
-function write_log_to_csv(model::SDDP.PolicyGraph, filename::String, algoParams::NCNBD.AlgoParams)
+function write_log_to_csv(model::SDDP.PolicyGraph, filename::String, algo_params::NCNBD.AlgoParams)
     if model.ext[:results] === nothing
         error("Unable to write the log to file because the model has not been solved yet.")
     end
@@ -327,7 +327,7 @@ function write_log_to_csv(model::SDDP.PolicyGraph, filename::String, algoParams:
                     #println(io, "binary precision: " )
                     # should be the same for all nodes
                     #for (name, state) in model.nodes[1].ext[:lin_states]
-                    #    println(io, "state: ", string(name), " ", algoParams.binaryPrecision[name])
+                    #    println(io, "state: ", string(name), " ", algo_params.binaryPrecision[name])
                     #end
                     #println(io)
                     #println(io, "sigma: " )

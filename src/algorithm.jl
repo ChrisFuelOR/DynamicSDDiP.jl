@@ -68,7 +68,7 @@ function iteration(
     end
     bound_check = true
 
-    @infiltrate algoParams.infiltrate_state in [:all]
+    @infiltrate algo_params.infiltrate_state in [:all]
 
     # BACKWARD PASS
     ############################################################################
@@ -169,7 +169,7 @@ end
 Executing the forward pass of an inner loop iteration for DynamicSDDiP.
 """
 function forward_pass(model::SDDP.PolicyGraph{T}, options::DynamicSDDiP.Options,
-    algoParams::DynamicSDDiP.AlgoParams, appliedSolvers::DynamicSDDiP.AppliedSolvers,
+    algo_params::DynamicSDDiP.AlgoParams, applied_solvers::DynamicSDDiP.AppliedSolvers,
     ::SDDP.DefaultForwardPass) where {T}
 
     # SAMPLING AND INITIALIZATION (JUST LIKE IN SDDP)
@@ -436,7 +436,7 @@ function backward_pass(
                 anchor_points[name] = approx_state_value
             end
 
-            @infiltrate algoParams.infiltrate_state in [:all, :inner]
+            @infiltrate algo_params.infiltrate_state in [:all, :inner]
 
             # REFINE BELLMAN FUNCTION BY ADDING CUTS
             ####################################################################

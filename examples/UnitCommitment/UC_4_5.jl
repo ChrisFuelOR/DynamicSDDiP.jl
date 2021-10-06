@@ -148,7 +148,7 @@ function unitCommitment_with_parameters(;
 
     # DEFINE SOLVERS
     ############################################################################
-    appliedSolvers = NCNBD.AppliedSolvers(solvers[1], solvers[2], solvers[3], solvers[4], solvers[5])
+    applied_solvers = NCNBD.AppliedSolvers(solvers[1], solvers[2], solvers[3], solvers[4], solvers[5])
 
     # DEFINE INITIAL APPROXIMATIONS
     ############################################################################
@@ -187,7 +187,7 @@ function unitCommitment_with_parameters(;
 
     # SOLVE MODEL
     ############################################################################
-    NCNBD.solve(model, algoParameters, initialAlgoParameters, appliedSolvers,
+    NCNBD.solve(model, algoParameters, initialAlgoParameters, applied_solvers,
                 iteration_limit = iteration_limit, print_level = 2,
                 time_limit = time_limit, stopping_rules = [NCNBD.DeterministicStopping()],
                 log_file = "C:/Users/cg4102/Documents/julia_logs/UC_4_5_f.log")
