@@ -21,7 +21,6 @@ configuring the solution procedure are given to the function.
 function solve(
     model::SDDP.PolicyGraph,
     algo_params::DynamicSDDiP.AlgoParams,
-    initial_algo_params::DynamicSDDiP.InitialAlgoParams,
     applied_solvers::DynamicSDDiP.AppliedSolvers;
     ############################################################################
     iteration_limit::Union{Int,Nothing} = nothing,
@@ -55,7 +54,7 @@ function solve(
     end
 
     if print_level > 1
-        print_helper(print_parameters, log_file_handle, initial_algo_params, applied_solvers)
+        print_helper(print_parameters, log_file_handle, algo_params, applied_solvers)
     end
 
     # TODO: Add run_numerical_stability_report as in SDDP?
@@ -121,7 +120,7 @@ function solve(
     ############################################################################
     status = :not_solved
     try
-        status = solve_DynamicSDDiP(parallel_scheme, model, sddp_options, algo_params, initial_algo_params, applied_solvers)
+        status = solve_DynamicSDDiP(parallel_scheme, model, sddp_options, algo_params, applied_solvers)
     catch ex
         if isa(ex, InterruptException)
             status = :interrupted
@@ -154,7 +153,6 @@ Solves the `model` using DynamicSDDiP in a serial scheme.
 
 function solve_DynamicSDDiP(parallel_scheme::SDDP.Serial, model::SDDP.PolicyGraph{T},
     options::DynamicSDDiP.Options, algo_params::DynamicSDDiP.AlgoParams,
-    initial_algo_params::DynamicSDDiP.InitialAlgoParams,
     applied_solvers::DynamicSDDiP.AppliedSolvers) where {T}
 
     # SET UP SOME STUFF
@@ -163,7 +161,6 @@ function solve_DynamicSDDiP(parallel_scheme::SDDP.Serial, model::SDDP.PolicyGrap
         node = model.nodes[node_index]
 
         # Set info for x_in (taking bounds, binary, integer info from previous stage's x_out)
-        # TODO: Why exactly is this required?
         #-----------------------------------------------------------------------
         if node_index > 1
             for (i, (name, state)) in enumerate(node.states)
@@ -217,6 +214,8 @@ function master_loop(parallel_scheme::SDDP.Serial, model::SDDP.PolicyGraph{T},
     options::DynamicSDDiP.Options, algo_params::DynamicSDDiP.AlgoParams,
     applied_solvers::DynamicSDDiP.AppliedSolvers) where {T}
 
+    # INITIALIZE PARAMETERS REQUIRED FOR REFINEMENTS
+    ############################################################################
     previous_solution = nothing
     previous_bound = nothing
     sigma_increased = false
@@ -235,13 +234,17 @@ function master_loop(parallel_scheme::SDDP.Serial, model::SDDP.PolicyGraph{T},
             result = iteration(model, options, algo_params, applied_solvers, previous_solution, bound_check, sigma_increased)
         end
 
+        # set previous_solution and previous_bound using iteration results
+        previous_solution = result.current_sol
+        previous_bound = result.lower_bound
+
         # logging
         log_iteration(options, options.log)
 
         # initialize sigma_increased
         sigma_increased = false
 
-        # initialize boundCheck
+        # initialize bound_check
         bound_check = true
         @infiltrate algo_params.infiltrate_state in [:all, :sigma]
 
@@ -252,18 +255,17 @@ function master_loop(parallel_scheme::SDDP.Serial, model::SDDP.PolicyGraph{T},
                 sigma_test_results = forward_sigma_test(model, options, algo_params, applied_solvers, result.scenario_path, options.forward_pass, sigma_increased)
             end
             sigma_increased = sigma_test_results.sigma_increased
-
             @infiltrate algo_params.infiltrate_state in [:all, :sigma]
 
-            if !sigma_increased
-                # TODO: return result or sigma_test_results, i.e. upper bound and solution from sigma test?
-                return result.status
-
-            else
-                # reset previous values
+            if sigma_increased
+                # reset previous values, as model is changed and convergence not achieved
                 previous_solution = nothing
                 previous_bound = nothing
-                bound_check = false # only refine bin. approx if sigma is not refined
+                # binary refinement only when no sigma refinement has been made
+                bound_check = false
+            else
+                # return convergence status
+                return result.status
             end
 
         # IF NO CONVERGENCE IS ACHIEVED, DO DIFFERENT CHECKS
@@ -271,10 +273,10 @@ function master_loop(parallel_scheme::SDDP.Serial, model::SDDP.PolicyGraph{T},
         else
             # CHECK IF LOWER BOUND HAS IMPROVED
             ############################################################################
-            # If not, then the cut was (probably) not tight enough,
-            # so binary approximation should be refined in the next iteration
-            # NOTE: This could also happen in other situations, e.g., if different trial solutions give
-            # the same lower bound. However, this is hard to rule out.
+            # NOTE: If not, then the cut was (probably) not tight enough,
+            # so the binary approximation should be refined in the next iteration.
+            # As different trial states could yield the same lower bound, this
+            # is only done if also the trial state does not change, though.
             if !isnothing(previous_bound)
                 if !isapprox(previous_bound, result.lower_bound)
                     bound_check = false
@@ -286,19 +288,15 @@ function master_loop(parallel_scheme::SDDP.Serial, model::SDDP.PolicyGraph{T},
             # CHECK IF SIGMA SHOULD BE INCREASED (DUE TO LB > UB)
             ############################################################################
             if result.upper_bound - result.lower_bound < - algo_params.opt_atol * 0.1
-                # increase sigma
                 algo_params.sigma = algo_params.sigma * algo_params.sigma_factor
                 sigma_increased = true
                 previous_solution = nothing
                 previous_bound = nothing
-                bound_check = false # only refine bin. approx if sigma is not refined
+                bound_check = false
             else
                 sigma_increased = false
             end
 
         end
-
-        previous_solution = result.current_sol
-        previous_bound = result.lower_bound
     end
 end
