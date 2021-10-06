@@ -59,41 +59,6 @@ mutable struct AlgoParams
     infiltrate_state :: Symbol
 end
 
-# Struct for initial algorithmic parameters that remain fixed and characterize a model run
-struct InitialAlgoParams
-    # optimality tolerances for the MILP
-    ############################################################################
-    opt_rtol :: Float64
-    opt_atol :: Float64
-    # binary approximation parameters
-    ############################################################################
-    binary_approx :: Bool
-    binary_precision :: Dict{Symbol, Float64} #TODO: so far, same for all stages
-    # regularization parameters
-    ############################################################################
-    regularization :: Bool
-    sigma :: Vector{Float64}
-    sigma_factor :: Float64
-    # lagrangian dual specific parameters
-    ############################################################################
-    lagrangian_atol :: Float64
-    lagrangian_rtol :: Float64
-    lagrangian_iteration_limit :: Int
-    dual_initialization_method :: Symbol
-    dual_solution_method :: Symbol
-    dual_status_regime :: Symbol
-    magnanti_wong :: Bool
-    bundle_params :: Union{Nothing,DynamicSDDiP.BundleParams}
-    #TODO: BOUNDING ETC., SIEHE JAKOB
-    # nonlinear cut parameters
-    ############################################################################
-    cut_projection_method :: Symbol
-    cut_selection :: Bool
-    # debugging parameter
-    ############################################################################
-    infiltrate_state :: Symbol
-end
-
 # struct for solvers to be used
 # TODO: Should this be mutable?
 struct AppliedSolvers
