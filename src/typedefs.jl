@@ -33,7 +33,8 @@ mutable struct AlgoParams
     # binary approximation parameters
     ############################################################################
     binary_approx :: Bool
-    binary_precision :: Dict{Symbol, Float64} #TODO: so far, same for all stages
+    #NOTE: so far, binary precision is the same for all stages
+    binary_precision :: Dict{Symbol, Float64}
     # regularization parameters
     ############################################################################
     regularization :: Bool
@@ -49,7 +50,6 @@ mutable struct AlgoParams
     dual_status_regime :: Symbol
     magnanti_wong :: Bool
     bundle_params :: Union{Nothing,DynamicSDDiP.BundleParams}
-    #TODO: BOUNDING ETC., SIEHE JAKOB
     # nonlinear cut parameters
     ############################################################################
     cut_projection_method :: Symbol
@@ -60,7 +60,6 @@ mutable struct AlgoParams
 end
 
 # struct for solvers to be used
-# TODO: Should this be mutable?
 struct AppliedSolvers
     LP :: Any
     MILP :: Any
@@ -76,7 +75,7 @@ mutable struct NonlinearCut
     coefficients::Dict{Symbol,Float64} # optimal dual variables in binary space
     # cut construction point
     ############################################################################
-    # TODO: not sure if all of these have to be stored (anchor_state can be
+    # NOTE: not sure if all of these have to be stored (anchor_state can be
     # determined from other information for example)
     trial_state::Dict{Symbol,Float64} # trial point at which cut should have been created
     anchor_state::Dict{Symbol,Float64} # anchor point at which this cut was created
@@ -108,9 +107,9 @@ mutable struct IterationResult{T,S}
     current_sol :: Array{Dict{Symbol,Float64},1} # current state (also required for binary refinement)
     scenario_path :: Vector{Tuple{T,S}}
     has_converged :: Bool
-    status :: Symbol # solution status (i.e. number of iterations) # TODO
-    nonlinear_cuts :: Dict{T, Vector{Any}} # TODO: Do we really need this?
-    # only required for logging, binary expansion
+    status :: Symbol # solution status (i.e. number of iterations)
+    nonlinear_cuts :: Dict{T, Vector{Any}}
+    # NOTE: only required for logging, binary expansion
     # however, then also binary precision / K should be stored for interpretability
 end
 
@@ -126,7 +125,7 @@ struct BackwardPassItems{T,U}
     bin_state::Vector{Dict{Symbol,BinaryState}}
     lag_iterations::Vector{Int}
     lag_status::Vector{Symbol}
-    #TODO: We could also store sigma and binary precision here possibly
+
     function BackwardPassItems(T, U)
         return new{T,U}(
             Dict{Tuple{T,Any},Int}(),

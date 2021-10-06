@@ -57,7 +57,7 @@ function solve(
         print_helper(print_parameters, log_file_handle, algo_params, applied_solvers)
     end
 
-    # TODO: Add run_numerical_stability_report as in SDDP?
+    # NOTE: Add run_numerical_stability_report as in SDDP?
 
     # Convert the vector to an AbstractStoppingRule. Otherwise if the user gives
     # something like stopping_rules = [SDDP.IterationLimit(100)], the vector

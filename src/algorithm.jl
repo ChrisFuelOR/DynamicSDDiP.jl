@@ -52,22 +52,21 @@ function iteration(
 
     # BINARY REFINEMENT
     ############################################################################
-    # If the forward pass solution did not change during the last iteration, then
-    # increase the binary precision (for all stages)
+    # If the forward pass solution and the lower bound did not change during
+    # the last iteration, then increase the binary precision (for all stages)
     solution_check = true
     binary_refinement = :none
 
     if !isnothing(previousSolution)
         TimerOutputs.@timeit DynamicSDDiP_TIMER "bin_refinement" begin
             solution_check = DynamicSDDiP.binary_refinement_check(model, previous_solution, forward_trajectory.sampled_states, solution_check)
-            if solution_check || bound_check
+            if solution_check && bound_check
                 # Increase binary precision such that K = K + 1
                 binary_refinement = DynamicSDDiP.binary_refinement(model, algo_params, binary_refinement)
             end
         end
     end
     bound_check = true
-
     @infiltrate algo_params.infiltrate_state in [:all]
 
     # BACKWARD PASS
@@ -138,7 +137,7 @@ function iteration(
              sigma_increased,
              binary_refinement,
              subproblem_size,
-             algo_params.opt_atol,
+             algo_params,
              model.ext[:lag_iterations],
              model.ext[:lag_status],
              model.ext[:total_cuts],
@@ -153,7 +152,6 @@ function iteration(
     @infiltrate algo_params.infiltrate_state in [:all]
 
     return DynamicSDDiP.IterationResult(
-        #Distributed.myid(),
         bound,
         model.ext[:best_objective],
         model.ext[:best_point],
@@ -314,7 +312,6 @@ function solve_subproblem_forward(
     sigma::Float64,
     infiltrate_state::Symbol;
 ) where {T,S}
-    #TODO: We can actually delete the duals part here
 
     subproblem = node.subproblem
 
@@ -326,7 +323,7 @@ function solve_subproblem_forward(
     set_incoming_state(node, state)
     parameterize(node, noise)
 
-    # TODO: Maybe use pre-optimization hook as in SDDP
+    # NOTE: Maybe use pre-optimization hook as in SDDP
 
     # REGULARIZE SUBPROBLEM
     ############################################################################
@@ -346,14 +343,14 @@ function solve_subproblem_forward(
         model.ext[:total_solves] = 1
     end
 
-    # TODO: Attempt numerical recovery as in SDDP
+    # NOTE: Attempt numerical recovery as in SDDP
 
     state = get_outgoing_state(node)
     objective = JuMP.objective_value(subproblem)
     stage_objective = objective - JuMP.value(bellman_term(node.bellman_function))
     @infiltrate infiltrate_state in [:all]
 
-    # TODO: Maybe use post-optimization hook as in SDDP
+    # NOTE: Maybe use post-optimization hook as in SDDP
 
     # DE-REGULARIZE SUBPROBLEM
     ############################################################################
@@ -394,7 +391,7 @@ function backward_pass(
         partition_index, belief_state = get(belief_states, index, (0, nothing))
         items = BackwardPassItems(T, SDDP.Noise)
         if belief_state !== nothing
-            # TODO: SDDP: Update the cost-to-go function for partially observable model.
+            # NOTE: SDDP: Update the cost-to-go function for partially observable model.
         else
             node_index, _ = scenario_path[index]
             node = model[node_index]
@@ -460,7 +457,7 @@ function backward_pass(
             end
             push!(cuts[node_index], new_cuts)
             push!(model.ext[:lag_iterations], sum(items.lag_iterations))
-            #TODO: Has to be adapted for stochastic case
+            #NOTE: Has to be adapted for stochastic case
             push!(model.ext[:lag_status], items.lag_status[1])
 
             #TODO: Implement cut-sharing as in SDDP
@@ -551,7 +548,6 @@ function solve_all_children(
                 push!(items.lag_iterations, subproblem_results.iterations)
                 push!(items.lag_status, subproblem_results.lag_status)
                 items.cached_solutions[(child.term, noise.term)] = length(items.duals)
-                #TODO: Maybe add binary precision
             end
         end
     end
@@ -595,7 +591,7 @@ function solve_subproblem_backward(
     set_incoming_state(node, state)
     parameterize(node, noise)
 
-    # TODO: Maybe use pre-optimization hook as in SDDP.
+    # NOTE: Maybe use pre-optimization hook as in SDDP.
 
     # BACKWARD PASS PREPARATION
     ############################################################################
@@ -642,7 +638,7 @@ function solve_subproblem_backward(
         model.ext[:total_solves] = 1
     end
 
-    # TODO: Attempt numerical recovery as in SDDP
+    # NOTE: Attempt numerical recovery as in SDDP
 
     solver_obj = JuMP.objective_value(subproblem)
     @assert JuMP.termination_status(subproblem) == MOI.OPTIMAL
@@ -671,9 +667,7 @@ function solve_subproblem_backward(
 
     @infiltrate algo_params.infiltrate_state in [:all]
 
-    # TODO: Maybe use post-optimization hook as in SDDP.
-
-    #TODO: REGAIN ORIGINAL MODEL
+    # REGAIN ORIGINAL MODEL
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "space_change" begin
         changeToOriginalSpace!(node, subproblem, state)
@@ -706,7 +700,7 @@ function get_dual_variables_backward(
     dual_values = Dict{Symbol,Float64}()
     bin_state = Dict{Symbol, BinaryState}()
 
-    # TODO implement smart choice for initial duals
+    # TODO: implement smart choice for initial duals
     number_of_states = length(node.ext[:backward_data][:bin_states])
     # dual_vars = zeros(number_of_states)
     #solver_obj = JuMP.objective_value(node.ext[:linSubproblem])
@@ -894,7 +888,6 @@ function solve_first_stage_problem(
     noise,
     scenario_path::Vector{Tuple{T,S}};
 ) where {T,S}
-    #TODO: We can actually delete the duals part here
 
     # MODEL PARAMETRIZATION (-> LINEARIZED SUBPROBLEM!)
     ############################################################################
@@ -905,8 +898,6 @@ function solve_first_stage_problem(
     # set the objective.
     set_incoming_state(node, state)
     parameterize(node, noise)
-
-    #TODO: Use pre-optimization hook as in SDDP
 
     # SOLUTION
     ############################################################################
@@ -924,8 +915,6 @@ function solve_first_stage_problem(
     stage_objective = JuMP.value(node.stage_objective)
     objective = JuMP.objective_value(subproblem)
     dual_values = get_dual_variables(node, node.integrality_handler)
-
-    # TODO: Use post-optimization hook as in SDDP
 
     # DETERMINE THE PROBLEM SIZE
     ############################################################################
@@ -1103,7 +1092,6 @@ function solve_subproblem_sigma_test(
     sigma::Float64,
     infiltrate_state::Symbol;
 ) where {T,S}
-    #TODO: We can actually delete the duals part here
 
     # MODEL PARAMETRIZATION
     ############################################################################
