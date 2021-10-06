@@ -250,7 +250,7 @@ function master_loop(parallel_scheme::SDDP.Serial, model::SDDP.PolicyGraph{T},
 
         # IF CONVERGENCE IS ACHIEVED, CHECK IF ACTUAL OR ONLY REGULARIZED PROBLEM IS SOLVED
         ########################################################################
-        if result.has_converged
+        if result.has_converged && algo_params.regularization
             TimerOutputs.@timeit DynamicSDDiP_TIMER "sigma_test" begin
                 sigma_test_results = forward_sigma_test(model, options, algo_params, applied_solvers, result.scenario_path, options.forward_pass, sigma_increased)
             end
@@ -288,11 +288,14 @@ function master_loop(parallel_scheme::SDDP.Serial, model::SDDP.PolicyGraph{T},
             # CHECK IF SIGMA SHOULD BE INCREASED (DUE TO LB > UB)
             ############################################################################
             if result.upper_bound - result.lower_bound < - algo_params.opt_atol * 0.1
-                algo_params.sigma = algo_params.sigma * algo_params.sigma_factor
-                sigma_increased = true
-                previous_solution = nothing
-                previous_bound = nothing
-                bound_check = false
+                if algo_params.regularization
+                    algo_params.sigma = algo_params.sigma * algo_params.sigma_factor
+                    sigma_increased = true
+                    previous_solution = nothing
+                    previous_bound = nothing
+                    bound_check = false
+                else
+                    error("LB < UB for DynamicSDDiP. Terminating.")
             else
                 sigma_increased = false
             end

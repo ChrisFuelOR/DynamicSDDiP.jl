@@ -63,6 +63,7 @@ end
 struct AppliedSolvers
     LP :: Any
     MILP :: Any
+    MINLP :: Any
     NLP :: Any
     Lagrange :: Any # can be specified separately if numerical issues occur
 end

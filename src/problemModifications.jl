@@ -36,10 +36,7 @@ function regularize_subproblem!(node::SDDP.Node, subproblem::JuMP.Model, sigma::
         reg_data[:fixed_state_value][name] = JuMP.fix_value(state_comp.in)
         push!(reg_data[:slacks], reg_data[:fixed_state_value][name] - state_comp.in)
         JuMP.unfix(state_comp.in)
-
-        # NOTE: Check if required
         follow_state_unfixing!(state_comp)
-
         number_of_states = i
     end
 
@@ -90,9 +87,7 @@ function deregularize_subproblem!(node::SDDP.Node, subproblem::JuMP.Model)
     # FIX THE STATE VARIABLES
     ############################################################################
     for (i, (name, state_comp)) in enumerate(node.states)
-        # NOTE: Check if required
         prepare_state_fixing!(node, state_comp)
-
         JuMP.fix(state_comp.in, reg_data[:fixed_state_value][name], force=true)
     end
 
@@ -210,8 +205,6 @@ function setup_state_backward(
         ####################################################################
         # Unfix the original state
         JuMP.unfix(state_comp.in)
-
-        # NOTE: Check if required
         follow_state_unfixing!(state_comp)
 
         # DETERMINE BINARY APPROXIMATION STATE IN ORIGINAL COORDINATES
@@ -275,8 +268,6 @@ function setup_state_backward(
             ####################################################################
             # Unfix the original state
             JuMP.unfix(state_comp.in)
-
-            # NOTE: Check if required
             follow_state_unfixing!(state_comp)
 
             # DETERMINE BINARY APPROXIMATION STATE IN ORIGINAL COORDINATES
@@ -339,8 +330,6 @@ function setup_state_backward(
             ####################################################################
             # Unfix the original state
             JuMP.unfix(state_comp.in)
-
-            # NOTE: Check if required
             follow_state_unfixing!(state_comp)
 
             # DETERMINE BINARY APPROXIMATION STATE IN ORIGINAL COORDINATES
@@ -372,7 +361,6 @@ function changeToOriginalSpace!(
         JuMP.delete_upper_bound(state_comp.in)
 
         # unset binary or integer type
-        # NOTE: probably not required but I had problems with fixing such variables once
         if JuMP.is_binary(state_comp.in)
             JuMP.unset_binary(state_comp.in)
         elseif JuMP.is_integer(state_comp.in)
@@ -405,7 +393,7 @@ end
 """
 Determining the anchor points in the original space.
 """
-function determine_used_trial_states(
+function determine_anchor_states(
     state_comp::State,
     state_value::Float64,
     binaryPrecision::Float64,
@@ -464,8 +452,6 @@ function regularize_backward!(node::SDDP.Node, subproblem::JuMP.Model, sigma::Fl
         reg_data[:fixed_state_value][name] = JuMP.fix_value(state_comp)
         push!(reg_data[:slacks], reg_data[:fixed_state_value][name] - state_comp)
         JuMP.unfix(state_comp)
-
-        # NOTE: Check if required
         follow_state_unfixing_binary!(state_comp)
     end
 
@@ -517,9 +503,7 @@ function deregularize_backward!(node::SDDP.Node, subproblem::JuMP.Model)
     # FIX THE STATE VARIABLES
     ############################################################################
     for (i, (name, state_comp)) in enumerate(bw_data[:bin_states])
-        # NOTE: Check if required
         prepare_state_fixing_binary!(node, state_comp)
-
         JuMP.fix(state_comp, reg_data[:fixed_state_value][name], force=true)
     end
 

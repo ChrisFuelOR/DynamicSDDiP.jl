@@ -233,14 +233,9 @@ function forward_pass(model::SDDP.PolicyGraph{T}, options::DynamicSDDiP.Options,
         # Set sigma for regularization
         sigma = algo_params.sigma[node_index]
 
-        # Set optimizer to MILP optimizer
-        if applied_solvers.MILP == "CPLEX"
-            set_optimizer(node.subproblem, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.MILP, "optcr"=>0.0, "numericalemphasis"=>0))
-        elseif applied_solvers.MILP == "Gurobi"
-            set_optimizer(node.subproblem, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.MILP, "optcr"=>0.0, "NumericFocus"=>1))
-        else
-            set_optimizer(node.subproblem, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.MILP, "optcr"=>0.0))
-        end
+        # SET SOLVER
+        ########################################################################
+        DynamicSDDiP.set_solver(node.subproblem, algo_params, applied_solvers, :forward_pass)
 
         # SUBPROBLEM SOLUTION
         ############################################################################
@@ -323,8 +318,6 @@ function solve_subproblem_forward(
     set_incoming_state(node, state)
     parameterize(node, noise)
 
-    # NOTE: Maybe use pre-optimization hook as in SDDP
-
     # REGULARIZE SUBPROBLEM
     ############################################################################
     if node_index > 1 && algo_params.regularization
@@ -343,14 +336,12 @@ function solve_subproblem_forward(
         model.ext[:total_solves] = 1
     end
 
-    # NOTE: Attempt numerical recovery as in SDDP
+    # NOTE: TO-DO: Attempt numerical recovery as in SDDP
 
     state = get_outgoing_state(node)
     objective = JuMP.objective_value(subproblem)
     stage_objective = objective - JuMP.value(bellman_term(node.bellman_function))
     @infiltrate infiltrate_state in [:all]
-
-    # NOTE: Maybe use post-optimization hook as in SDDP
 
     # DE-REGULARIZE SUBPROBLEM
     ############################################################################
@@ -433,7 +424,7 @@ function backward_pass(
                 anchor_points[name] = approx_state_value
             end
 
-            @infiltrate algo_params.infiltrate_state in [:all, :inner]
+            @infiltrate algo_params.infiltrate_state in [:all]
 
             # REFINE BELLMAN FUNCTION BY ADDING CUTS
             ####################################################################
@@ -591,15 +582,14 @@ function solve_subproblem_backward(
     set_incoming_state(node, state)
     parameterize(node, noise)
 
-    # NOTE: Maybe use pre-optimization hook as in SDDP.
-
-    # BACKWARD PASS PREPARATION
-    ############################################################################
     @infiltrate algo_params.infiltrate_state in [:all]
 
-    # Also adapt solver here
-    TimerOutputs.@timeit DynamicSDDiP_TIMER "space_change" begin
-        changeToBinarySpace!(node, subproblem, state, algo_params.binary_precision)
+    # CHANGE TO BINARY SPACE FOR STATE VARIABLES
+    ############################################################################
+    if algo_params.binary_approx
+        TimerOutputs.@timeit DynamicSDDiP_TIMER "space_change" begin
+            changeToBinarySpace!(node, subproblem, state, algo_params.binary_precision)
+        end
     end
 
     # INITIALIZE DUALS
@@ -608,14 +598,9 @@ function solve_subproblem_backward(
         dual_vars_initial = initialize_duals(node, subproblem, algo_params.dual_initialization_method)
     end
 
-    # reset solver as it may have been changed
-    if applied_solvers.MILP == "CPLEX"
-        set_optimizer(subproblem, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.MILP, "optcr"=>0.0, "numericalemphasis"=>0))
-    elseif applied_solvers.MILP == "Gurobi"
-        set_optimizer(subproblem, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.MILP, "optcr"=>0.0, "NumericFocus"=>1))
-    else
-        set_optimizer(subproblem, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.MILP, "optcr"=>0.0))
-    end
+    # RESET SOLVER (as it may have been changed in between for some reason)
+    ########################################################################
+    DynamicSDDiP.set_solver(node.subproblem, algo_params, applied_solvers, :backward_pass)
 
     # GET PRIMAL SOLUTION TO BOUND LAGRANGIAN DUAL
     ############################################################################
@@ -638,7 +623,7 @@ function solve_subproblem_backward(
         model.ext[:total_solves] = 1
     end
 
-    # NOTE: Attempt numerical recovery as in SDDP
+    # NOTE: TO-DO: Attempt numerical recovery as in SDDP
 
     solver_obj = JuMP.objective_value(subproblem)
     @assert JuMP.termination_status(subproblem) == MOI.OPTIMAL
@@ -653,12 +638,11 @@ function solve_subproblem_backward(
 
     # DUAL SOLUTION
     ############################################################################
-    # Check for dual feasibility and return a dict with
-    # the dual on the fixed constraint associated with each incoming state variable.
-
+    # Solve dual and return a dict with the multiplier of the copy constraints.
     TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_lagrange" begin
         lagrangian_results = get_dual_variables_backward(node, node_index, solver_obj, algo_params, applied_solvers, dual_vars_initial)
     end
+
     dual_values = lagrangian_results.dual_values
     bin_state = lagrangian_results.bin_state
     objective = lagrangian_results.intercept
@@ -669,8 +653,10 @@ function solve_subproblem_backward(
 
     # REGAIN ORIGINAL MODEL
     ############################################################################
-    TimerOutputs.@timeit DynamicSDDiP_TIMER "space_change" begin
-        changeToOriginalSpace!(node, subproblem, state)
+    if algo_params.binary_approx
+        TimerOutputs.@timeit DynamicSDDiP_TIMER "space_change" begin
+            changeToOriginalSpace!(node, subproblem, state)
+        end
     end
 
     return (
@@ -818,9 +804,6 @@ function calculate_bound(
     # node is not node 1, but node 0.
     # In our case, this means that only stage 1 problem is solved again,
     # using the updated Bellman function from the backward pass.
-    # NOTE: We could also implement this in our case such that only
-    # the linearizedSubproblem of the first stage is solved and
-    # the bound is returned.
 
     # Initialization.
     noise_supports = Any[]
@@ -996,15 +979,9 @@ function forward_sigma_test(
         end
         # ===== End: starting state for infinite horizon =====
 
-        # Set optimizer to MILP optimizer
-        subproblem = node.subproblem
-        if applied_solvers.MILP == "CPLEX"
-            set_optimizer(subproblem, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.MILP, "optcr"=>0.0, "numericalemphasis"=>1))
-        elseif applied_solvers.MILP == "Gurobi"
-            set_optimizer(subproblem, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.MILP, "optcr"=>0.0, "NumericFocus"=>1))
-        else
-            set_optimizer(subproblem, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.MILP, "optcr"=>0.0))
-        end
+        # SET SOLVER
+        ########################################################################
+        DynamicSDDiP.set_solver(node.subproblem, algo_params, applied_solvers, :forward_pass)
 
         # SOLVE REGULARIZED PROBLEM
         ############################################################################
@@ -1103,8 +1080,6 @@ function solve_subproblem_sigma_test(
     set_incoming_state(node, state)
     parameterize(node, noise)
 
-    # TODO: Use post-optimization hook as in SDDP
-
     # SOLUTION
     ############################################################################
     JuMP.optimize!(subproblem)
@@ -1115,15 +1090,13 @@ function solve_subproblem_sigma_test(
         model.ext[:total_solves] = 1
     end
 
-    # TODO: Attempt numeric recovery as in SDDP
+    # NOTE: TO-DO: Attempt numeric recovery as in SDDP
 
     state = get_outgoing_state(node)
     objective = JuMP.objective_value(subproblem)
     stage_objective = objective - JuMP.value(bellman_term(node.bellman_function))
 
     dual_values = Dict{Symbol,Float64}()
-
-    # TODO: Use post-optimization hook as in SDDP
 
     return (
         state = state,
