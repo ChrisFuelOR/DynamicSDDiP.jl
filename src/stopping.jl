@@ -14,14 +14,6 @@
 
 # ======================= Deterministic Stopping Rule ====================== #
 
-"""
-    DeterministicStopping()
-
-Terminate the algorithm once optimality is reached.
-"""
-mutable struct DeterministicStopping <: SDDP.AbstractStoppingRule
-end
-
 stopping_rule_status(::DeterministicStopping) = :DeterministicStopping
 
 function convergence_test(graph::SDDP.PolicyGraph, log::Vector{Log}, rule::DeterministicStopping, loop::Symbol)
