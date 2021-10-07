@@ -18,7 +18,8 @@
 import JuMP
 import Revise
 
-# Deterministic stopping rule
+################################################################################
+# STOPPING RULES
 ################################################################################
 """
     DeterministicStopping()
@@ -36,64 +37,10 @@ mutable struct DeterministicStopping <: SDDP.AbstractStoppingRule
     end
 end
 
-# Different regimes for state approximation
 ################################################################################
-abstract type AbstractStateApproximationRegime end
-
-mutable struct BinaryApproximation <: AbstractStateApproximationRegime
-    binary_precision::Dict{Symbol, Float64} # so far, binary precision is the same for all stages
-    function BinaryApproximation(;
-        binary_precision = ...,
-    )
-        return new(binary_precision)
-    end
-end
-
-mutable struct NoStateApproximation <: AbstractStateApproximationRegime end
-
-"""
-BinaryApproximation means that a dynamically refined binary approximation
-    is used in the backward pass. It also implies that cuts have to be projected
-    back to the original space.
-NoStateApproximation means that all cuts are
-    generated in the original space, and thus may not be tight.
-Default is BinaryApproximation.
-"""
-
-# Different regimes for regularization
-################################################################################
-abstract type AbstractRegularizationRegime end
-
-mutable struct Regularization <: AbstractRegularizationRegime
-    sigma :: Vector{Float64}
-    sigma_factor :: Float64
-    function BinaryApproximation(;
-        sigma = 1,
-        sigma_factor = 5
-    )
-        return new(sigma, sigma_factor)
-    end
-end
-
-mutable struct NoRegularization <: AbstractRegularizationRegime end
-
-"""
-Regularization means that in the forward pass some regularized value functions
-    are considered. It also implies that a sigma test is conducted once the
-    stopping criterion is satisfied. Furthermore, it can be exploited in combination
-    with bounding the dual variables.
-NoRegularization means that no regularization is used. This may be detrimental
-    w.r.t. convergence.
-Default is Regularization.
-"""
-
-# Different regimes for initialization of dual multipliers
+# INITIALIZIING DUAL MULTIPLIERS
 ################################################################################
 abstract type AbstractDualInitializationRegime end
-
-mutable struct ZeroDuals <: AbstractDualInitializationRegime end
-mutable struct LPDuals <: AbstractDualInitializationRegime end
-mutable struct CPLEXFixed <: AbstractDualInitializationRegime end
 
 """
 ZeroDuals means that the dual multipliers are initialized as zero.
@@ -107,9 +54,22 @@ CPLEXFixed can only be chosen if CPLEX is used to solve the subproblems.
 Default is ZeroDuals.
 """
 
-# Different regimes for solving the Lagrangian dual
+mutable struct ZeroDuals <: AbstractDualInitializationRegime end
+mutable struct LPDuals <: AbstractDualInitializationRegime end
+mutable struct CPLEXFixed <: AbstractDualInitializationRegime end
+
+################################################################################
+# SOLUTION METHOD FOR LAGRANGIAN DUAL
 ################################################################################
 abstract type AbstractDualSolutionRegime end
+
+"""
+Kelley means that a classical cutting-plane method is used to solve the dual
+    problem.
+LevelBundle means that a level bundle method with specified parameters is
+    used to solve the dual problem.
+Default is Kelley.
+"""
 
 mutable struct Kelley <: AbstractDualSolutionRegime
     atol::Float64
@@ -143,21 +103,10 @@ mutable struct LevelBundle <: AbstractDualSolutionRegime
     end
 end
 
-"""
-Kelley means that a classical cutting-plane method is used to solve the dual
-    problem.
-LevelBundle means that a level bundle method with specified parameters is
-    used to solve the dual problem.
-Default is Kelley.
-"""
-
-# Different regimes for bounding the dual variables in the Lagrangian dual
+################################################################################
+# BOUNDS IN LAGRANGIAL DUAL
 ################################################################################
 abstract type AbstractDualBoundRegime end
-
-mutable struct ValueBound <: AbstractDualBoundRegime end
-mutable struct NormBound <: AbstractDualBoundRegime end
-mutable struct BothBounds <: AbstractDualBoundRegime end
 
 """
 ValueBound means that the optimal value of the Lagrangian dual is bounded from
@@ -171,12 +120,14 @@ BothBounds means that ValueBound and NormBound are both used.
 Default is BothBounds.
 """
 
-# Different regimes for handling the precision of the Lagrangian dual solution
+mutable struct ValueBound <: AbstractDualBoundRegime end
+mutable struct NormBound <: AbstractDualBoundRegime end
+mutable struct BothBounds <: AbstractDualBoundRegime end
+
+################################################################################
+# HOW TO HANDLE DUAL SOLUTIONS
 ################################################################################
 abstract type AbstractDualStatusRegime end
-
-mutable struct Rigorous <: AbstractDualStatusRegime end
-mutable struct Lax <: AbstractDualStatusRegime end
 
 """
 Rigorous means that the Lagrangian cuts are only used if the Lagrangian
@@ -192,12 +143,13 @@ This only makes a difference if the cut type is LagrangianCut.
 Default is Rigorous.
 """
 
-# Different regimes for choosing the best dual solution if degenerated
+mutable struct Rigorous <: AbstractDualStatusRegime end
+mutable struct Lax <: AbstractDualStatusRegime end
+
+################################################################################
+# HOW TO HANDLE DEGENERATE SOLUTIONS OF THE DUAL
 ################################################################################
 abstract type AbstractDualChoiceRegime end
-
-mutable struct StandardChoice <: AbstractDualChoiceRegime end
-mutable struct MagnantiWongChoice <: AbstractDualChoiceRegime end
 
 """
 Standard choice means that the Lagrangian multipliers are used as determined
@@ -207,30 +159,13 @@ MagnantiWongChoice means that it is attempted to determine pareto-optimal
 Default is MagnantiWongChoice.
 """
 
-# Different regimes for the cut type
+mutable struct StandardChoice <: AbstractDualChoiceRegime end
+mutable struct MagnantiWongChoice <: AbstractDualChoiceRegime end
+
 ################################################################################
-abstract type AbstractCutTypeRegime end
-
-mutable struct LagrangianCut <: AbstractCutTypeRegime end
-mutable struct BendersCut <: AbstractCutTypeRegime end
-mutable struct StrengthenedCut <: AbstractCutTypeRegime end
-
-"""
-LagrangianCut means that the Lagrangian dual is (approximately) solved to obtain
-    a cut.
-BendersCut means that the LP relaxation is solved to obtain a cut.
-StrengthenedCut means that the Lagrangian relaxation is solved using the optimal
-    dual multiplier of the LP relaxation to obtain a strengthened Benders cuts.
-Default is LagrangianCut.
-"""
-
-# Different regimes for the cut projection
+# CUT PROJECTION APPROACH
 ################################################################################
 abstract type AbstractCutProjectionRegime end
-
-mutable struct BigM <: AbstractCutProjectionRegime end
-mutable struct SOS1 <: AbstractCutProjectionRegime end
-mutable struct Bilinear <: AbstractCutProjectionRegime end
 
 """
 BigM means that the complementarity constraints of the KKT conditions of
@@ -245,7 +180,105 @@ Note that this only makes a differences if a binary approximation is used,
     otherwise no projection is required at all.
 """
 
-# Different regimes for the cut selection
+mutable struct BigM <: AbstractCutProjectionRegime end
+mutable struct SOS1 <: AbstractCutProjectionRegime end
+mutable struct Bilinear <: AbstractCutProjectionRegime end
+
+################################################################################
+# BINARY APPROXIMATION
+################################################################################
+abstract type AbstractStateApproximationRegime end
+
+"""
+BinaryApproximation means that a dynamically refined binary approximation
+    is used in the backward pass. It also implies that cuts have to be projected
+    back to the original space.
+NoStateApproximation means that all cuts are
+    generated in the original space, and thus may not be tight.
+Default is BinaryApproximation.
+"""
+
+mutable struct BinaryApproximation <: AbstractStateApproximationRegime
+    binary_precision::Dict{Symbol, Float64} # so far, binary precision is the same for all stages
+    cut_projection_regime::AbstractCutProjectionRegime
+    function BinaryApproximation(;
+        binary_precision = ...,
+        cut_projection_regime = BigM(),
+    )
+        return new(binary_precision, cut_projection_regime)
+    end
+end
+
+mutable struct NoStateApproximation <: AbstractStateApproximationRegime end
+
+################################################################################
+# REGULARIZATION
+################################################################################
+abstract type AbstractRegularizationRegime end
+
+mutable struct Regularization <: AbstractRegularizationRegime
+    sigma :: Vector{Float64}
+    sigma_factor :: Float64
+    function BinaryApproximation(;
+        sigma = 1,
+        sigma_factor = 5
+    )
+        return new(sigma, sigma_factor)
+    end
+end
+
+mutable struct NoRegularization <: AbstractRegularizationRegime end
+
+"""
+Regularization means that in the forward pass some regularized value functions
+    are considered. It also implies that a sigma test is conducted once the
+    stopping criterion is satisfied. Furthermore, it can be exploited in combination
+    with bounding the dual variables.
+NoRegularization means that no regularization is used. This may be detrimental
+    w.r.t. convergence.
+Default is Regularization.
+"""
+
+################################################################################
+# CUT FAMILY TO BE USED
+################################################################################
+abstract type AbstractCutTypeRegime end
+
+mutable struct LagrangianCut <: AbstractCutTypeRegime end
+
+mutable struct LagrangianCut <: AbstractCutTypeRegime
+    dual_initialization_regime::AbstractDualInitializationRegime
+    dual_bound_regime::AbstractDualBoundRegime
+    dual_solution_regime::AbstractDualSolutionRegime
+    dual_choice_regime::AbstractDualChoiceRegime
+    dual_status_regime::AbstractDualStatusRegime
+    function BinaryApproximation(;
+        dual_initialization_regime = ZeroDuals(),
+        dual_bound_regime = BothBounds(),
+        dual_solution_regime = Kelley(),
+        dual_choice_regime = MagnantiWongChoice(),
+        dual_status_regime = Rigorous(),
+    )
+        return new(dual_initialization_regime, dual_bound_regime,
+            dual_solution_regime, dual_choice_regime, dual_status_regime)
+    end
+end
+
+mutable struct BendersCut <: AbstractCutTypeRegime end
+mutable struct StrengthenedCut <: AbstractCutTypeRegime end
+
+"""
+LagrangianCut means that the Lagrangian dual is (approximately) solved to obtain
+    a cut. In this case, a lot of parameters have to be defined to configure
+    the solution of the Lagrangian dual.
+BendersCut means that the LP relaxation is solved to obtain a cut.
+StrengthenedCut means that the Lagrangian relaxation is solved using the optimal
+    dual multiplier of the LP relaxation to obtain a strengthened Benders cuts.
+Default is LagrangianCut.
+"""
+
+################################################################################
+# CUT SELECTION
 ################################################################################
 abstract type AbstractCutSelectionRegime end
 
@@ -267,13 +300,7 @@ mutable struct AlgoParams
     stopping_rules::Vector{SDDP.AbstractStoppingRule}
     state_approximation_regime::AbstractStateApproximationRegime
     regularization_regime::AbstractRegularizationRegime
-    dual_initialization_regime::AbstractDualInitializationRegime
-    dual_solution_regime::AbstractDualSolutionRegime
-    dual_bound_regime::AbstractDualBoundRegime
-    dual_status_regime::AbstractDualStatusRegime
-    dual_choice_regime::AbstractDualChoiceRegime
     cut_type_regime::AbstractCutTypeRegime
-    cut_projection_regime::AbstractCutProjectionRegime
     cut_selection_regime::AbstractCutSelectionRegime
     infiltrate_state::Symbol
 
@@ -281,13 +308,7 @@ mutable struct AlgoParams
         stopping_rules = [DeterministicStopping()],
         state_approximation_regime = BinaryApproximation(),
         regularization_regime = Regularization(),
-        dual_initialization_regime = ZeroDuals(),
-        dual_solution_regime = Kelley(),
-        dual_bound_regime = BothBounds(),
-        dual_status_regime = Rigorous(),
-        dual_choice_regime = MagnantiWongChoice(),
         cut_type_regime = LagrangianCut(),
-        cut_projection_regime = BigM(),
         cut_selection_regime = CutSelection(),
         infiltrate_state = :None
         )
@@ -295,13 +316,7 @@ mutable struct AlgoParams
             stopping_rules,
             state_approximation_regime,
             regularization_regime,
-            dual_initialization_regime,
-            dual_solution_regime,
-            dual_bound_regime,
-            dual_status_regime,
-            dual_choice_regime,
             cut_type_regime,
-            cut_projection_regime,
             cut_selection_regime,
             infiltrate_state,
             )
