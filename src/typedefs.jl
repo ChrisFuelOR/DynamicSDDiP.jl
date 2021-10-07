@@ -1,6 +1,6 @@
 # The structs
 # > "NonlinearCut",
-# > "InnerLoopIterationResult"
+# > "IterationResult"
 # > "BackwardPassItems"
 # are derived from similar named structs (Cut, IterationResult, BackwardPassItems)
 # in the 'SDDP.jl' package by
@@ -193,10 +193,13 @@ BinaryApproximation means that a dynamically refined binary approximation
 NoStateApproximation means that all cuts are
     generated in the original space, and thus may not be tight.
 Default is BinaryApproximation.
+
+Note that so far, the binary_precision is the same for all stages and only
+differs in the state variables.
 """
 
 mutable struct BinaryApproximation <: AbstractStateApproximationRegime
-    binary_precision::Dict{Symbol, Float64} # so far, binary precision is the same for all stages
+    binary_precision::Dict{Symbol, Float64}
     cut_projection_regime::AbstractCutProjectionRegime
     function BinaryApproximation(;
         binary_precision = ...,
@@ -290,9 +293,8 @@ NoCutSelection means that no such procedure is used, so all cuts are used
 """
 
 ################################################################################
+# DEFINING STRUCT FOR CONFIGURATION OF ALGORITHM PARAMETERS
 ################################################################################
-
-# Mutable struct for algorithmic parameters
 mutable struct AlgoParams
     stopping_rules::Vector{SDDP.AbstractStoppingRule}
     state_approximation_regime::AbstractStateApproximationRegime
@@ -320,60 +322,105 @@ mutable struct AlgoParams
     end
 end
 
-# struct for solvers to be used
+################################################################################
+# DEFINING STRUCT FOR SOLVERS TO BE USED
+################################################################################
+"""
+For the Lagrangian subproblems a separate solver can be defined if for
+    the LP/MILP solver numerical issues occur.
+"""
+
 struct AppliedSolvers
     LP :: Any
     MILP :: Any
     MINLP :: Any
     NLP :: Any
-    Lagrange :: Any # can be specified separately if numerical issues occur
+    Lagrange :: Any
 end
 
-# Struct to store information on a nonlinear cut
+################################################################################
+# DEFINING NONLINEAR CUTS
+################################################################################
+"""
+The first two arguments define the cut coefficients (in the binary space).
+
+The next four arguments store the trial_state from the forward pass, the
+anchor_state at which the cut is constructed (and which may deviate from the
+trial_state), the exact binary representation of the anchor_state and the
+the binary precision at the moment the cut is constructed.
+Actually, not all this information has to be stored. For example, the anchor_point
+could as well be derived from binary_state and binary_precision.
+
+The next argument stores the value of the regularization parameter sigma at
+the moment the cut is created.
+
+The next two arguments store references to the cut_variables and cut_constraints
+(note that using the cut projection one cut refers to several such variables
+and constraints).
+
+The next two arguments are SDDP-specific and not required in my case.
+
+Finally, the number of dominated cuts, which is required for the cut selection
+process, and the current iteration number (to enumerate the cuts) is stored.
+
+Note that if no binary approximation is used, trial_state and anchor_state
+will always be the same and only one cut_constraint has to be stored.
+"""
+
 mutable struct NonlinearCut
-    # cut coefficients (in binary space)
+    intercept::Float64
+    coefficients::Dict{Symbol,Float64}
     ############################################################################
-    intercept::Float64 # intercept of the cut (dual function value)
-    coefficients::Dict{Symbol,Float64} # optimal dual variables in binary space
-    # cut construction point
-    ############################################################################
-    # NOTE: not sure if all of these have to be stored (anchor_state can be
-    # determined from other information for example)
-    trial_state::Dict{Symbol,Float64} # trial point at which cut should have been created
-    anchor_state::Dict{Symbol,Float64} # anchor point at which this cut was created
-    binary_state::Dict{Symbol,BinaryState} # binary representation of anchor point
-    binary_precision::Dict{Symbol,Float64} # binary precision at moment of creation
-    # sigma at moment of creation
+    trial_state::Dict{Symbol,Float64}
+    anchor_state::Dict{Symbol,Float64}
+    binary_state::Dict{Symbol,BinaryState}
+    binary_precision::Dict{Symbol,Float64}
     ############################################################################
     sigma::Float64
-    # references to variables and constraints of the cut projection closure
     ############################################################################
     cut_variables::Vector{JuMP.VariableRef}
     cut_constraints::Vector{JuMP.ConstraintRef}
-    # SDDP-specific stuff
     ############################################################################
-    obj_y::Union{Nothing,NTuple{N,Float64} where {N}}
-    belief_y::Union{Nothing,Dict{T,Float64} where {T}}
-    # number of non-dominated cuts (required for cut selection)
+    obj_y::Union{Nothing,NTuple{N,Float64} where {N}} #TODO
+    belief_y::Union{Nothing,Dict{T,Float64} where {T}} #TODO
     ############################################################################
-    non_dominated_count::Int # SDDP
-    # iteration in which cut was created
+    non_dominated_count::Int
     ############################################################################
     iteration::Int64
 end
 
-# mutable struct for iteration results
+################################################################################
+# DEFINING STORAGE FOR ITERATION RESULTS
+################################################################################
+"""
+This is based on a similar struct in the SDDP package. It stores the results
+corresponding to the current iteration.
+
+Note that the upper_bound is statistical only if we consider stochastic problems.
+Also note that current_sol only contains the values of the state variables
+in the current solution.
+
+Status refers to the number of iterations if I remember correctly.
+Nonlinear_cuts is only required for logging, if I remember correctly.
+"""
+
 mutable struct IterationResult{T,S}
     lower_bound :: Float64
-    upper_bound :: Float64 # statistical if we solve stochastic problems
-    current_sol :: Array{Dict{Symbol,Float64},1} # current state (also required for binary refinement)
+    upper_bound :: Float64
+    current_sol :: Array{Dict{Symbol,Float64},1}
     scenario_path :: Vector{Tuple{T,S}}
     has_converged :: Bool
-    status :: Symbol # solution status (i.e. number of iterations)
-    nonlinear_cuts :: Dict{T, Vector{Any}}
-    # NOTE: only required for logging, binary expansion
-    # however, then also binary precision / K should be stored for interpretability
+    status :: Symbol #NOTE
+    nonlinear_cuts :: Dict{T, Vector{Any}} #NOTE
 end
+
+################################################################################
+# DEFINING STORAGE FOR BACKWARD PASS RESULTS
+################################################################################
+"""
+This is based on a similar struct in the SDDP package. It stores items
+corresponding to the current backward pass.
+"""
 
 struct BackwardPassItems{T,U}
     "Given a (node, noise) tuple, index the element in the array."
