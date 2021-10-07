@@ -139,7 +139,6 @@ Lax means that even if the Lagrangian dual is not solved as attempted
     due to bound stalling), the current values of the multipliers are used
     to define a valid cut for the value function, hoping that this cut
     will suffice to improve the current incumbent.
-This only makes a difference if the cut type is LagrangianCut.
 Default is Rigorous.
 """
 
@@ -176,8 +175,6 @@ Bilinear means that by using strong duality the cuts are integrated in a
     bilinear way. This implies that MINLP solvers have to be used to solve
     the subproblems.
 Default is BigM.
-Note that this only makes a differences if a binary approximation is used,
-    otherwise no projection is required at all.
 """
 
 mutable struct BigM <: AbstractCutProjectionRegime end
@@ -321,8 +318,6 @@ mutable struct AlgoParams
             infiltrate_state,
             )
     end
-
-
 end
 
 # struct for solvers to be used
