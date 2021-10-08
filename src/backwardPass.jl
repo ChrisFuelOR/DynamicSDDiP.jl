@@ -31,89 +31,94 @@ function backward_pass(
     objective_states::Vector{NTuple{N,Float64}},
     belief_states::Vector{Tuple{Int,Dict{T,Float64}}}) where {T,NoiseType,N}
 
+    ####################################################################
+    # INITIALIZATION
+    ####################################################################
+
+    # storage for cuts
     cuts = Dict{T,Vector{Any}}(index => Any[] for index in keys(model.nodes))
 
+    # storage for data on solving Lagrangian dual
     model.ext[:lag_iterations] = Int[]
     model.ext[:lag_status] = Symbol[]
 
+    ############################################################################
+    # Traverse backwards through the stages
+    ############################################################################
     for index = length(scenario_path):-1:1
         outgoing_state = sampled_states[index]
-        objective_state = get(objective_states, index, nothing)
-        partition_index, belief_state = get(belief_states, index, (0, nothing))
         items = BackwardPassItems(T, SDDP.Noise)
-        if belief_state !== nothing
-            # NOTE: SDDP: Update the cost-to-go function for partially observable model.
-        else
-            node_index, _ = scenario_path[index]
-            node = model[node_index]
-            if length(node.children) == 0
-                continue
-            end
 
-            # Dict to store values of binary approximation of the state
-            # Note that we could also retrieve this from the actual trial point
-            # (outgoing_state) or from its approximation via binexpand. However,
-            # this collection is not only important to obtain the correct values,
-            # but also to store them together with the symbol/name of the variable.
-            node.ext[:binary_state_values] = Dict{Symbol, Float64}()
+        node_index, _ = scenario_path[index]
+        node = model[node_index]
+        if length(node.children) == 0
+            continue
+        end
 
-            # SOLVE ALL CHILDREN PROBLEM
-            ####################################################################
-            solve_all_children(
+        # Dict to store values of binary approximation of the state
+        # Note that we could also retrieve this from the actual trial point
+        # (outgoing_state) or from its approximation via binexpand. However,
+        # this collection is not only important to obtain the correct values,
+        # but also to store them together with the symbol/name of the variable.
+        node.ext[:binary_state_values] = Dict{Symbol, Float64}()
+
+        ####################################################################
+        # SOLVE ALL CHILDREN PROBLEMS
+        ####################################################################
+        solve_all_children(
+            model,
+            node,
+            node_index,
+            items,
+            1.0,
+            belief_state,
+            objective_state,
+            outgoing_state,
+            algo_params.backward_sampling_scheme,
+            scenario_path[1:index],
+            algo_params,
+            applied_solvers
+        )
+
+        # RECONSTRUCT ANCHOR POINTS IN BACKWARD PASS
+        ####################################################################
+        anchor_points = Dict{Symbol,Float64}()
+        for (name, value) in outgoing_state
+            state_comp = node.states[name]
+            epsilon = algo_params.binary_precision[name]
+            (approx_state_value, )  = determine_anchor_states(state_comp, value, epsilon)
+            anchor_points[name] = approx_state_value
+        end
+
+        @infiltrate algo_params.infiltrate_state in [:all]
+
+        # REFINE BELLMAN FUNCTION BY ADDING CUTS
+        ####################################################################
+        TimerOutputs.@timeit DynamicSDDiP_TIMER "update_bellman" begin
+            new_cuts = refine_bellman_function(
                 model,
                 node,
                 node_index,
-                items,
-                1.0,
-                belief_state,
-                objective_state,
+                node.bellman_function,
+                options.risk_measures[node_index],
                 outgoing_state,
-                options.backward_sampling_scheme,
-                scenario_path[1:index],
+                anchor_points,
+                items.bin_state,
+                items.duals,
+                items.supports,
+                items.probability,
+                items.objectives,
                 algo_params,
                 applied_solvers
             )
-
-            # RECONSTRUCT ANCHOR POINTS IN BACKWARD PASS
-            ####################################################################
-            anchor_points = Dict{Symbol,Float64}()
-            for (name, value) in outgoing_state
-                state_comp = node.states[name]
-                epsilon = algo_params.binary_precision[name]
-                (approx_state_value, )  = determine_anchor_states(state_comp, value, epsilon)
-                anchor_points[name] = approx_state_value
-            end
-
-            @infiltrate algo_params.infiltrate_state in [:all]
-
-            # REFINE BELLMAN FUNCTION BY ADDING CUTS
-            ####################################################################
-            TimerOutputs.@timeit DynamicSDDiP_TIMER "update_bellman" begin
-                new_cuts = refine_bellman_function(
-                    model,
-                    node,
-                    node_index,
-                    node.bellman_function,
-                    options.risk_measures[node_index],
-                    outgoing_state,
-                    anchor_points,
-                    items.bin_state,
-                    items.duals,
-                    items.supports,
-                    items.probability,
-                    items.objectives,
-                    algo_params,
-                    applied_solvers
-                )
-            end
-            push!(cuts[node_index], new_cuts)
-            push!(model.ext[:lag_iterations], sum(items.lag_iterations))
-            #NOTE: Has to be adapted for stochastic case
-            push!(model.ext[:lag_status], items.lag_status[1])
-
-            #TODO: Implement cut-sharing as in SDDP
-
         end
+        push!(cuts[node_index], new_cuts)
+        #NOTE: Has to be adapted for stochastic case
+        push!(model.ext[:lag_iterations], sum(items.lag_iterations))
+        push!(model.ext[:lag_status], items.lag_status[1])
+
+        #TODO: Implement cut-sharing as in SDDP
+
     end
     return cuts
 end
@@ -148,6 +153,9 @@ function solve_all_children(
             else
                 scenario_path[end] = (child.term, noise.term)
             end
+            ####################################################################
+            # IF SOLUTIONS FOR THIS NODE ARE CACHED ALREADY, USE THEM
+            ####################################################################
             if haskey(items.cached_solutions, (child.term, noise.term))
                 sol_index = items.cached_solutions[(child.term, noise.term)]
                 push!(items.duals, items.duals[sol_index])
@@ -160,23 +168,9 @@ function solve_all_children(
                 push!(items.lag_iterations, items.lag_iterations[sol_index])
                 push!(items.lag_status, items.lag_status[sol_index])
             else
-                # Update belief state, etc.
-                if belief_state !== nothing
-                    current_belief = child_node.belief_state::SDDP.BeliefState{T}
-                    current_belief.updater(
-                        current_belief.belief,
-                        belief_state,
-                        current_belief.partition_index,
-                        noise.term,
-                    )
-                end
-                if objective_state !== nothing
-                    SDDP.update_objective_state(
-                        child_node.objective_state,
-                        objective_state,
-                        noise.term,
-                    )
-                end
+                ################################################################
+                # SOLVE THE BACKWARD PASS PROBLEM
+                ################################################################
                 TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_BP" begin
                     subproblem_results = solve_subproblem_backward(
                         model,
@@ -229,29 +223,29 @@ function solve_subproblem_backward(
     applied_solvers::DynamicSDDiP.AppliedSolvers;
 ) where {T,S}
 
+    ############################################################################
     # MODEL PARAMETRIZATION
     ############################################################################
     subproblem = node.subproblem
 
-    # storage for backward pass data
+    # Storage for backward pass data
     node.ext[:backward_data] = Dict{Symbol,Any}()
 
-    # Parameterize the model. First, fix the value of the incoming state
-    # variables. Then parameterize the model depending on `noise`. Finally,
-    # set the objective.
+    # Parameterize the model. Fix the value of the incoming state variables.
+    # Then parameterize the model depending on `noise` and set the objective.
     set_incoming_state(node, state)
     parameterize(node, noise)
 
     @infiltrate algo_params.infiltrate_state in [:all]
 
-    # CHANGE TO BINARY SPACE FOR STATE VARIABLES
     ############################################################################
-    if algo_params.binary_approx
-        TimerOutputs.@timeit DynamicSDDiP_TIMER "space_change" begin
-            changeToBinarySpace!(node, subproblem, state, algo_params.binary_precision)
-        end
+    # CHANGE STATE SPACE IF BINARY APPROXIMATION IS USED
+    ############################################################################
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "space_change" begin
+        changeStateSpace!(node, subproblem, state, algo_params.state_approximation_regime)
     end
 
+    ############################################################################
     # INITIALIZE DUALS
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "dual_initialization" begin
@@ -311,12 +305,11 @@ function solve_subproblem_backward(
 
     @infiltrate algo_params.infiltrate_state in [:all]
 
+    ############################################################################
     # REGAIN ORIGINAL MODEL
     ############################################################################
-    if algo_params.binary_approx
-        TimerOutputs.@timeit DynamicSDDiP_TIMER "space_change" begin
-            changeToOriginalSpace!(node, subproblem, state)
-        end
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "space_change" begin
+        rechangeStateSpace!(node, subproblem, state, algo_params.state_approximation_regime)
     end
 
     return (
@@ -479,19 +472,6 @@ function calculate_bound(
         end
         node = model[child.term]
         for noise in node.noise_terms
-            if node.objective_state !== nothing
-                SDDP.update_objective_state(
-                    node.objective_state,
-                    node.objective_state.initial_value,
-                    noise.term,
-                )
-            end
-            # Update belief state, etc.
-            if node.belief_state !== nothing
-                belief = node.belief_state::SDDP.BeliefState{T}
-                partition_index = belief.partition_index
-                belief.updater(belief.belief, current_belief, partition_index, noise.term)
-            end
             subproblem_results = solve_first_stage_problem(
                 model,
                 node,
@@ -532,7 +512,8 @@ function solve_first_stage_problem(
     scenario_path::Vector{Tuple{T,S}};
 ) where {T,S}
 
-    # MODEL PARAMETRIZATION (-> LINEARIZED SUBPROBLEM!)
+    ############################################################################
+    # MODEL PARAMETRIZATION
     ############################################################################
     subproblem = node.subproblem
 
@@ -542,6 +523,7 @@ function solve_first_stage_problem(
     set_incoming_state(node, state)
     parameterize(node, noise)
 
+    ############################################################################
     # SOLUTION
     ############################################################################
     JuMP.optimize!(subproblem)
@@ -552,13 +534,14 @@ function solve_first_stage_problem(
         model.ext[:total_solves] = 1
     end
 
-    # TODO: Attempt numerical recovery as in SDDP
+    # Maybe attempt numerical recovery as in SDDP
 
     state = get_outgoing_state(node)
     stage_objective = JuMP.value(node.stage_objective)
     objective = JuMP.objective_value(subproblem)
     dual_values = get_dual_variables(node, node.integrality_handler)
 
+    ############################################################################
     # DETERMINE THE PROBLEM SIZE
     ############################################################################
     problem_size = Dict{Symbol,Int64}()
