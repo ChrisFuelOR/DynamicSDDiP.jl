@@ -28,9 +28,6 @@ struct Log
     current_upper_bound::Float64
     current_state::Vector{Dict{Symbol,Float64}}
     time::Float64
-    #total_solves::Int
-    #sigma::Vector{Float64}
-    #binaryPrecision::Dict{Symbol,Float64}
     sigma_increased::Union{Bool,Nothing}
     binary_refinement::Union{Symbol,Nothing}
     subproblem_size::Union{Dict{Symbol,Int64},Nothing}
@@ -47,68 +44,30 @@ end
 struct Options{T}
     # The initial state to start from the root node.
     initial_state::Dict{Symbol,Float64}
-    # The sampling scheme to use on the forward pass.
-    sampling_scheme::SDDP.AbstractSamplingScheme
-    backward_sampling_scheme::SDDP.AbstractBackwardSamplingScheme
     # Storage for the set of possible sampling states at each node. We only use
     # this if there is a cycle in the policy graph.
     starting_states::Dict{T,Vector{Dict{Symbol,Float64}}}
-    # Risk measure to use at each node.
-    risk_measures::Dict{T,SDDP.AbstractRiskMeasure}
-    # The delta by which to check if a state is close to a previously sampled
-    # state.
-    cycle_discretization_delta::Float64
-    # Flag to add cuts to similar nodes.
-    refine_at_similar_nodes::Bool
     # The node transition matrix.
     Φ::Dict{Tuple{T,T},Float64}
     # A list of nodes that contain a subset of the children of node i.
     similar_children::Dict{T,Vector{T}}
-    stopping_rules::Vector{SDDP.AbstractStoppingRule}
-    dashboard_callback::Function
-    print_level::Int
     start_time::Float64
     log::Vector{DynamicSDDiP.Log}
-    log_file_handle
-    log_frequency::Int
-    forward_pass::SDDP.AbstractForwardPass
 
     # Internal function: users should never construct this themselves.
     function Options(
         model::SDDP.PolicyGraph{T},
         initial_state::Dict{Symbol,Float64},
-        sampling_scheme::SDDP.AbstractSamplingScheme,
-        backward_sampling_scheme::SDDP.AbstractBackwardSamplingScheme,
-        risk_measures,
-        cycle_discretization_delta::Float64,
-        refine_at_similar_nodes::Bool,
-        stopping_rules::Vector{SDDP.AbstractStoppingRule},
-        dashboard_callback::Function,
-        print_level::Int,
         start_time::Float64,
         log::Vector{DynamicSDDiP.Log},
-        log_file_handle,
-        log_frequency::Int,
-        forward_pass::SDDP.AbstractForwardPass,
     ) where {T}
         return new{T}(
             initial_state,
-            sampling_scheme,
-            backward_sampling_scheme,
             SDDP.to_nodal_form(model, x -> Dict{Symbol,Float64}[]),
-            SDDP.to_nodal_form(model, risk_measures),
-            cycle_discretization_delta,
-            refine_at_similar_nodes,
             SDDP.build_Φ(model),
             SDDP.get_same_children(model),
-            stopping_rules,
-            dashboard_callback,
-            print_level,
             start_time,
             log,
-            log_file_handle,
-            log_frequency,
-            forward_pass,
         )
     end
 end
@@ -128,8 +87,8 @@ function print_banner(io)
         io,
         "--------------------------------------------------------------------------------",
     )
-    println(io, "                      DynamicSDDiP.jl (c) Christian Füllner, 2021")
-    println(io, "re-uses code from     SDDP.jl (c) Oscar Dowson, 2017-20")
+    println(io, "DynamicSDDiP.jl (c) Christian Füllner, 2021")
+    println(io, "re-uses code from SDDP.jl (c) Oscar Dowson, 2017-21")
     println(io)
     flush(io)
 end
@@ -146,49 +105,64 @@ function print_parameters(io, algo_params::DynamicSDDiP.AlgoParams, applied_solv
     println(io)
 
     # Printing the parameters used
+    # TODO: Stopping rules
     println(io, Printf.@sprintf("opt_rtol: %1.4e", algo_params.opt_rtol))
     println(io, Printf.@sprintf("opt_atol: %1.4e", algo_params.opt_atol))
     println(io, Printf.@sprintf("iteration_limit: %5d", algo_params.iteration_limit))
     println(io, Printf.@sprintf("time_limit (sec): %6d", algo_params.time_limit))
     println(io, "------------------------------------------------------------------------")
+
     print(io, "Binary approximation used: ")
-    println(io, algo_params.binary_approx)
-    print(io, "Initial binary precision: ")
-    println(io, algo_params.binary_precision)
+    println(io, algo_params.state_approximation_regime)
+    if algo_params.state_approximation_regime == DynamicSDDiP.BinaryApproximation
+        state_approximation_regime = algo_params.state_approximation_regime
+        print(io, "Initial binary precision: ")
+        println(io, state_approximation_regime.binary_precision)
+        print(io, "Cut projection method: ")
+        println(io, state_approximation_regime.cut_projection_method)
+    end
+
     println(io, "------------------------------------------------------------------------")
     print(io, "Regularization used: ")
-    println(io, algo_params.regularization)
-    println(io, Printf.@sprintf("Initial sigma: %4.1e", algo_params.sigma))
-    println(io, Printf.@sprintf("Sigma increase factor: %4.1e", algo_params.sigma:factor))
-    println(io, "------------------------------------------------------------------------")
-    println(io, Printf.@sprintf("Lagrangian rtol: %1.4e", algo_params.lagrangian_rtol))
-    println(io, Printf.@sprintf("Lagrangian atol: %1.4e", algo_params.lagrangian_atol))
-    println(io, Printf.@sprintf("iteration_limit: %5d", algo_params.iteration_limit))
-    print(io, "Dual initialization: ")
-    println(io, algo_params.dual_initialization_method)
-    print(io, "Dual solution method: ")
-    println(io, algo_params.dual_solution_method)
-    print(io, "Dual status regime: ")
-    println(io, algo_params.dual_status_regime)
-    print(io, "Dual bound regime: ")
-    println(io, algo_params.dual_bound_regime)
-    print(io, "Cut type: ")
-    println(io, algo_params.cut_type)
-    print(io, "Magnanti and Wong approach used: ")
-    println(io, algo_params.magnanti_wong)
-    print(io, "Numerical focus used: ")
-    println(io, algo_params.numerical_focus)
-    println(io, "------------------------------------------------------------------------")
-    if algo_params.dual_solution_method == :level_bundle
-        println(io, Printf.@sprintf("Level parameter: %2.4e", algo_params.bundle_params.level_factor))
-        println(io, Printf.@sprintf("Bundle alpha: %2.4e", algo_params.bundle_params.bundle_alpha))
-        println(io, Printf.@sprintf("Bundle factor: %2.4e", algo_params.bundle_params.bundle_factor))
-        println(io, "------------------------------------------------------------------------")
+    println(io, algo_params.regularization_regime)
+    if algo_params.regularization_regime == DynamicSDDiP.Regularization
+        println(io, Printf.@sprintf("Initial sigma: %4.1e", algo_params.sigma))
+        println(io, Printf.@sprintf("Sigma increase factor: %4.1e", algo_params.sigma:factor))
     end
-    print(io, "Cut projection method: ")
-    println(io, algo_params.cut_projection_method)
+
+    println(io, "------------------------------------------------------------------------")
+    print(io, "Cut family used: ")
+    println(io, algo_params.cut_family_regime)
+    if algo_params.cut_family_regime == DynamicSDDiP.LagrangianCut
+        cut_family_regime = algo_params.cut_family_regime
+        print(io, "Dual initialization: ")
+        println(io, cut_family_regime.dual_initialization_regime)
+        print(io, "Dual bounding: ")
+        println(io, cut_family_regime.dual_bound_regime)
+        print(io, "Dual solution method: ")
+        println(io, cut_family_regime.dual_solution_regime)
+        print(io, "Dual multiplier choice: ")
+        println(io, cut_family_regime.dual_choice_regime)
+        print(io, "Dual status regime: ")
+        println(io, cut_family_regime.dual_status_regime)
+        #print(io, "Numerical focus used: ")
+        #println(io, cut_family_regime.numerical_focus)
+        println(io, "------------------------------------------------------------------------")
+        dual_solution_regime = cut_family_regime.dual_solution_regime
+        println(io, Printf.@sprintf("Lagrangian rtol: %1.4e", dual_solution_regime.rtol))
+        println(io, Printf.@sprintf("Lagrangian atol: %1.4e", dual_solution_regime.atol))
+        println(io, Printf.@sprintf("iteration_limit: %5d", dual_solution_regime.iteration_limit))
+        if dual_solution_regime == DynamicSDDiP.LevelBundle
+            println(io, Printf.@sprintf("Level parameter: %2.4e", dual_solution_regime.level_factor))
+            println(io, Printf.@sprintf("Bundle alpha: %2.4e", dual_solution_regime.bundle_alpha))
+            println(io, Printf.@sprintf("Bundle factor: %2.4e", dual_solution_regime.bundle_factor))
+        end
+        println(io, "------------------------------------------------------------------------")
+
+    end
+
     print(io, "Cut selection used: ")
-    println(io, algo_params.cut_selection)
+    println(io, algo_params.cut_selection_regime)
     println(io, "------------------------------------------------------------------------")
     print(io, Printf.@sprintf("LP solver: %15s", applied_solvers.LP))
     print(io, Printf.@sprintf("MILP solver: %15s", applied_solvers.MILP))
@@ -279,10 +253,9 @@ function print_footer(io, training_results)
     flush(io)
 end
 
-function log_iteration(options, log)
-    options.dashboard_callback(log[end], false)
-    if options.print_level > 0 && mod(length(log), options.log_frequency) == 0
-        print_helper(print_iteration, options.log_file_handle, log[end])
+function log_iteration(algo_params::DynamicSDDiP.AlgoParams, log)
+    if algo_params.print_level > 0 && mod(length(log), algo_params.log_frequency) == 0
+        print_helper(print_iteration, algo_params.log_file_handle, log[end])
     end
 end
 

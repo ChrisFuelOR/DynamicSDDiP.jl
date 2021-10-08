@@ -242,11 +242,11 @@ Default is Regularization.
 ################################################################################
 # CUT FAMILY TO BE USED
 ################################################################################
-abstract type AbstractCutTypeRegime end
+abstract type AbstractCutFamilyRegime end
 
-mutable struct LagrangianCut <: AbstractCutTypeRegime end
+mutable struct LagrangianCut <: AbstractCutFamilyRegime end
 
-mutable struct LagrangianCut <: AbstractCutTypeRegime
+mutable struct LagrangianCut <: AbstractCutFamilyRegime
     dual_initialization_regime::AbstractDualInitializationRegime
     dual_bound_regime::AbstractDualBoundRegime
     dual_solution_regime::AbstractDualSolutionRegime
@@ -264,8 +264,8 @@ mutable struct LagrangianCut <: AbstractCutTypeRegime
     end
 end
 
-mutable struct BendersCut <: AbstractCutTypeRegime end
-mutable struct StrengthenedCut <: AbstractCutTypeRegime end
+mutable struct BendersCut <: AbstractCutFamilyRegime end
+mutable struct StrengthenedCut <: AbstractCutFamilyRegime end
 
 """
 LagrangianCut means that the Lagrangian dual is (approximately) solved to obtain
@@ -282,7 +282,14 @@ Default is LagrangianCut.
 ################################################################################
 abstract type AbstractCutSelectionRegime end
 
-mutable struct CutSelection <: AbstractCutSelectionRegime end
+mutable struct CutSelection <: AbstractCutSelectionRegime
+    cut_deletion_minimum::Int
+    function CutSelection(;
+        cut_deletion_minimum = 1,
+    )
+        return new(cut_deletion_minimum)
+    end
+
 mutable struct NoCutSelection <: AbstractCutSelectionRegime end
 
 """
@@ -295,28 +302,71 @@ NoCutSelection means that no such procedure is used, so all cuts are used
 ################################################################################
 # DEFINING STRUCT FOR CONFIGURATION OF ALGORITHM PARAMETERS
 ################################################################################
+"""
+Note that the parameters from risk_measure to refine_at_similar_nodes are
+basic SDDP parameters which are required as we are using some functionality
+from the package SDDP.jl. They should not be changed, though, as for different
+choices the DynamicSDDiP algorithm will not work.
+"""
+
 mutable struct AlgoParams
     stopping_rules::Vector{SDDP.AbstractStoppingRule}
     state_approximation_regime::AbstractStateApproximationRegime
     regularization_regime::AbstractRegularizationRegime
-    cut_type_regime::AbstractCutTypeRegime
+    cut_family_regime::AbstractCutFamilyRegime
     cut_selection_regime::AbstractCutSelectionRegime
+    ############################################################################
+    risk_measure = SDDP.Expectation()
+    forward_pass::SDDP.AbstractForwardPass
+    sampling_scheme::SDDP.AbstractSamplingScheme
+    backward_sampling_scheme::SDDP.AbstractBackwardSamplingScheme
+    parallel_scheme::SDDP.AbstractParallelScheme
+    cut_type::SDDP.CutType
+    refine_at_similar_nodes::Bool
+    cycle_discretization_delta::Float64
+    ############################################################################
+    print_level::Int
+    log_frequency::Int
+    log_file::String
+    run_numerical_stability_report::Bool
     infiltrate_state::Symbol
 
     function AlgoParams(;
         stopping_rules = [DeterministicStopping()],
         state_approximation_regime = BinaryApproximation(),
         regularization_regime = Regularization(),
-        cut_type_regime = LagrangianCut(),
+        cut_family_regime = LagrangianCut(),
         cut_selection_regime = CutSelection(),
-        infiltrate_state = :None
+        forward_pass = SDDP.DefaultForwardPass(),
+        sampling_scheme = SDDP.InSampleMonteCarlo(),
+        backward_sampling_scheme = SDDP.CompleteSampler(),
+        parallel_scheme = SDDP.Serial(),
+        cut_type = SDDP.SINGLE_CUT,
+        refine_at_similar_nodes = true,
+        cycle_discretization_delta = 0.0,
+        print_level = 1,
+        log_frequency = 1,
+        log_file = "DynamicSDDiP.log",
+        run_numerical_stability_report = true,
+        infiltrate_state = :None,
         )
         return new(
             stopping_rules,
             state_approximation_regime,
             regularization_regime,
-            cut_type_regime,
+            cut_family_regime,
             cut_selection_regime,
+            forward_pass,
+            sampling_scheme,
+            backward_sampling_scheme,
+            parallel_scheme,
+            cut_type,
+            refine_at_similar_nodes,
+            cycle_discretization_delta,
+            print_level,
+            log_frequency,
+            log_file,
+            run_numerical_stability_report
             infiltrate_state,
             )
     end
