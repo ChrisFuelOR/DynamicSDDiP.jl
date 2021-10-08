@@ -1,13 +1,17 @@
-tpl = Template(;
-    user="ChrisFuelOR",
-    authors=["Christian Fuellner"],
-    julia=v"1.5",
-    plugins=[
-        Git(; manifest=true),
-        Codecov(),
-        TravisCI(; x86=true),
-        Documenter{TravisCI}(),
-    ],
-)
+using SDDP
 
-tpl("DynamicSDDiP")
+abstract type Test end
+
+print(Test)
+print(typeof(Test))
+
+mutable struct Subtest <: Test end
+
+print(Subtest)
+print(typeof(Subtest))
+print(typeof(Subtest) == Subtest)
+print(Subtest == Subtest)
+lim = SDDP.IterationLimit
+print(lim)
+print(typeof(lim))
+print(lim == SDDP.IterationLimit)
