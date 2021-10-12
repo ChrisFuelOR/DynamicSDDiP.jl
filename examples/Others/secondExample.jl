@@ -104,7 +104,7 @@ function exampleModel()
 
     # SET-UP PARAMETERS
     ############################################################################
-    appliedSolvers = NCNBD.AppliedSolvers(Gurobi.Optimizer, Gurobi.Optimizer, GAMS.Optimizer)
+    applied_solvers = NCNBD.AppliedSolvers(Gurobi.Optimizer, Gurobi.Optimizer, GAMS.Optimizer)
 
     epsilon_outerLoop = 0.0
     epsilon_innerLoop = 0.0
@@ -119,7 +119,7 @@ function exampleModel()
 
     # SET-UP NONLINEARITIES
     ############################################################################
-    NCNBD.solve(model, algoParameters, initialAlgoParameters, appliedSolvers,
+    NCNBD.solve(model, algoParameters, initialAlgoParameters, applied_solvers,
                 iteration_limit = 100, print_level = 0)
 
 end

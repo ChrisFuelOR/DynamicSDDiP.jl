@@ -51,8 +51,8 @@ function _kelley(
     obj::Float64,
     dual_vars::Vector{Float64},
     integrality_handler::SDDP.SDDiP,
-    algoParams::NCNBD.AlgoParams,
-    appliedSolvers::NCNBD.AppliedSolvers,
+    algo_params::NCNBD.AlgoParams,
+    applied_solvers::NCNBD.AppliedSolvers,
     dual_bound::Union{Float64,Nothing}
     )
 
@@ -98,15 +98,15 @@ function _kelley(
     # Approximation of Lagrangian dual as a function of the multipliers
     approx_model = JuMP.Model(Gurobi.Optimizer)
 
-    if appliedSolvers.Lagrange == "CPLEX"
-        set_optimizer(approx_model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>appliedSolvers.Lagrange, "optcr"=>0.0, "numericalemphasis"=>0))
-        set_optimizer(model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>appliedSolvers.Lagrange, "optcr"=>0.0, "numericalemphasis"=>0))
-    elseif appliedSolvers.Lagrange == "Gurobi"
-        set_optimizer(approx_model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>appliedSolvers.Lagrange, "optcr"=>0.0, "NumericFocus"=>1))
-        set_optimizer(model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>appliedSolvers.Lagrange, "optcr"=>0.0, "numericalemphasis"=>0))
+    if applied_solvers.Lagrange == "CPLEX"
+        set_optimizer(approx_model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.Lagrange, "optcr"=>0.0, "numericalemphasis"=>0))
+        set_optimizer(model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.Lagrange, "optcr"=>0.0, "numericalemphasis"=>0))
+    elseif applied_solvers.Lagrange == "Gurobi"
+        set_optimizer(approx_model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.Lagrange, "optcr"=>0.0, "NumericFocus"=>1))
+        set_optimizer(model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.Lagrange, "optcr"=>0.0, "numericalemphasis"=>0))
     else
-        set_optimizer(approx_model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>appliedSolvers.Lagrange, "optcr"=>0.0))
-        set_optimizer(model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>appliedSolvers.Lagrange, "optcr"=>0.0, "numericalemphasis"=>0))
+        set_optimizer(approx_model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.Lagrange, "optcr"=>0.0))
+        set_optimizer(model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.Lagrange, "optcr"=>0.0, "numericalemphasis"=>0))
     end
 
     # Objective estimate and Lagrangian duals
@@ -153,7 +153,7 @@ function _kelley(
         ########################################################################
         # Evaluate the real function and a subgradient
         f_actual = _solve_Lagrangian_relaxation!(subgradients, node, dual_vars, integrality_handler.slacks, :yes)
-        @infiltrate algoParams.infiltrate_state in [:all, :lagrange] #|| model.ext[:sddp_policy_graph].ext[:iteration] == 12
+        @infiltrate algo_params.infiltrate_state in [:all, :lagrange] #|| model.ext[:sddp_policy_graph].ext[:iteration] == 12
 
         # ADD CUTTING PLANE
         ########################################################################
@@ -185,7 +185,7 @@ function _kelley(
         @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
         f_approx = JuMP.objective_value(approx_model)
 
-        @infiltrate algoParams.infiltrate_state in [:all, :lagrange] #|| model.ext[:sddp_policy_graph].ext[:iteration] == 8
+        @infiltrate algo_params.infiltrate_state in [:all, :lagrange] #|| model.ext[:sddp_policy_graph].ext[:iteration] == 8
 
         print("UB: ", f_approx, ", LB: ", f_actual)
         println()
@@ -227,12 +227,12 @@ function _kelley(
                 JuMP.fix(bin_state, integrality_handler.old_rhs[i], force = true)
             end
 
-            if appliedSolvers.MILP == "CPLEX"
-                set_optimizer(model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>appliedSolvers.MILP, "optcr"=>0.0, "numericalemphasis"=>0))
-            elseif appliedSolvers.MILP == "Gurobi"
-                set_optimizer(model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>appliedSolvers.MILP, "optcr"=>0.0, "NumericFocus"=>1))
+            if applied_solvers.MILP == "CPLEX"
+                set_optimizer(model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.MILP, "optcr"=>0.0, "numericalemphasis"=>0))
+            elseif applied_solvers.MILP == "Gurobi"
+                set_optimizer(model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.MILP, "optcr"=>0.0, "NumericFocus"=>1))
             else
-                set_optimizer(model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>appliedSolvers.MILP, "optcr"=>0.0))
+                set_optimizer(model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.MILP, "optcr"=>0.0))
             end
 
             return (lag_obj = best_actual, iterations = iter, lag_status = lag_status)
@@ -241,7 +241,7 @@ function _kelley(
         # PREPARE NEXT ITERATION
         ########################################################################
         # Next iterate
-        @infiltrate algoParams.infiltrate_state in [:all, :lagrange] #|| model.ext[:sddp_policy_graph].ext[:iteration] == 8
+        @infiltrate algo_params.infiltrate_state in [:all, :lagrange] #|| model.ext[:sddp_policy_graph].ext[:iteration] == 8
         dual_vars .= value.(x)
         # can be deleted with the next update of GAMS.jl
         replace!(dual_vars, NaN => 0)
@@ -404,8 +404,8 @@ function _bundle_level(
     obj::Float64,
     dual_vars::Vector{Float64},
     integrality_handler::SDDP.SDDiP,
-    algoParams::NCNBD.AlgoParams,
-    appliedSolvers::NCNBD.AppliedSolvers,
+    algo_params::NCNBD.AlgoParams,
+    applied_solvers::NCNBD.AppliedSolvers,
     dual_bound::Union{Float64,Nothing}
     )
 
@@ -419,7 +419,7 @@ function _bundle_level(
     # solved model's objective as our bound while searching for the optimal duals
 
     # initialize bundle parameters
-    level_factor = algoParams.level_factor
+    level_factor = algo_params.level_factor
 
     for (i, (name, bin_state)) in enumerate(node.ext[:backward_data][:bin_states])
         integrality_handler.old_rhs[i] = JuMP.fix_value(bin_state)
@@ -450,15 +450,15 @@ function _bundle_level(
     # Approximation of Lagrangian dual as a function of the multipliers
     approx_model = JuMP.Model(Gurobi.Optimizer)
     # even if objective is quadratic, it should be possible to use Gurobi
-    if appliedSolvers.Lagrange == "CPLEX"
-        set_optimizer(approx_model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>appliedSolvers.Lagrange, "optcr"=>0.0, "numericalemphasis"=>0))
-        set_optimizer(model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>appliedSolvers.Lagrange, "optcr"=>0.0, "numericalemphasis"=>0))
-    elseif appliedSolvers.Lagrange == "Gurobi"
-        set_optimizer(approx_model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>appliedSolvers.Lagrange, "optcr"=>0.0, "NumericFocus"=>1))
-        set_optimizer(model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>appliedSolvers.Lagrange, "optcr"=>0.0, "numericalemphasis"=>0))
+    if applied_solvers.Lagrange == "CPLEX"
+        set_optimizer(approx_model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.Lagrange, "optcr"=>0.0, "numericalemphasis"=>0))
+        set_optimizer(model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.Lagrange, "optcr"=>0.0, "numericalemphasis"=>0))
+    elseif applied_solvers.Lagrange == "Gurobi"
+        set_optimizer(approx_model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.Lagrange, "optcr"=>0.0, "NumericFocus"=>1))
+        set_optimizer(model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.Lagrange, "optcr"=>0.0, "numericalemphasis"=>0))
     else
-        set_optimizer(approx_model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>appliedSolvers.Lagrange, "optcr"=>0.0))
-        set_optimizer(model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>appliedSolvers.Lagrange, "optcr"=>0.0, "numericalemphasis"=>0))
+        set_optimizer(approx_model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.Lagrange, "optcr"=>0.0))
+        set_optimizer(model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.Lagrange, "optcr"=>0.0, "numericalemphasis"=>0))
     end
 
     # Define Lagrangian dual multipliers
@@ -497,7 +497,7 @@ function _bundle_level(
         ########################################################################
         # Evaluate the real function and determine a subgradient
         f_actual = _solve_Lagrangian_relaxation!(subgradients, node, dual_vars, integrality_handler.slacks, :yes)
-        @infiltrate algoParams.infiltrate_state in [:all, :lagrange] #|| model.ext[:sddp_policy_graph].ext[:iteration] == 12
+        @infiltrate algo_params.infiltrate_state in [:all, :lagrange] #|| model.ext[:sddp_policy_graph].ext[:iteration] == 12
 
         # ADD CUTTING PLANE TO APPROX_MODEL
         ########################################################################
@@ -537,7 +537,7 @@ function _bundle_level(
         @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
         f_approx = JuMP.objective_value(approx_model)
 
-        @infiltrate algoParams.infiltrate_state in [:all, :lagrange] #|| model.ext[:sddp_policy_graph].ext[:iteration] == 12
+        @infiltrate algo_params.infiltrate_state in [:all, :lagrange] #|| model.ext[:sddp_policy_graph].ext[:iteration] == 12
 
         # Construct the gap (not directly used for termination, though)
         #gap = abs(best_actual - f_approx)
@@ -583,12 +583,12 @@ function _bundle_level(
                 JuMP.fix(bin_state, integrality_handler.old_rhs[i], force = true)
             end
 
-            if appliedSolvers.MILP == "CPLEX"
-                set_optimizer(model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>appliedSolvers.MILP, "optcr"=>0.0, "numericalemphasis"=>0))
-            elseif appliedSolvers.MILP == "Gurobi"
-                set_optimizer(model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>appliedSolvers.MILP, "optcr"=>0.0, "NumericFocus"=>1))
+            if applied_solvers.MILP == "CPLEX"
+                set_optimizer(model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.MILP, "optcr"=>0.0, "numericalemphasis"=>0))
+            elseif applied_solvers.MILP == "Gurobi"
+                set_optimizer(model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.MILP, "optcr"=>0.0, "NumericFocus"=>1))
             else
-                set_optimizer(model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>appliedSolvers.MILP, "optcr"=>0.0))
+                set_optimizer(model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.MILP, "optcr"=>0.0))
             end
 
             return (lag_obj = best_actual, iterations = iter, lag_status = lag_status)
@@ -618,7 +618,7 @@ function _bundle_level(
         # can be deleted with the next update of GAMS.jl
         replace!(dual_vars, NaN => 0)
 
-        @infiltrate algoParams.infiltrate_state in [:all, :lagrange] #|| model.ext[:sddp_policy_graph].ext[:iteration] == 12
+        @infiltrate algo_params.infiltrate_state in [:all, :lagrange] #|| model.ext[:sddp_policy_graph].ext[:iteration] == 12
 
         # Logging
         print_helper(print_lag_iteration, lag_log_file_handle, iter, f_approx, best_actual, f_actual)

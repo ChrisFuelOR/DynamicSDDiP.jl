@@ -1,5 +1,4 @@
 # The functions
-# > "set_incoming_lin_state",
 # > "set_incoming_state",
 # > "setup_state",
 # > "get_outgoing_state",
@@ -53,21 +52,6 @@ end
 
 # Internal function: set the incoming state variables of node to the values
 # contained in state.
-function set_incoming_lin_state(node::SDDP.Node, state::Dict{Symbol,Float64})
-    for (state_name, value) in state
-
-        # TODO: Check if required
-        prepare_state_fixing!(node, state_name)
-
-        # Fix value (bounds are automatically deleted by force argument)
-        JuMP.fix(node.ext[:lin_states][state_name].in, value, force=true)
-    end
-    return
-end
-
-
-# Internal function: set the incoming state variables of node to the values
-# contained in state.
 function set_incoming_state(node::SDDP.Node, state::Dict{Symbol,Float64})
     for (state_name, value) in state
 
@@ -116,10 +100,10 @@ end
 # force=true when fixing.
 function prepare_state_fixing!(node::SDDP.Node, state_name::Symbol)
 
-    if JuMP.is_binary(node.ext[:lin_states][state_name].in)
-        JuMP.unset_binary(node.ext[:lin_states][state_name].in)
-    elseif JuMP.is_integer(node.ext[:lin_states][state_name].in)
-        JuMP.unset_integer(node.ext[:lin_states][state_name].in)
+    if JuMP.is_binary(node.states[state_name].in)
+        JuMP.unset_binary(node.states[state_name].in)
+    elseif JuMP.is_integer(node.states[state_name].in)
+        JuMP.unset_integer(node.states[state_name].in)
     end
 end
 
