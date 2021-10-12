@@ -227,8 +227,8 @@ function unitCommitment()
 
     # SET-UP PARAMETERS
     ############################################################################
-    # appliedSolvers = NCNBD.AppliedSolvers(GAMS.Optimizer, GAMS.Optimizer, GAMS.Optimizer, GAMS.Optimizer)
-    appliedSolvers = NCNBD.AppliedSolvers("Gurobi", "Gurobi", "Baron", "Baron")
+    # applied_solvers = NCNBD.AppliedSolvers(GAMS.Optimizer, GAMS.Optimizer, GAMS.Optimizer, GAMS.Optimizer)
+    applied_solvers = NCNBD.AppliedSolvers("Gurobi", "Gurobi", "Baron", "Baron")
 
     epsilon_outerLoop = 1e-3
     epsilon_innerLoop = 1e-4
@@ -264,7 +264,7 @@ function unitCommitment()
 
     # SET-UP NONLINEARITIES
     ############################################################################
-    NCNBD.solve(model, algoParameters, initialAlgoParameters, appliedSolvers,
+    NCNBD.solve(model, algoParameters, initialAlgoParameters, applied_solvers,
                 iteration_limit = 15, print_level = 1,
                 time_limit = 7200, stopping_rules = [NCNBD.DeterministicStopping()])
 

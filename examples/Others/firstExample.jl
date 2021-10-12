@@ -69,11 +69,11 @@ function main()
     initialBinaryPrecision = 0.5
     maxcuts = 100
 
-    algoParams = NCNBD.InitialAlgoParams(sigma, initialSimplices, initialBinaryPrecision, maxcuts)
+    algo_params = NCNBD.InitialAlgoParams(sigma, initialSimplices, initialBinaryPrecision, maxcuts)
 
     # (3) START THE NC-NBD METHOD
     ############################################################################
-    NCNBD.startNCNBD(MINLPmodel, MILPmodel, nonlinearFunctionList, algoParams)
+    NCNBD.startNCNBD(MINLPmodel, MILPmodel, nonlinearFunctionList, algo_params)
 
 
 

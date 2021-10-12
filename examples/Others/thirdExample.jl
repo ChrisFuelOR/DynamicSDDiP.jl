@@ -165,7 +165,7 @@ function thirdExample()
 
     # SET-UP PARAMETERS
     ############################################################################
-    appliedSolvers = NCNBD.AppliedSolvers(GAMS.Optimizer, GAMS.Optimizer, GAMS.Optimizer)
+    applied_solvers = NCNBD.AppliedSolvers(GAMS.Optimizer, GAMS.Optimizer, GAMS.Optimizer)
 
     epsilon_outerLoop = 1e-3
     epsilon_innerLoop = 1e-4
@@ -184,7 +184,7 @@ function thirdExample()
 
     # SET-UP NONLINEARITIES
     ############################################################################
-    NCNBD.solve(model, algoParameters, initialAlgoParameters, appliedSolvers,
+    NCNBD.solve(model, algoParameters, initialAlgoParameters, applied_solvers,
                 iteration_limit = 5, print_level = 1,
                 time_limit = 6000, stopping_rules = [NCNBD.DeterministicStopping()])
 
