@@ -68,6 +68,7 @@ function regularize_subproblem!(node::SDDP.Node, node_index::Int64,
     const_norm = JuMP.@constraint(subproblem, v >= sum(alpha[i] for i in 1:number_of_states))
     push!(reg_data[:reg_constraints], const_norm)
 
+    return
 end
 
 """
@@ -108,6 +109,7 @@ function deregularize_subproblem!(node::SDDP.Node, subproblem::JuMP.Model, regul
 
     delete!(node.ext, :regularization_data)
 
+    return
 end
 
 """
@@ -119,9 +121,9 @@ end
 
 
 """
-Introducing a regularizing term to the backward pass problem in binary space.
+Regularizing the backward pass problem in binary space if regularization is used.
 """
-function regularize_backward!(node::SDDP.Node, subproblem::JuMP.Model, sigma::Float64)
+function regularize_binary!(node::SDDP.Node, subproblem::JuMP.Model, sigma::Float64, regularization_regime::DynamicSDDiP.Regularization)
 
     bw_data = node.ext[:backward_data]
     binary_states = bw_data[:bin_states]
@@ -134,6 +136,7 @@ function regularize_backward!(node::SDDP.Node, subproblem::JuMP.Model, sigma::Fl
     reg_data[:reg_variables] = JuMP.VariableRef[]
     reg_data[:reg_constraints] = JuMP.ConstraintRef[]
 
+    ############################################################################
     # DETERMINE SIGMA TO BE USED IN BINARY SPACE
     ############################################################################
     Umax = 0
@@ -145,6 +148,7 @@ function regularize_backward!(node::SDDP.Node, subproblem::JuMP.Model, sigma::Fl
     # Here, not sigma, but a different regularization parameter is used
     sigma_bin = sigma * Umax
 
+    ############################################################################
     # UNFIX THE STATE VARIABLES
     ############################################################################
     for (i, (name, state_comp)) in enumerate(binary_states)
@@ -154,10 +158,12 @@ function regularize_backward!(node::SDDP.Node, subproblem::JuMP.Model, sigma::Fl
         follow_state_unfixing_binary!(state_comp)
     end
 
+    ############################################################################
     # STORE ORIGINAL OBJECTIVE FUNCTION
     ############################################################################
     old_obj = reg_data[:old_objective] = JuMP.objective_function(subproblem)
 
+    ############################################################################
     # DEFINE NEW VARIABLES, CONSTRAINTS AND OBJECTIVE
     ############################################################################
     # These variables and constraints are used to define the norm of the slack as a MILP
@@ -188,17 +194,29 @@ function regularize_backward!(node::SDDP.Node, subproblem::JuMP.Model, sigma::Fl
     const_norm = JuMP.@constraint(subproblem, v >= sum(alpha[i] for i in 1:number_of_states))
     push!(reg_data[:reg_constraints], const_norm)
 
+    return
+end
+
+"""
+Trivial regularization of the backward pass problem in binary space
+if no regularization is used.
+"""
+function regularize_binary!(node::SDDP.Node, subproblem::JuMP.Model, sigma::Float64, regularization_regime::DynamicSDDiP.NoRegularization)
+
+    return
 end
 
 
 """
-Regaining the unregularized problem in binary space.
+Regaining the unregularized problem in binary space if regularization
+was used.
 """
-function deregularize_backward!(node::SDDP.Node, subproblem::JuMP.Model)
+function deregularize_binary!(node::SDDP.Node, subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.Regularization)
 
     reg_data = node.ext[:regularization_data]
     bw_data = node.ext[:backward_data]
 
+    ############################################################################
     # FIX THE STATE VARIABLES
     ############################################################################
     for (i, (name, state_comp)) in enumerate(bw_data[:bin_states])
@@ -206,10 +224,12 @@ function deregularize_backward!(node::SDDP.Node, subproblem::JuMP.Model)
         JuMP.fix(state_comp, reg_data[:fixed_state_value][name], force=true)
     end
 
+    ############################################################################
     # REPLACE THE NEW BY THE OLD OBJECTIVE
     ############################################################################
     JuMP.set_objective_function(subproblem, reg_data[:old_objective])
 
+    ############################################################################
     # DELETE ALL REGULARIZATION-BASED VARIABLES AND CONSTRAINTS
     ############################################################################
     delete(subproblem, reg_data[:reg_variables])
@@ -220,4 +240,15 @@ function deregularize_backward!(node::SDDP.Node, subproblem::JuMP.Model)
 
     delete!(node.ext, :regularization_data)
 
+    return
+end
+
+
+"""
+Trivial regaining of the unregularized problem in binary space if no regularization
+was used.
+"""
+function deregularize_binary!(node::SDDP.Node, subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.NoRegularization)
+
+    return
 end

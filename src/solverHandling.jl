@@ -23,6 +23,16 @@ function set_solver(
         else
             solver = applied_solvers.MILP
         end
+    elseif algorithmic_step in [:lagrange_relax]
+        if algo_params.cut_projection_method == :Bilinear
+            solver = applied_solvers.MINLP
+        else
+            solver = applied_solvers.lagrange
+        end
+    elseif algorithmic_step in [:level_bundle]
+        solver = applied_solvers.NLP
+    elseif algorithmic_step in [:LP_relax, :kelley]
+        solver = applied_solvers.LP
     end
 
     # CHECK NUMERICAL FOCUS
@@ -61,3 +71,6 @@ function set_solver(
         end
 
     end
+
+    return
+end

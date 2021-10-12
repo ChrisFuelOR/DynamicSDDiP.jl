@@ -1,10 +1,11 @@
 # The functions
 # > "solve_all_children",
 # > "solve_subproblem_backward",
+# > "get_dual_variables_backward",
 # > "calculate_bound",
 # > "solve_first_stage_problem"
 # are derived from similar named functions (backward_pass,
-# solve_all_children, solve_subproblem, calculate_bound,
+# solve_all_children, solve_subproblem, get_dual_variables, calculate_bound,
 # solve_first_stage_problem) in the 'SDDP.jl' package by
 # Oscar Dowson and released under the Mozilla Public License 2.0.
 # The reproduced function and other functions in this file are also released
@@ -30,9 +31,9 @@ function backward_pass(
     objective_states::Vector{NTuple{N,Float64}},
     belief_states::Vector{Tuple{Int,Dict{T,Float64}}}) where {T,NoiseType,N}
 
-    ############################################################################
+    ####################################################################
     # INITIALIZATION
-    ############################################################################
+    ####################################################################
 
     # storage for cuts
     cuts = Dict{T,Vector{Any}}(index => Any[] for index in keys(model.nodes))
@@ -61,9 +62,9 @@ function backward_pass(
         # but also to store them together with the symbol/name of the variable.
         node.ext[:binary_state_values] = Dict{Symbol, Float64}()
 
-        ########################################################################
+        ####################################################################
         # SOLVE ALL CHILDREN PROBLEMS
-        ########################################################################
+        ####################################################################
         solve_all_children(
             model,
             node,
@@ -81,7 +82,14 @@ function backward_pass(
 
         # RECONSTRUCT ANCHOR POINTS IN BACKWARD PASS
         ####################################################################
-        anchor_states = determine_anchor_states(node, outgoing_state, algo_params.state_approximation_regime)
+        anchor_points = Dict{Symbol,Float64}()
+        for (name, value) in outgoing_state
+            state_comp = node.states[name]
+            epsilon = algo_params.binary_precision[name]
+            (approx_state_value, )  = determine_anchor_states(state_comp, value, epsilon)
+            anchor_points[name] = approx_state_value
+        end
+
         @infiltrate algo_params.infiltrate_state in [:all]
 
         # REFINE BELLMAN FUNCTION BY ADDING CUTS
@@ -94,7 +102,7 @@ function backward_pass(
                 node.bellman_function,
                 options.risk_measures[node_index],
                 outgoing_state,
-                anchor_states,
+                anchor_points,
                 items.bin_state,
                 items.duals,
                 items.supports,
@@ -194,8 +202,6 @@ function solve_all_children(
         # Drop the last element (i.e., the one we added).
         pop!(scenario_path)
     end
-
-    return
 end
 
 
@@ -240,35 +246,200 @@ function solve_subproblem_backward(
     end
 
     ############################################################################
-    # RESET SOLVER (as it may have been changed in between for some reason)
+    # INITIALIZE DUALS
     ############################################################################
-    DynamicSDDiP.set_solver(subproblem, algo_params, applied_solvers, :backward_pass)
-
-    ############################################################################
-    # SOLVE DUAL PROBLEM TO OBTAIN CUT INFORMATION
-    ############################################################################
-    # Solve dual and return a dict with the multipliers of the copy constraints.
-    TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_dual" begin
-        dual_results = get_dual_solution(node, node_index, solver_obj, algo_params, applied_solvers, algo_params.duality_regime)
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "dual_initialization" begin
+        dual_vars_initial = initialize_duals(node, subproblem, algo_params.dual_initialization_method)
     end
 
+    # RESET SOLVER (as it may have been changed in between for some reason)
+    ########################################################################
+    DynamicSDDiP.set_solver(node.subproblem, algo_params, applied_solvers, :backward_pass)
+
+    # GET PRIMAL SOLUTION TO BOUND LAGRANGIAN DUAL
     ############################################################################
-    # REGAIN ORIGINAL MODEL IF BINARY APPROXIMATION IS USED
+    @infiltrate algo_params.infiltrate_state in [:all]
+
+    # REGULARIZATION
+    if algo_params.regularization
+        node.ext[:regularization_data] = Dict{Symbol,Any}()
+        regularize_backward!(node, subproblem, algo_params.sigma[node_index])
+    end
+
+    # SOLVE PRIMAL PROBLEM (REGULARIZED OR NOT)
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_primal" begin
+        JuMP.optimize!(subproblem)
+    end
+
+    if haskey(model.ext, :total_solves)
+        model.ext[:total_solves] += 1
+    else
+        model.ext[:total_solves] = 1
+    end
+
+    # NOTE: TO-DO: Attempt numerical recovery as in SDDP
+
+    solver_obj = JuMP.objective_value(subproblem)
+    @assert JuMP.termination_status(subproblem) == MOI.OPTIMAL
+
+    @infiltrate algo_params.infiltrate_state in [:all]
+
+    # PREPARE ACTUAL BACKWARD PASS METHOD BY DEREGULARIZATION
+    ############################################################################
+    if algo_params.regularization
+        deregularize_backward!(node, subproblem)
+    end
+
+    # DUAL SOLUTION
+    ############################################################################
+    # Solve dual and return a dict with the multiplier of the copy constraints.
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_lagrange" begin
+        lagrangian_results = get_dual_variables_backward(node, node_index, solver_obj, algo_params, applied_solvers, dual_vars_initial)
+    end
+
+    dual_values = lagrangian_results.dual_values
+    bin_state = lagrangian_results.bin_state
+    objective = lagrangian_results.intercept
+    iterations = lagrangian_results.iterations
+    lag_status = lagrangian_results.lag_status
+
+    @infiltrate algo_params.infiltrate_state in [:all]
+
+    ############################################################################
+    # REGAIN ORIGINAL MODEL
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "space_change" begin
         rechangeStateSpace!(node, subproblem, state, algo_params.state_approximation_regime)
     end
 
-    @infiltrate algo_params.infiltrate_state in [:all]
-
     return (
-        duals = dual_results.dual_values,
-        bin_state = dual_results.bin_state,
-        objective = dual_results.intercept,
-        iterations = dual_results.iterations,
-        lag_status = dual_results.lag_status,
+        duals = dual_values,
+        bin_state = bin_state,
+        objective = objective,
+        iterations = iterations,
+        lag_status = lag_status,
+    )
+end
+
+
+"""
+Calling the Lagrangian dual solution method and determining dual variables
+required to construct a cut
+"""
+function get_dual_variables_backward(
+    node::SDDP.Node,
+    node_index::Int64,
+    solver_obj::Float64,
+    algo_params::DynamicSDDiP.AlgoParams,
+    applied_solvers::DynamicSDDiP.AppliedSolvers,
+    dual_vars_initial::Vector{Float64}
     )
 
+    # storages for return of dual values and binary state values (trial point)
+    dual_values = Dict{Symbol,Float64}()
+    bin_state = Dict{Symbol, BinaryState}()
+
+    # TODO: implement smart choice for initial duals
+    number_of_states = length(node.ext[:backward_data][:bin_states])
+    # dual_vars = zeros(number_of_states)
+    #solver_obj = JuMP.objective_value(node.ext[:linSubproblem])
+    dual_vars = dual_vars_initial
+
+    lag_obj = 0
+    lag_iterations = 0
+    lag_status = :none
+
+    # Create an SDDiP integrality_handler here to store the Lagrangian dual information
+    #TODO: Store tolerances in algo_params
+    integrality_handler = SDDP.SDDiP(iteration_limit = algo_params.lagrangian_iteration_limit, atol = algo_params.lagrangian_atol, rtol = algo_params.lagrangian_rtol)
+    integrality_handler = SDDP.update_integrality_handler!(integrality_handler, applied_solvers.MILP, number_of_states)
+    node.ext[:lagrange] = integrality_handler
+
+    # DETERMINE AND ADD BOUNDS FOR DUAL VARIABLES
+    ############################################################################
+    #TODO: Determine a norm of B (coefficient matrix of binary expansion)
+    # We use the column sum norm here
+    # But instead of calculating it exactly, we can also use the maximum
+    # upper bound of all state variables as a bound
+
+    B_norm_bound = 0
+    for (name, state_comp) in node.states
+        if state_comp.info.in.upper_bound > B_norm_bound
+            B_norm_bound = state_comp.info.in.upper_bound
+        end
+    end
+    dual_bound = algo_params.sigma[node_index] * B_norm_bound
+
+    @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
+    #|| node.ext[:linSubproblem].ext[:sddp_policy_graph].ext[:iteration] == 12
+
+    try
+        # SOLUTION WITHOUT BOUNDED DUAL VARIABLES (BETTER TO OBTAIN BASIC SOLUTIONS)
+        ########################################################################
+        if algo_params.lagrangian_method == :kelley
+            results = _kelley(node, node_index, solver_obj, dual_vars, integrality_handler, algo_params, applied_solvers, nothing)
+            lag_obj = results.lag_obj
+            lag_iterations = results.iterations
+            lag_status = results.lag_status
+        elseif algo_params.lagrangian_method == :bundle_level
+            results = _bundle_level(node, node_index, solver_obj, dual_vars, integrality_handler, algo_params, applied_solvers, nothing)
+            lag_obj = results.lag_obj
+            lag_iterations = results.iterations
+            lag_status = results.lag_status
+        end
+
+        # OPTIMAL VALUE CHECKS
+        ########################################################################
+        if algo_params.lag_status_regime == :rigorous
+            if lag_status == :conv
+                error("Lagrangian dual converged to value < solver_obj.")
+            elseif lag_status == :sub
+                error("Lagrangian dual had subgradients zero without LB=UB.")
+            elseif lag_status == :iter
+                error("Solving Lagrangian dual exceeded iteration limit.")
+            end
+
+        elseif algo_params.lag_status_regime == :lax
+            # all cuts will be used as they are valid even though not necessarily tight
+        end
+
+        # DUAL VARIABLE BOUND CHECK
+        ########################################################################
+        # if one of the dual variables exceeds the bounds (e.g. in case of an
+        # discontinuous value function), use bounded version of Kelley's method
+        bound_check = true
+        for dual_var in dual_vars
+            if dual_var > dual_bound
+                bound_check = false
+            end
+        end
+
+        @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
+
+    catch e
+        SDDP.write_subproblem_to_file(node, "subproblem.mof.json", throw_error = false)
+        rethrow(e)
+    end
+
+    # SET DUAL VARIABLES AND STATES CORRECTLY FOR RETURN
+    ############################################################################
+    for (i, name) in enumerate(keys(node.ext[:backward_data][:bin_states]))
+        # TODO (maybe) change dual signs inside kelley to match LP duals
+        dual_values[name] = -dual_vars[i]
+
+        value = integrality_handler.old_rhs[i]
+        x_name = node.ext[:backward_data][:bin_x_names][name]
+        k = node.ext[:backward_data][:bin_k][name]
+        bin_state[name] = BinaryState(value, x_name, k)
+    end
+
+    return (
+        dual_values=dual_values,
+        bin_state=bin_state,
+        intercept=lag_obj,
+        iterations=lag_iterations,
+        lag_status=lag_status,
+    )
 end
 
 

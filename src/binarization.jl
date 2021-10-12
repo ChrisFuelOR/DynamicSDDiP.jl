@@ -126,6 +126,8 @@ function rechangeStateSpace!(
 
     delete!(node.ext, :backward_data)
 
+    return
+
 end
 
 
@@ -249,7 +251,7 @@ function setup_state_binarization(
             ####################################################################
             binary_constraint = JuMP.@constraint(
                 subproblem,
-                state_comp.in == SDDP.bincontract([binary_vars[i] for i = 1:num_vars])
+                state_comp.in == SDDP.bincontract([binary_vars[i] for i in 1:num_vars])
             )
             # store in list for later access and deletion
             push!(bw_data[:bin_constraints], binary_constraint)
@@ -260,7 +262,7 @@ function setup_state_binarization(
             # Get fixed values from fixed value of original state
             fixed_binary_values = SDDP.binexpand(bw_data[:fixed_state_value][state_name], state_comp.info.in.upper_bound)
             # Fix binary variables
-            for i = 1:num_vars
+            for i in 1:num_vars
                 #JuMP.unset_binary(binary_vars[i].in)
                 JuMP.fix(binary_vars[i], fixed_binary_values[i])
             end
@@ -307,7 +309,7 @@ function setup_state_binarization(
             ####################################################################
             binary_constraint = JuMP.@constraint(
                 subproblem,
-                state_comp.in == SDDP.bincontract([binary_vars[i] for i = 1:num_vars], epsilon)
+                state_comp.in == SDDP.bincontract([binary_vars[i] for i in 1:num_vars], epsilon)
             )
 
             # store in list for later access and deletion
@@ -319,7 +321,7 @@ function setup_state_binarization(
             # Get fixed values from fixed value of original state
             fixed_binary_values = SDDP.binexpand(bw_data[:fixed_state_value][state_name], state_comp.info.in.upper_bound, epsilon)
             # Fix binary variables
-            for i = 1:num_vars
+            for i in 1:num_vars
                 #JuMP.unset_binary(binary_vars[i].in)
                 JuMP.fix(binary_vars[i], fixed_binary_values[i])
             end
@@ -337,12 +339,32 @@ function setup_state_binarization(
 end
 
 
-
-
 """
-Determining the anchor points in the original space.
+Determining the anchor points in the original space if BinaryApproximation
+is used.
 """
 function determine_anchor_states(
+    node::DynamicSDDiP.Node,
+    outgoing_state::Dict{Symbol,Float64},
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation,
+)
+
+    anchor_states = Dict{Symbol,Float64}()
+    for (name, value) in outgoing_state
+        state_comp = node.states[name]
+        epsilon = state_approximation_regime.binary_precision[name]
+        (approx_state_value, )  = determine_anchor_state(state_comp, value, epsilon)
+        anchor_states[name] = approx_state_value
+    end
+
+    return anchor_states
+end
+
+
+"""
+Determining a single anchor state in the original space.
+"""
+function determine_anchor_state(
     state_comp::State,
     state_value::Float64,
     binaryPrecision::Float64,
@@ -365,4 +387,19 @@ function determine_anchor_states(
         end
     end
     return approx_state_value, fixed_binary_values
+end
+
+
+"""
+Determining the anchor points in the original space if no state approximation
+is used.
+"""
+function determine_anchor_states(
+    node::DynamicSDDiP.Node,
+    outgoing_state::Dict{Symbol,Float64},
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation,
+)
+
+    anchor_states = Dict{Symbol,Float64}()
+    return anchor_states
 end

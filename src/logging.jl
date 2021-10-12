@@ -53,6 +53,7 @@ struct Options{T}
     similar_children::Dict{T,Vector{T}}
     start_time::Float64
     log::Vector{DynamicSDDiP.Log}
+    log_file_handle::Any
 
     # Internal function: users should never construct this themselves.
     function Options(
@@ -60,6 +61,7 @@ struct Options{T}
         initial_state::Dict{Symbol,Float64},
         start_time::Float64,
         log::Vector{DynamicSDDiP.Log},
+        log_file_handle::Any
     ) where {T}
         return new{T}(
             initial_state,
@@ -68,6 +70,7 @@ struct Options{T}
             SDDP.get_same_children(model),
             start_time,
             log,
+            log_file_handle
         )
     end
 end
@@ -132,23 +135,23 @@ function print_parameters(io, algo_params::DynamicSDDiP.AlgoParams, applied_solv
 
     println(io, "------------------------------------------------------------------------")
     print(io, "Cut family used: ")
-    println(io, algo_params.cut_family_regime)
-    if algo_params.cut_family_regime == DynamicSDDiP.LagrangianCut
-        cut_family_regime = algo_params.cut_family_regime
+    println(io, algo_params.duality_regime)
+    if algo_params.duality_regime == DynamicSDDiP.LagrangianDuality
+        duality_regime = algo_params.duality_regime
         print(io, "Dual initialization: ")
-        println(io, cut_family_regime.dual_initialization_regime)
+        println(io, duality_regime.dual_initialization_regime)
         print(io, "Dual bounding: ")
-        println(io, cut_family_regime.dual_bound_regime)
+        println(io, duality_regime.dual_bound_regime)
         print(io, "Dual solution method: ")
-        println(io, cut_family_regime.dual_solution_regime)
+        println(io, duality_regime.dual_solution_regime)
         print(io, "Dual multiplier choice: ")
-        println(io, cut_family_regime.dual_choice_regime)
+        println(io, duality_regime.dual_choice_regime)
         print(io, "Dual status regime: ")
-        println(io, cut_family_regime.dual_status_regime)
+        println(io, duality_regime.dual_status_regime)
         #print(io, "Numerical focus used: ")
-        #println(io, cut_family_regime.numerical_focus)
+        #println(io, duality_regime.numerical_focus)
         println(io, "------------------------------------------------------------------------")
-        dual_solution_regime = cut_family_regime.dual_solution_regime
+        dual_solution_regime = duality_regime.dual_solution_regime
         println(io, Printf.@sprintf("Lagrangian rtol: %1.4e", dual_solution_regime.rtol))
         println(io, Printf.@sprintf("Lagrangian atol: %1.4e", dual_solution_regime.atol))
         println(io, Printf.@sprintf("iteration_limit: %5d", dual_solution_regime.iteration_limit))
@@ -253,9 +256,9 @@ function print_footer(io, training_results)
     flush(io)
 end
 
-function log_iteration(algo_params::DynamicSDDiP.AlgoParams, log)
+function log_iteration(algo_params::DynamicSDDiP.AlgoParams, log_file_handle::Any, log::DynamicSDDiP.log)
     if algo_params.print_level > 0 && mod(length(log), algo_params.log_frequency) == 0
-        print_helper(print_iteration, algo_params.log_file_handle, log[end])
+        print_helper(print_iteration, log_file_handle, log[end])
     end
 end
 

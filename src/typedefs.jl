@@ -56,7 +56,7 @@ Default is ZeroDuals.
 
 mutable struct ZeroDuals <: AbstractDualInitializationRegime end
 mutable struct LPDuals <: AbstractDualInitializationRegime end
-mutable struct CPLEXFixed <: AbstractDualInitializationRegime end
+#mutable struct CPLEXFixed <: AbstractDualInitializationRegime end
 
 ################################################################################
 # SOLUTION METHOD FOR LAGRANGIAN DUAL
@@ -72,34 +72,35 @@ Default is Kelley.
 """
 
 mutable struct Kelley <: AbstractDualSolutionRegime
-    atol::Float64
-    rtol::Float64
-    iteration_limit::Int
-    function LevelBundle(;
-        atol = 1e-8,
-        rtol = 1e-8,
-        iteration_limit = 1000,
-        )
-        return new(atol, rtol, iteration_limit)
-    end
+    # atol::Float64
+    # rtol::Float64
+    # iteration_limit::Int
+    # function Kelley(;
+    #     atol = 1e-8,
+    #     rtol = 1e-8,
+    #     iteration_limit = 1000,
+    #     )
+    #     return new(atol, rtol, iteration_limit)
+    # end
 end
 
 mutable struct LevelBundle <: AbstractDualSolutionRegime
-    atol::Float64
-    rtol::Float64
-    iteration_limit::Int
+    # atol::Float64
+    # rtol::Float64
+    # iteration_limit::Int
     bundle_alpha::Float64
     bundle_factor::Float64
     level_factor::Float64
     function LevelBundle(;
-        atol = 1e-8,
-        rtol = 1e-8,
-        iteration_limit = 1000,
+        # atol = 1e-8,
+        # rtol = 1e-8,
+        # iteration_limit = 1000,
         bundle_alpha = 1.0,
         bundle_factor = 1.0,
         level_factor = 1.0,
         )
-        return new(atol, rtol, iteration_limit, bundle_alpha, bundle_factor, level_factor)
+        #return new(atol, rtol, iteration_limit, bundle_alpha, bundle_factor, level_factor)
+        return new(bundle_alpha, bundle_factor, level_factor)
     end
 end
 
@@ -242,39 +243,46 @@ Default is Regularization.
 ################################################################################
 # CUT FAMILY TO BE USED
 ################################################################################
-abstract type AbstractCutFamilyRegime end
+abstract type AbstractDualityRegime end
 
-mutable struct LagrangianCut <: AbstractCutFamilyRegime end
+mutable struct LagrangianDuality <: AbstractDualityRegime end
 
-mutable struct LagrangianCut <: AbstractCutFamilyRegime
+mutable struct LagrangianDuality <: AbstractDualityRegime
+    atol::Float64
+    rtol::Float64
+    iteration_limit::Int
     dual_initialization_regime::AbstractDualInitializationRegime
     dual_bound_regime::AbstractDualBoundRegime
     dual_solution_regime::AbstractDualSolutionRegime
     dual_choice_regime::AbstractDualChoiceRegime
     dual_status_regime::AbstractDualStatusRegime
     function BinaryApproximation(;
+        atol = 1e-8,
+        rtol = 1e-8,
+        iteration_limit = 1000,
         dual_initialization_regime = ZeroDuals(),
         dual_bound_regime = BothBounds(),
         dual_solution_regime = Kelley(),
         dual_choice_regime = MagnantiWongChoice(),
         dual_status_regime = Rigorous(),
     )
-        return new(dual_initialization_regime, dual_bound_regime,
+        return new(atol, rtol, iteration_limit,
+            dual_initialization_regime, dual_bound_regime,
             dual_solution_regime, dual_choice_regime, dual_status_regime)
     end
 end
 
-mutable struct BendersCut <: AbstractCutFamilyRegime end
-mutable struct StrengthenedCut <: AbstractCutFamilyRegime end
+mutable struct LinearDuality <: AbstractDualityRegime end
+mutable struct StrengthenedDuality <: AbstractDualityRegime end
 
 """
-LagrangianCut means that the Lagrangian dual is (approximately) solved to obtain
+LagrangianDuality means that the Lagrangian dual is (approximately) solved to obtain
     a cut. In this case, a lot of parameters have to be defined to configure
     the solution of the Lagrangian dual.
-BendersCut means that the LP relaxation is solved to obtain a cut.
-StrengthenedCut means that the Lagrangian relaxation is solved using the optimal
+LinearDuality means that the LP relaxation is solved to obtain a cut.
+StrengthenedDuality means that the Lagrangian relaxation is solved using the optimal
     dual multiplier of the LP relaxation to obtain a strengthened Benders cuts.
-Default is LagrangianCut.
+Default is LagrangianDuality.
 """
 
 ################################################################################
@@ -313,7 +321,7 @@ mutable struct AlgoParams
     stopping_rules::Vector{SDDP.AbstractStoppingRule}
     state_approximation_regime::AbstractStateApproximationRegime
     regularization_regime::AbstractRegularizationRegime
-    cut_family_regime::AbstractCutFamilyRegime
+    duality_regime::AbstractDualityRegime
     cut_selection_regime::AbstractCutSelectionRegime
     ############################################################################
     risk_measure = SDDP.Expectation()
@@ -335,7 +343,7 @@ mutable struct AlgoParams
         stopping_rules = [DeterministicStopping()],
         state_approximation_regime = BinaryApproximation(),
         regularization_regime = Regularization(),
-        cut_family_regime = LagrangianCut(),
+        duality_regime = LagrangianDuality(),
         cut_selection_regime = CutSelection(),
         forward_pass = SDDP.DefaultForwardPass(),
         sampling_scheme = SDDP.InSampleMonteCarlo(),
@@ -354,7 +362,7 @@ mutable struct AlgoParams
             stopping_rules,
             state_approximation_regime,
             regularization_regime,
-            cut_family_regime,
+            duality_regime,
             cut_selection_regime,
             forward_pass,
             sampling_scheme,

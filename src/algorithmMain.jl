@@ -66,6 +66,7 @@ function solve(
         model.initial_root_state,
         time(),
         log,
+        log_file_handle
     )
 
     ############################################################################
@@ -206,7 +207,7 @@ function master_loop(parallel_scheme::SDDP.Serial, model::SDDP.PolicyGraph{T},
         end
 
         # logging
-        log_iteration(algo_params, options.log)
+        log_iteration(algo_params, options.log_file_handle, options.log)
 
         # initialize parameters
         previous_solution = result.current_sol
@@ -237,6 +238,7 @@ function master_loop(parallel_scheme::SDDP.Serial, model::SDDP.PolicyGraph{T},
 
     end
 
+    return
 end
 
 

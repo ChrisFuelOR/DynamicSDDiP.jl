@@ -241,7 +241,7 @@ function _add_average_cut(
     πᵏ = Dict(key => 0.0 for key in keys(bin_states))
     θᵏ = offset
 
-    for i = 1:length(objective_realizations)
+    for i in 1:length(objective_realizations)
         p = risk_adjusted_probability[i]
         θᵏ += p * objective_realizations[i]
         for (key, dual) in dual_variables[i]
@@ -486,7 +486,7 @@ function add_cut_constraints_to_models(
     ############################################################################
     expr = @expression(
         model,
-        V.theta + yᵀμ - sum(allCoefficients[j] * gamma[j]  for j=1:number_of_duals)
+        V.theta + yᵀμ - sum(allCoefficients[j] * gamma[j]  for j in 1:number_of_duals)
     )
 
     constraint_ref = if JuMP.objective_sense(model) == MOI.MIN_SENSE
@@ -500,7 +500,7 @@ function add_cut_constraints_to_models(
     ############################################################################
     expr_lin = @expression(
         model_lin,
-        V_lin.theta + yᵀμ - sum(allCoefficients[j] * gamma_lin[j]  for j=1:number_of_duals)
+        V_lin.theta + yᵀμ - sum(allCoefficients[j] * gamma_lin[j]  for j in 1:number_of_duals)
     )
 
     constraint_ref_lin = if JuMP.objective_sense(model_lin) == MOI.MIN_SENSE
@@ -561,7 +561,7 @@ function add_cut_projection_to_model!(
     ####################################################################
     binary_constraint = JuMP.@constraint(
         model,
-        state_comp == SDDP.bincontract([γ[k] for k = 1:K], epsilon)
+        state_comp == SDDP.bincontract([γ[k] for k in 1:K], epsilon)
     )
     push!(cutConstraints, binary_constraint)
 
@@ -858,7 +858,7 @@ function _eval_height(node::SDDP.Node, cut::NCNBD.NonlinearCut, states::Dict{Sym
             binary_variables_so_far += K
 
             # introduce binary expansion constraint to the model
-            binary_constraint = JuMP.@constraint(model, SDDP.bincontract([binary_var[k] for k=1:K], epsilon) == value)
+            binary_constraint = JuMP.@constraint(model, SDDP.bincontract([binary_var[k] for k in 1:K], epsilon) == value)
 
             # determine the correct cut coefficient
             relatedCoefficients = Vector{Float64}(undef, K)
@@ -887,7 +887,7 @@ function _eval_height(node::SDDP.Node, cut::NCNBD.NonlinearCut, states::Dict{Sym
 
     JuMP.@objective(
         model, eval_sense,
-        cut.intercept + sum(allCoefficients[j] * binary_state_storage[j] for j=1:binary_variables_so_far)
+        cut.intercept + sum(allCoefficients[j] * binary_state_storage[j] for j in 1:binary_variables_so_far)
     )
 
     # SOLVE MODEL AND RETURN SOLUTION
