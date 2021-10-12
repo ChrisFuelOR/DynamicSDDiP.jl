@@ -88,19 +88,15 @@ mutable struct LevelBundle <: AbstractDualSolutionRegime
     # atol::Float64
     # rtol::Float64
     # iteration_limit::Int
-    bundle_alpha::Float64
-    bundle_factor::Float64
     level_factor::Float64
     function LevelBundle(;
         # atol = 1e-8,
         # rtol = 1e-8,
         # iteration_limit = 1000,
-        bundle_alpha = 1.0,
-        bundle_factor = 1.0,
         level_factor = 1.0,
         )
-        #return new(atol, rtol, iteration_limit, bundle_alpha, bundle_factor, level_factor)
-        return new(bundle_alpha, bundle_factor, level_factor)
+        #return new(atol, rtol, iteration_limit, level_factor)
+        return new(level_factor)
     end
 end
 

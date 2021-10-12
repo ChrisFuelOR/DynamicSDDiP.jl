@@ -177,17 +177,17 @@ function solve_lagrangian_dual(
         @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
         ########################################################################
-        # ADD CUTTING PLANE
-        ########################################################################
-        JuMP.@constraint(approx_model, t <= s * (L_k + h_k' * (π .- π_k)))
-
-        ########################################################################
         # UPDATE BEST FOUND SOLUTION SO FAR
         ########################################################################
         if s * L_k >= L_star
             L_star = s * L_k
             π_star .= π_k
         end
+
+        ########################################################################
+        # ADD CUTTING PLANE
+        ########################################################################
+        JuMP.@constraint(approx_model, t <= s * (L_k + h_k' * (π .- π_k)))
 
         ########################################################################
         # SOLVE APPROXIMATION MODEL
@@ -472,8 +472,6 @@ function solve_lagrangian_dual(
     # Set bundle_parameters
     #---------------------------------------------------------------------------
     level_factor = dual_solution_regime.level_factor
-    bundle_alpha = dual_solution.bundle_alpha
-    bundle_factor = dual_solution.bundle_factor
 
     ############################################################################
     # RELAXING THE COPY CONSTRAINTS
@@ -528,17 +526,17 @@ function solve_lagrangian_dual(
         @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
         ########################################################################
-        # ADD CUTTING PLANE
-        ########################################################################
-        JuMP.@constraint(approx_model, t <= s * (L_k + h_k' * (π .- π_k)))
-
-        ########################################################################
         # UPDATE BEST FOUND SOLUTION SO FAR
         ########################################################################
         if s * L_k >= L_star
             L_star = s * L_k
             π_star .= π_k
         end
+
+        ########################################################################
+        # ADD CUTTING PLANE
+        ########################################################################
+        JuMP.@constraint(approx_model, t <= s * (L_k + h_k' * (π .- π_k)))
 
         ########################################################################
         # RESET OBJECTIVE FOR APPROX_MODEL AFTER NONLINEAR MODEL
@@ -553,7 +551,6 @@ function solve_lagrangian_dual(
         JuMP.optimize!(approx_model)
         @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
         t_k = JuMP.objective_value(approx_model)
-        π_k .= JuMP.value(π)
         @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
         #print("UB: ", f_approx, ", LB: ", f_actual)
@@ -562,9 +559,64 @@ function solve_lagrangian_dual(
         ########################################################################
         # COMPUTE GAP AND FORM A NEW LEVEL
         ########################################################################
-        gap = abs(L_k - primal_obj) #t_k
-        level = t_k - gap * level_factor
-        #TODO: - atol/10.0 for numerical issues?
+        f_up = t_k # objective value of the approx_model
+        f_down = L_star # best lower bound so far
+        gap = f_up - f_down
+
+        """
+        We use a convex combination of f_up and f_down for the new level.
+        level = (1-a) f_up + a f_down = f_up - a (f_up - f_down) = f_up - a gap
+
+        For level_factor = 0 => level = f_up, i.e. t_k, that means, this
+        reduces to the basic cutting-plane method.
+
+        For level_factor = 1 => level = f_down, i.e. L_star. That means that
+        we search for the closest multiplier, for which the level is larger than
+        L_star. At least for L_star = L_k then the multiplier does not change
+        anymore, because the condition is trivially satisfied for the current
+        multiplier. Otherwise, this should yield one of the previous multipliers,
+        so again no improvement.
+        """
+
+        # TODO: POSSIBLE IMPROVEMENTS/CHANGES
+        """
+        1.) STRUCTURE
+        In the literature often a different order of the steps is proposed,
+        so maybe we should change this.
+
+        In particular, the gap is often determined before the approx_model
+        is solved with the new multipliers. That means that the gap is determined
+        using f_down and f_up = t_{k-1}. In this case, t_0 has to be determined
+        appropriately, e.g. we can just choose primal_obj.
+
+        2.) STOPPING
+        In the literature it is often proposed to stop if the gap is sufficiently
+        small. In our case, this doesn't make a difference, but since the gap
+        can be determined differently as well, then our stopping criterion
+        would change.
+
+        3.) STABILITY CENTER
+        We always choose the new multiplier obtained by solving the proximal
+        problem as new stability center. It is also possible to change the
+        stability center only if a sufficiently large improvement is achieved.
+
+        4.) DETERMINING f_up
+        Instead of solving approx_model, we could also determine f_up in the
+        following way:
+        > If the proximal problem is infeasible, set f_up = level.
+        > If the proximal problem is feasible, do not change f_up.
+
+        5.) DETERMINE gap
+        Right now, the gap is determined as f_up - f_down with
+        f_up = t_k
+        f_down = L_star
+
+        We could also choose f_up = primal_obj, since we already know that
+        this is the best possible upper bound. Is this beneficial?
+        """
+
+        level = f_up - gap * level_factor
+        # - atol/10.0 for numerical issues?
         JuMP.setlowerbound(t, level)
 
         ########################################################################
@@ -575,6 +627,7 @@ function solve_lagrangian_dual(
         set_solver(approx_model, algo_params, applied_solvers, :level_bundle)
         JuMP.optimize!(approx_model)
         @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
+        π_k .= JuMP.value(π)
 
         ########################################################################
         if L_star > t_k + atol/10.0
