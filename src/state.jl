@@ -22,7 +22,7 @@ mutable struct StateInfo
     in::JuMP.VariableInfo
     out::JuMP.VariableInfo
     initial_value::Float64
-    kwargs
+    kwargs::Any
 end
 
 struct State{T}
@@ -34,21 +34,6 @@ struct State{T}
     info::StateInfo
 end
 
-function setup_state(
-    subproblem::JuMP.Model,
-    state::State,
-    state_info::StateInfo,
-    name::String,
-    ::SDDP.ContinuousRelaxation
-)
-    node = SDDP.get_node(subproblem)
-    sym_name = Symbol(name)
-    @assert !haskey(node.ext[:lin_states], sym_name)  # JuMP prevents duplicate names.
-    node.ext[:lin_states][sym_name] = state
-    graph = SDDP.get_policy_graph(subproblem)
-    graph.ext[:lin_initial_root_state][sym_name] = state_info.initial_value
-    return
-end
 
 # Internal function: set the incoming state variables of node to the values
 # contained in state.
@@ -105,6 +90,8 @@ function prepare_state_fixing!(node::SDDP.Node, state_name::Symbol)
     elseif JuMP.is_integer(node.states[state_name].in)
         JuMP.unset_integer(node.states[state_name].in)
     end
+
+    return
 end
 
 function prepare_state_fixing!(node::SDDP.Node, state::State)
@@ -123,6 +110,8 @@ function prepare_state_fixing_binary!(node::SDDP.Node, state::JuMP.VariableRef)
     elseif JuMP.is_integer(state)
         JuMP.unset_integer(state)
     end
+
+    return
 end
 
 # Reset binary and integer type of state variables.
@@ -142,6 +131,7 @@ function follow_state_unfixing!(state::State)
         JuMP.set_integer(state.in)
     end
 
+    return
 end
 
 function follow_state_unfixing_binary!(state::JuMP.VariableRef)
@@ -149,10 +139,21 @@ function follow_state_unfixing_binary!(state::JuMP.VariableRef)
     JuMP.set_lower_bound(state, 0)
     JuMP.set_upper_bound(state, 1)
 
+    return
 end
 
 struct BinaryState
     value::Float64
     x_name::Symbol # name of original state it is related to
     k::Int64 # index and exponent
+end
+
+function get_number_of_states(node::SDDP.Node, state_approximation_regime::DynamicSDDiP.BinaryApproximation)
+
+    return length(node.ext[:backward_data][:bin_states])
+end
+
+function get_number_of_states(node::SDDP.Node, state_approximation_regime::DynamicSDDiP.NoStateApproximation)
+
+    return length(node.states)
 end

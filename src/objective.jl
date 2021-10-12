@@ -30,6 +30,8 @@ function set_objective(subproblem::JuMP.Model)
             @expression(
                 subproblem,
                 node.stage_objective +
+                objective_state_component +
+                belief_state_component +
                 bellman_term(node.bellman_function)
             )
         )

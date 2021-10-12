@@ -44,7 +44,7 @@ function JuMP.build_variable(
     )
 end
 
-function JuMP.add_variable(problem::JuMP.Model, state_info::StateInfo, name::String)
+function JuMP.add_variable(subproblem::JuMP.Model, state_info::StateInfo, name::String)
 
     # Store bounds also in state, since they have to be relaxed and readded later
     # if state_info.out.has_lb
@@ -65,8 +65,12 @@ function JuMP.add_variable(problem::JuMP.Model, state_info::StateInfo, name::Str
         state_info
     )
 
-    integrality_handler = SDDP.get_integrality_handler(problem)
-    setup_state(problem, state, state_info, name, integrality_handler)
+    node = get_node(subproblem)
+    sym_name = Symbol(name)
+    @assert !haskey(node.states, sym_name)  # JuMP prevents duplicate names.
+    node.states[sym_name] = state
+    graph = get_policy_graph(subproblem)
+    graph.initial_root_state[sym_name] = state_info.initial_value
     return state
 end
 
