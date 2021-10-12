@@ -101,7 +101,7 @@ function sixthExample()
 
     # SET-UP PARAMETERS
     ############################################################################
-    appliedSolvers = NCNBD.AppliedSolvers(GAMS.Optimizer, GAMS.Optimizer, GAMS.Optimizer)
+    applied_solvers = NCNBD.AppliedSolvers(GAMS.Optimizer, GAMS.Optimizer, GAMS.Optimizer)
 
     epsilon_outerLoop = 0.01
     epsilon_innerLoop = 0.001
@@ -120,7 +120,7 @@ function sixthExample()
 
     # SET-UP NONLINEARITIES
     ############################################################################
-    NCNBD.solve(model, algoParameters, initialAlgoParameters, appliedSolvers,
+    NCNBD.solve(model, algoParameters, initialAlgoParameters, applied_solvers,
                 iteration_limit = 5, print_level = 1,
                 time_limit = 6000, stopping_rules = [NCNBD.DeterministicStopping()])
 
