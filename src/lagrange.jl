@@ -196,18 +196,13 @@ function solve_lagrangian_dual(
         JuMP.optimize!(approx_model)
         @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
         t_k = JuMP.objective_value(approx_model)
+        π_k .= JuMP.value(π)
         @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
         #print("UB: ", f_approx, ", LB: ", f_actual)
         #println()
 
         ########################################################################
-        # PREPARE NEXT ITERATION
-        ########################################################################
-        # dual_vars .= value.(x)
-        # can be deleted with the next update of GAMS.jl
-        # replace!(dual_vars, NaN => 0)
-
         if L_star > t_k + atol/10.0
             error("Could not solve for Lagrangian duals. LB > UB.")
         end
@@ -429,237 +424,211 @@ end
 
 
 """
-Level bundle method to solve the Lagrangian duals.
+Level Bundle method to solve Lagrangian dual
 """
-function _bundle_level(
+function solve_lagrangian_dual(
     node::SDDP.Node,
     node_index::Int64,
-    obj::Float64,
-    dual_vars::Vector{Float64},
-    integrality_handler::SDDP.SDDiP,
+    primal_obj::Float64,
+    π_k::Vector{Float64},
+    bound_results::Tuple{Float64,Float64}
     algo_params::NCNBD.AlgoParams,
     applied_solvers::NCNBD.AppliedSolvers,
-    dual_bound::Union{Float64,Nothing}
+    dual_solution_regime::DynamicSDDiP.LevelBundle
     )
 
+    ############################################################################
     # INITIALIZATION
     ############################################################################
-    atol = integrality_handler.atol # corresponds to deltabar
-    rtol = integrality_handler.rtol # corresponds to deltabar
-    model = node.ext[:linSubproblem]
-    # Assume the model has been solved. Solving the MIP is usually very quick
-    # relative to solving for the Lagrangian duals, so we cheat and use the
-    # solved model's objective as our bound while searching for the optimal duals
+    # A sign bit that is used to avoid if-statements in the models (see SDDP.jl)
+    s = JuMP.objective_sense(node.subproblem) == MOI.MIN_SENSE ? 1 : -1
 
-    # initialize bundle parameters
-    level_factor = algo_params.level_factor
+    # Storage for the cutting-plane method
+    #---------------------------------------------------------------------------
+    number_of_states = get_number_of_states(node, algo_params.state_approximation_regime)
+    # The original value for x (former old_rhs)
+    x_in_value = zeros(number_of_states)
+    # The current estimate for π (in our case determined in initialization)
+    # π_k
+    # The best estimate for π (former best_mult)
+    π_star = zeros(number_of_states)
+    # The best estimate for the dual objective value (ignoring optimization sense)
+    L_star = -Inf
+    # The expression for ̄x-z (former slacks)
+    h_expr = Vector{AffExpr}(undef, number_of_states)
+    # The current value of ̄x-z (former subgradients)
+    h_k = zeros(number_of_states)
 
-    for (i, (name, bin_state)) in enumerate(node.ext[:backward_data][:bin_states])
-        integrality_handler.old_rhs[i] = JuMP.fix_value(bin_state)
-        integrality_handler.slacks[i] = bin_state - integrality_handler.old_rhs[i]
-        JuMP.unfix(bin_state)
-        #JuMP.unset_binary(state_comp.in) # TODO: maybe not required
-        JuMP.set_lower_bound(bin_state, 0)
-        JuMP.set_upper_bound(bin_state, 1)
-    end
+    # Set tolerances
+    #---------------------------------------------------------------------------
+    atol = algo_params.duality_regime.atol
+    rtol = algo_params.duality_regime.rtol
+    iteration_limit = algo_params.duality_regime.iteration_limit
 
+    # Set solver for inner problem
+    #---------------------------------------------------------------------------
+    set_solver(node.subproblem, algo_params, applied_solvers, :lagrange_relax)
+
+    # Set bundle_parameters
+    #---------------------------------------------------------------------------
+    level_factor = dual_solution_regime.level_factor
+    bundle_alpha = dual_solution.bundle_alpha
+    bundle_factor = dual_solution.bundle_factor
+
+    ############################################################################
+    # RELAXING THE COPY CONSTRAINTS
+    ############################################################################
+    relax_copy_constraints(node, x_in_value, h_expr, algo_params.state_approximation_regime)
+
+    ############################################################################
     # LOGGING OF LAGRANGIAN DUAL
     ############################################################################
-    lag_log_file_handle = open("C:/Users/cg4102/Documents/julia_logs/Lagrange.log", "a")
-    print_helper(print_lagrange_header, lag_log_file_handle)
+    #lag_log_file_handle = open("C:/Users/cg4102/Documents/julia_logs/Lagrange.log", "a")
+    #print_helper(print_lagrange_header, lag_log_file_handle)
 
-    # SET-UP APPROXIMATION MODEL
     ############################################################################
-    # Subgradient at current solution
-    subgradients = integrality_handler.subgradients
-    # Best multipliers found so far
-    best_mult = integrality_handler.best_mult
-    # Dual problem has the opposite sense to the primal
-    dualsense = (
-        JuMP.objective_sense(model) == JuMP.MOI.MIN_SENSE ? JuMP.MOI.MAX_SENSE :
-            JuMP.MOI.MIN_SENSE
-    )
-
-    # Approximation of Lagrangian dual as a function of the multipliers
-    approx_model = JuMP.Model(Gurobi.Optimizer)
-    # even if objective is quadratic, it should be possible to use Gurobi
-    if applied_solvers.Lagrange == "CPLEX"
-        set_optimizer(approx_model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.Lagrange, "optcr"=>0.0, "numericalemphasis"=>0))
-        set_optimizer(model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.Lagrange, "optcr"=>0.0, "numericalemphasis"=>0))
-    elseif applied_solvers.Lagrange == "Gurobi"
-        set_optimizer(approx_model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.Lagrange, "optcr"=>0.0, "NumericFocus"=>1))
-        set_optimizer(model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.Lagrange, "optcr"=>0.0, "numericalemphasis"=>0))
-    else
-        set_optimizer(approx_model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.Lagrange, "optcr"=>0.0))
-        set_optimizer(model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.Lagrange, "optcr"=>0.0, "numericalemphasis"=>0))
-    end
-
-    # Define Lagrangian dual multipliers
-    @variables approx_model begin
-        θ
-        x[1:length(dual_vars)]
-    end
-
-    if dualsense == MOI.MIN_SENSE
-        JuMP.set_lower_bound(θ, obj)
-        (best_actual, f_actual, f_approx) = (Inf, Inf, -Inf)
-    else
-        #JuMP.set_upper_bound(θ, 10000.0)
-
-        JuMP.set_upper_bound(θ, obj)
-        (best_actual, f_actual, f_approx) = (-Inf, -Inf, Inf)
-    end
-
-    # BOUND DUAL VARIABLES IF INTENDED
+    # SET-UP THE APPROXIMATING CUTTING-PLANE MODEL
     ############################################################################
-    if !isnothing(dual_bound)
-        for i in 1:length(dual_vars)
-            JuMP.set_lower_bound(x[i], -dual_bound)
-            JuMP.set_upper_bound(x[i], dual_bound)
-        end
-    end
+    # Approximation of Lagrangian dual by cutting planes
+    # Optimizer is re-set anyway
+    approx_model = JuMP.Model(GLPK.Optimizer)
 
+    # Create the objective
+    # Note that it is always formulated as a maximization problem, but that
+    # s modifies the sense appropriately
+    @variable(approx_model, t)
+    set_objective_bound(approx_model, s, bound_results.obj_bound)
+    @objective(approx_model, Max, t)
+
+    # Create the dual variables
+    # Note that the real dual multipliers are split up into two non-negative
+    # variables here, which is required for the Magnanti Wong part later
+    @variable(approx_model, π⁺[1:number_of_states] >= 0)
+    @variable(approx_model, π⁻[1:number_of_states] >= 0)
+    @expression(approx_model, π, π⁺ .- π⁻) # not required to be a constraint
+    set_multiplier_bounds(approx_model, number_of_states bound_results.dual_bound)
+
+    ############################################################################
     # CUTTING-PLANE METHOD
     ############################################################################
     iter = 0
     lag_status = :none
-    while iter < integrality_handler.iteration_limit
+
+    # set up optimal value of approx_model (former f_approx)
+    t_k = -Inf
+
+    while iter <= iteration_limit && !isapprox(L_star, t_k, atol = atol, rtol = rtol)
         iter += 1
 
+        ########################################################################
         # SOLVE LAGRANGIAN RELAXATION FOR GIVEN DUAL_VARS
         ########################################################################
-        # Evaluate the real function and determine a subgradient
-        f_actual = _solve_Lagrangian_relaxation!(subgradients, node, dual_vars, integrality_handler.slacks, :yes)
-        @infiltrate algo_params.infiltrate_state in [:all, :lagrange] #|| model.ext[:sddp_policy_graph].ext[:iteration] == 12
+        # Evaluate the inner problem and determine a subgradient
+        L_k = _solve_Lagrangian_relaxation!(node, π_k, h_expr, h_k, true)
+        @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
-        # ADD CUTTING PLANE TO APPROX_MODEL
         ########################################################################
-        # Update the model and update best function value so far
-        if dualsense == MOI.MIN_SENSE
-            JuMP.@constraint(
-                approx_model,
-                θ >= f_actual + LinearAlgebra.dot(subgradients, x - dual_vars)
-                # TODO: Reset upper bound to inf?
-            )
-            if f_actual <= best_actual
-                best_actual = f_actual
-                best_mult .= dual_vars
-            end
-        else
-            JuMP.@constraint(
-                approx_model,
-                θ <= f_actual + LinearAlgebra.dot(subgradients, x - dual_vars)
-                # TODO: Reset lower boumd to -inf?
-            )
-            if f_actual >= best_actual
-                # bestmult is not simply getvalue.(x), since approx_model may just haven gotten lucky
-                # same for best_actual
-                best_actual = f_actual
-                best_mult .= dual_vars
-            end
+        # ADD CUTTING PLANE
+        ########################################################################
+        JuMP.@constraint(approx_model, t <= s * (L_k + h_k' * (π .- π_k)))
+
+        ########################################################################
+        # UPDATE BEST FOUND SOLUTION SO FAR
+        ########################################################################
+        if s * L_k >= L_star
+            L_star = s * L_k
+            π_star .= π_k
         end
 
+        ########################################################################
+        # RESET OBJECTIVE FOR APPROX_MODEL AFTER NONLINEAR MODEL
+        ########################################################################
+        JuMP.@objective(approx_model, Max, t)
+        set_solver(approx_model, algo_params, applied_solvers, :kelley)
+
+        ########################################################################
         # SOLVE APPROXIMATION MODEL
         ########################################################################
-        # Define objective for approx_model
-        JuMP.@objective(approx_model, dualsense, θ)
-
-        # Get an upper bound from the approximate model
-        # (we could actually also use obj here)
+        # Get a bound from the approximate model
         JuMP.optimize!(approx_model)
         @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
-        f_approx = JuMP.objective_value(approx_model)
+        t_k = JuMP.objective_value(approx_model)
+        π_k .= JuMP.value(π)
+        @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
-        @infiltrate algo_params.infiltrate_state in [:all, :lagrange] #|| model.ext[:sddp_policy_graph].ext[:iteration] == 12
+        #print("UB: ", f_approx, ", LB: ", f_actual)
+        #println()
 
-        # Construct the gap (not directly used for termination, though)
-        #gap = abs(best_actual - f_approx)
-        gap = abs(best_actual - obj)
-
-        print("UB: ", f_approx, ", LB: ", f_actual, best_actual)
-        println()
-
-        # CONVERGENCE CHECKS AND UPDATE
         ########################################################################
-        # convergence achieved
-        if isapprox(best_actual, f_approx, atol = atol, rtol = rtol)
-            # convergence to obj -> tight cut
-            if isapprox(best_actual, obj, atol = atol, rtol = rtol)
-                lag_status = :aopt
-            # convergence to a smaller value than obj
-            # maybe possible due to numerical issues
-            # -> valid cut
-            else
-                lag_status = :conv
-            end
-
-        # zero subgradients (and no further improvement), despite no convergence
-        # maybe possible due to numerical issues
-        # -> valid cut
-        elseif all(subgradients.== 0)
-            lag_status = :sub
-
-        # lb exceeds ub: no convergence
-        elseif best_actual > f_approx + atol/10.0
-            error("Could not solve for Lagrangian duals. LB > UB.")
-        end
-
-        # return
-        if lag_status == :sub || lag_status == :aopt || lag_status == :conv
-            dual_vars .= best_mult
-            if dualsense == JuMP.MOI.MIN_SENSE
-                dual_vars .*= -1
-            end
-
-            for (i, (name, bin_state)) in enumerate(node.ext[:backward_data][:bin_states])
-                #prepare_state_fixing!(node, state_comp)
-                JuMP.fix(bin_state, integrality_handler.old_rhs[i], force = true)
-            end
-
-            if applied_solvers.MILP == "CPLEX"
-                set_optimizer(model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.MILP, "optcr"=>0.0, "numericalemphasis"=>0))
-            elseif applied_solvers.MILP == "Gurobi"
-                set_optimizer(model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.MILP, "optcr"=>0.0, "NumericFocus"=>1))
-            else
-                set_optimizer(model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.MILP, "optcr"=>0.0))
-            end
-
-            return (lag_obj = best_actual, iterations = iter, lag_status = lag_status)
-        end
-
-        # FORM A NEW LEVEL
+        # COMPUTE GAP AND FORM A NEW LEVEL
         ########################################################################
-        if dualsense == :Min
-            level = f_approx + gap * level_factor
-            #TODO: + atol/10.0 for numerical issues?
-            JuMP.setupperbound(θ, level)
-        else
-            level = f_approx - gap * level_factor
-            #TODO: - atol/10.0 for numerical issues?
-            JuMP.setlowerbound(θ, level)
-        end
+        gap = abs(L_k - primal_obj) #t_k
+        level = t_k - gap * level_factor
+        #TODO: - atol/10.0 for numerical issues?
+        JuMP.setlowerbound(t, level)
 
-        # DETERMINE NEXT ITERATE USING PROXIMAL PROBLEM
+        ########################################################################
+        # DETERMINE NEXT ITERATION USING PROXIMAL PROBLEM
         ########################################################################
         # Objective function of approx model has to be adapted to new center
-        JuMP.@objective(approx_model, Min, sum((dual_vars[i] - x[i])^2 for i=1:length(dual_vars)))
+        JuMP.@objective(approx_model, Min, sum((π_k[i] - π[i])^2 for i in 1:number_of_states))
+        set_solver(approx_model, algo_params, applied_solvers, :level_bundle)
         JuMP.optimize!(approx_model)
         @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
 
-        # Next iterate
-        dual_vars .= value.(x)
-        # can be deleted with the next update of GAMS.jl
-        replace!(dual_vars, NaN => 0)
-
-        @infiltrate algo_params.infiltrate_state in [:all, :lagrange] #|| model.ext[:sddp_policy_graph].ext[:iteration] == 12
-
-        # Logging
-        print_helper(print_lag_iteration, lag_log_file_handle, iter, f_approx, best_actual, f_actual)
-
+        ########################################################################
+        if L_star > t_k + atol/10.0
+            error("Could not solve for Lagrangian duals. LB > UB.")
+        end
     end
 
-    lag_status = :iter
-    #error("Could not solve for Lagrangian duals. Iteration limit exceeded.")
-    return (lag_obj = best_actual, iterations = iter, lag_status = lag_status)
+    ############################################################################
+    # CONVERGENCE ANALYSIS
+    ############################################################################
+    if isapprox(L_star, t_k, atol = atol, rtol = rtol)
+        # CONVERGENCE ACHIEVED
+        if isapprox(L_star, s * primal_obj, atol = atol, rtol = rtol)
+            # CONVERGENCE TO TRUE OPTIMUM (APPROXIMATELY)
+            lag_status = :opt
+        else
+            # CONVERGENCE TO A SMALLER VALUE THAN THE PRIMAL OBJECTIVE
+            # sometimes this occurs due to numerical issues
+            # still leads to a valid cut
+            lag_status = :conv
+    elseif all(h_k .== 0)
+        # NO OPTIMALITY ACHIEVED, BUT STILL ALL SUBGRADIENTS ARE ZERO
+        # may occur due to numerical issues
+        lag_status = :sub
+    elseif iter == iteration_limit
+        # TERMINATION DUE TO ITERATION LIMIT
+        # stil leads to a valid cut
+        lag_status = :iter
+    end
+
+    ############################################################################
+    # APPLY MAGNANTI AND WONG APPROACH IF INTENDED
+    ############################################################################
+    magnanti_wong(node, approx_model, π_k, π_star, t_k, h_expr, h_k, s, L_k, L_star,
+        iteration_limit, atol, rtol, algo_params.dual_choice_regime)
+
+    ############################################################################
+    # RESTORE THE COPY CONSTRAINT x.in = value(x.in) (̄x = z)
+    ############################################################################
+    restore_copy_constraints(node, x_in_value, algo_params.state_approximation_regime)
+
+    ############################################################################
+    # RESET SOLVER
+    ############################################################################
+    set_solver(node.subproblem, algo_params, applied_solvers, :forward_pass)
+
+    ############################################################################
+    # LOGGING
+    ############################################################################
+    print_helper(print_lag_iteration, lag_log_file_handle, iter, t_k, L_star, L_k)
+
+    # Set dual_vars (here π_k) to the optimal solution
+    π_k = π_star
+
+    return (lag_obj = s * L_star, iterations = iter, lag_status = lag_status)
 
 end
