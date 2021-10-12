@@ -242,7 +242,7 @@ function solve_subproblem_backward(
     ############################################################################
     # RESET SOLVER (as it may have been changed in between for some reason)
     ############################################################################
-    DynamicSDDiP.set_solver(subproblem, algo_params, applied_solvers, :backward_pass)
+    DynamicSDDiP.set_solver!(subproblem, algo_params, applied_solvers, :backward_pass)
 
     ############################################################################
     # SOLVE DUAL PROBLEM TO OBTAIN CUT INFORMATION

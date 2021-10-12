@@ -54,7 +54,7 @@ function changeStateSpace!(
         epsilon = binary_precision[state_name]
 
         # Set up state for backward pass using binary approximation
-        setup_state_binarization(subproblem, state_comp, state_name, epsilon, bw_data)
+        setup_state_binarization!(subproblem, state_comp, state_name, epsilon, bw_data)
     end
 
     return
@@ -149,7 +149,7 @@ end
 """
 Setting up the binary state variables.
 """
-function setup_state_binarization(
+function setup_state_binarization!(
     subproblem::JuMP.Model,
     state_comp::State,
     state_name::Symbol,

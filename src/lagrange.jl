@@ -121,7 +121,7 @@ function solve_lagrangian_dual(
 
     # Set solver for inner problem
     #---------------------------------------------------------------------------
-    set_solver(node.subproblem, algo_params, applied_solvers, :lagrange_relax)
+    set_solver!(node.subproblem, algo_params, applied_solvers, :lagrange_relax)
 
     ############################################################################
     # RELAXING THE COPY CONSTRAINTS
@@ -140,13 +140,13 @@ function solve_lagrangian_dual(
     # Approximation of Lagrangian dual by cutting planes
     # Optimizer is re-set anyway
     approx_model = JuMP.Model(GLPK.Optimizer)
-    set_solver(approx_model, algo_params, applied_solvers, :kelley)
+    set_solver!(approx_model, algo_params, applied_solvers, :kelley)
 
     # Create the objective
     # Note that it is always formulated as a maximization problem, but that
     # s modifies the sense appropriately
     @variable(approx_model, t)
-    set_objective_bound(approx_model, s, bound_results.obj_bound)
+    set_objective_bound!(approx_model, s, bound_results.obj_bound)
     @objective(approx_model, Max, t)
 
     # Create the dual variables
@@ -155,7 +155,7 @@ function solve_lagrangian_dual(
     @variable(approx_model, π⁺[1:number_of_states] >= 0)
     @variable(approx_model, π⁻[1:number_of_states] >= 0)
     @expression(approx_model, π, π⁺ .- π⁻) # not required to be a constraint
-    set_multiplier_bounds(approx_model, number_of_states bound_results.dual_bound)
+    set_multiplier_bounds!(approx_model, number_of_states bound_results.dual_bound)
 
     ############################################################################
     # CUTTING-PLANE METHOD
@@ -234,18 +234,18 @@ function solve_lagrangian_dual(
     ############################################################################
     # APPLY MAGNANTI AND WONG APPROACH IF INTENDED
     ############################################################################
-    magnanti_wong(node, approx_model, π_k, π_star, t_k, h_expr, h_k, s, L_k, L_star,
+    magnanti_wong!(node, approx_model, π_k, π_star, t_k, h_expr, h_k, s, L_k, L_star,
         iteration_limit, atol, rtol, algo_params.dual_choice_regime)
 
     ############################################################################
     # RESTORE THE COPY CONSTRAINT x.in = value(x.in) (̄x = z)
     ############################################################################
-    restore_copy_constraints(node, x_in_value, algo_params.state_approximation_regime)
+    restore_copy_constraints!(node, x_in_value, algo_params.state_approximation_regime)
 
     ############################################################################
     # RESET SOLVER
     ############################################################################
-    set_solver(node.subproblem, algo_params, applied_solvers, :forward_pass)
+    set_solver!(node.subproblem, algo_params, applied_solvers, :forward_pass)
 
     ############################################################################
     # LOGGING
@@ -312,7 +312,7 @@ function relax_copy_constraints!(
     return
 end
 
-function restore_copy_constraints(
+function restore_copy_constraints!(
     node::SDDP.Node,
     x_in_value::Vector{Float64}
     state_approximation_regime::DynamicSDDiP.BinaryApproximation,
@@ -322,9 +322,11 @@ function restore_copy_constraints(
         #prepare_state_fixing!(node, state_comp)
         JuMP.fix(bin_state, x_in_value[i], force = true)
     end
+
+    return
 end
 
-function restore_copy_constraints(
+function restore_copy_constraints!(
     node::SDDP.Node,
     x_in_value::Vector{Float64}
     state_approximation_regime::DynamicSDDiP.NoStateApproximation,
@@ -334,15 +336,18 @@ function restore_copy_constraints(
         #prepare_state_fixing!(node, state_comp)
         JuMP.fix(state.in, x_in_value[i], force = true)
     end
+
+    return
 end
 
-function set_objective_bound(approx_model::JuMP.Model, s::Int, obj_bound::Float64)
+function set_objective_bound!(approx_model::JuMP.Model, s::Int, obj_bound::Float64)
 
     JuMP.set_upper_bound(approx_model[:t], s * obj_bound)
 
+    return
 end
 
-function set_multiplier_bounds(approx_model::JuMP.Model, number_of_states::Int, dual_bound::Float64)
+function set_multiplier_bounds!(approx_model::JuMP.Model, number_of_states::Int, dual_bound::Float64)
 
     for i in 1:number_of_states
         JuMP.set_upper_bound(π⁺[i], dual_bound)
@@ -358,7 +363,7 @@ Note that this is only done until the maximum number of iterations is
 achieved in total.
 """
 
-function magnanti_wong(
+function magnanti_wong!(
     node::SDDP.Node,
     approx_model::JuMP.model,
     π_k::Vector{Float64},
@@ -401,7 +406,7 @@ function magnanti_wong(
 end
 
 
-function magnanti_wong(
+function magnanti_wong!(
     node::SDDP.Node,
     approx_model::JuMP.model,
     π_k::Vector{Float64},
@@ -467,7 +472,7 @@ function solve_lagrangian_dual(
 
     # Set solver for inner problem
     #---------------------------------------------------------------------------
-    set_solver(node.subproblem, algo_params, applied_solvers, :lagrange_relax)
+    set_solver!(node.subproblem, algo_params, applied_solvers, :lagrange_relax)
 
     # Set bundle_parameters
     #---------------------------------------------------------------------------
@@ -495,7 +500,7 @@ function solve_lagrangian_dual(
     # Note that it is always formulated as a maximization problem, but that
     # s modifies the sense appropriately
     @variable(approx_model, t)
-    set_objective_bound(approx_model, s, bound_results.obj_bound)
+    set_objective_bound!(approx_model, s, bound_results.obj_bound)
     @objective(approx_model, Max, t)
 
     # Create the dual variables
@@ -504,7 +509,7 @@ function solve_lagrangian_dual(
     @variable(approx_model, π⁺[1:number_of_states] >= 0)
     @variable(approx_model, π⁻[1:number_of_states] >= 0)
     @expression(approx_model, π, π⁺ .- π⁻) # not required to be a constraint
-    set_multiplier_bounds(approx_model, number_of_states bound_results.dual_bound)
+    set_multiplier_bounds!(approx_model, number_of_states bound_results.dual_bound)
 
     ############################################################################
     # CUTTING-PLANE METHOD
@@ -542,7 +547,7 @@ function solve_lagrangian_dual(
         # RESET OBJECTIVE FOR APPROX_MODEL AFTER NONLINEAR MODEL
         ########################################################################
         JuMP.@objective(approx_model, Max, t)
-        set_solver(approx_model, algo_params, applied_solvers, :kelley)
+        set_solver!(approx_model, algo_params, applied_solvers, :kelley)
 
         ########################################################################
         # SOLVE APPROXIMATION MODEL
@@ -625,7 +630,7 @@ function solve_lagrangian_dual(
         # Objective function of approx model has to be adapted to new center
         # TODO: Does this work with π[i]?
         JuMP.@objective(approx_model, Min, sum((π_k[i] - π[i])^2 for i in 1:number_of_states))
-        set_solver(approx_model, algo_params, applied_solvers, :level_bundle)
+        set_solver!(approx_model, algo_params, applied_solvers, :level_bundle)
         JuMP.optimize!(approx_model)
         @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
         π_k .= JuMP.value(π)
@@ -662,18 +667,18 @@ function solve_lagrangian_dual(
     ############################################################################
     # APPLY MAGNANTI AND WONG APPROACH IF INTENDED
     ############################################################################
-    magnanti_wong(node, approx_model, π_k, π_star, t_k, h_expr, h_k, s, L_k, L_star,
+    magnanti_wong!(node, approx_model, π_k, π_star, t_k, h_expr, h_k, s, L_k, L_star,
         iteration_limit, atol, rtol, algo_params.dual_choice_regime)
 
     ############################################################################
     # RESTORE THE COPY CONSTRAINT x.in = value(x.in) (̄x = z)
     ############################################################################
-    restore_copy_constraints(node, x_in_value, algo_params.state_approximation_regime)
+    restore_copy_constraints!(node, x_in_value, algo_params.state_approximation_regime)
 
     ############################################################################
     # RESET SOLVER
     ############################################################################
-    set_solver(node.subproblem, algo_params, applied_solvers, :forward_pass)
+    set_solver!(node.subproblem, algo_params, applied_solvers, :forward_pass)
 
     ############################################################################
     # LOGGING
@@ -713,7 +718,7 @@ function _getStrengtheningInformation(
 
     # Set solver for inner problem
     #---------------------------------------------------------------------------
-    set_solver(node.subproblem, algo_params, applied_solvers, :lagrange_relax)
+    set_solver!(node.subproblem, algo_params, applied_solvers, :lagrange_relax)
 
     ############################################################################
     # RELAXING THE COPY CONSTRAINTS
@@ -730,12 +735,12 @@ function _getStrengtheningInformation(
     ############################################################################
     # RESTORE THE COPY CONSTRAINT x.in = value(x.in) (̄x = z)
     ############################################################################
-    restore_copy_constraints(node, x_in_value, algo_params.state_approximation_regime)
+    restore_copy_constraints!(node, x_in_value, algo_params.state_approximation_regime)
 
     ############################################################################
     # RESET SOLVER
     ############################################################################
-    set_solver(node.subproblem, algo_params, applied_solvers, :forward_pass)
+    set_solver!(node.subproblem, algo_params, applied_solvers, :forward_pass)
 
     return lag_obj
 end

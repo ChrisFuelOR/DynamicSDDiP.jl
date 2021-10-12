@@ -8,7 +8,7 @@
 Function which assigns the correct solvers to be used in the specific part
 of DynamicSDDiP
 """
-function set_solver(
+function set_solver!(
     subproblem::JuMP.Model,
     algo_params::DynamicSDDiP.AlgoParams,
     applied_solvers::DynamicSDDiP.AppliedSolvers,

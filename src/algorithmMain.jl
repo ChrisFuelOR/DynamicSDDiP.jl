@@ -376,29 +376,6 @@ function convergence_handler(result::DynamicSDDiP.IterationResult,
 end
 
 
-# The functions
-# > "iteration",
-# > "forward_pass",
-# > "solve_subproblem_forward",
-# > "solve_all_children",
-# > "solve_subproblem_backward",
-# > "get_dual_variables_backward",
-# > "calculate_bound",
-# > "solve_first_stage_problem"
-# are derived from similar named functions (iteration, forward_pass, backward_pass,
-# solve_all_children, solve_subproblem, get_dual_variables, calculate_bound,
-# solve_first_stage_problem) in the 'SDDP.jl' package by
-# Oscar Dowson and released under the Mozilla Public License 2.0.
-# The reproduced function and other functions in this file are also released
-# under Mozilla Public License 2.0
-
-# Copyright (c) 2021 Christian Fuellner <christian.fuellner@kit.edu>
-# Copyright (c) 2021 Oscar Dowson <o.dowson@gmail.com>
-
-# This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-# If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
-################################################################################
-
 """
 Executing an inner loop iteration for DynamicSDDiP.
 """

@@ -81,7 +81,7 @@ function solve_LP_relaxation(
     undo_relax = JuMP.relax_integrality(subproblem);
 
     # Define appropriate solver
-    set_solver(subproblem, algo_params, applied_solvers, :LP_relax)
+    set_solver!(subproblem, algo_params, applied_solvers, :LP_relax)
 
     # Solve LP Relaxation
     JuMP.optimize!(subproblem)
@@ -457,7 +457,7 @@ function initialize_duals(
     undo_relax = JuMP.relax_integrality(subproblem);
 
     # Define appropriate solver
-    set_solver(subproblem, algo_params, applied_solvers, :LP_relax)
+    set_solver!(subproblem, algo_params, applied_solvers, :LP_relax)
 
     # Solve LP Relaxation
     JuMP.optimize!(subproblem)

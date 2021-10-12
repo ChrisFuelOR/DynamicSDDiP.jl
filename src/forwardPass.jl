@@ -45,7 +45,7 @@ function forward_pass(model::SDDP.PolicyGraph{T}, options::DynamicSDDiP.Options,
         ########################################################################
         # SET SOLVER
         ########################################################################
-        DynamicSDDiP.set_solver(node.subproblem, algo_params, applied_solvers, :forward_pass)
+        DynamicSDDiP.set_solver!(node.subproblem, algo_params, applied_solvers, :forward_pass)
 
         ########################################################################
         # SUBPROBLEM SOLUTION

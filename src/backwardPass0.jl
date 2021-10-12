@@ -254,7 +254,7 @@ function solve_subproblem_backward(
 
     # RESET SOLVER (as it may have been changed in between for some reason)
     ########################################################################
-    DynamicSDDiP.set_solver(node.subproblem, algo_params, applied_solvers, :backward_pass)
+    DynamicSDDiP.set_solver!(node.subproblem, algo_params, applied_solvers, :backward_pass)
 
     # GET PRIMAL SOLUTION TO BOUND LAGRANGIAN DUAL
     ############################################################################
