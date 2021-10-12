@@ -25,6 +25,17 @@ TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 
 [compat]
 GAMS = "0.2"
+Revise = "3"
+JuMP = "0.21"
+Delaunay = "1"
+Distances = "0.10"
+TimerOutputs = "0.5"
+BenchmarkTools = "1"
+Gurobi = "0.9"
+Reexport = "1"
+Infiltrator = "1"
+Reduce = "1"
+PiecewiseLinearOpt = "0.3"
 julia = "1"
 
 [extras]
