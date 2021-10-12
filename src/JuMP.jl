@@ -13,7 +13,7 @@
 function JuMP.build_variable(
     _error::Function,
     info::JuMP.VariableInfo,
-    ::Type{NCNBD.State};
+    ::Type{DynamicSDDiP.State};
     initial_value = NaN,
     kwargs...,
 )
