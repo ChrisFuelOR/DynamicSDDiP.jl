@@ -233,7 +233,7 @@ function solve_subproblem_backward(
 
     # Parameterize the model. Fix the value of the incoming state variables.
     # Then parameterize the model depending on `noise` and set the objective.
-    set_incoming_state(node, state)
+    set_incoming_state!(node, state)
     parameterize(node, noise)
 
     @infiltrate algo_params.infiltrate_state in [:all]
@@ -520,7 +520,7 @@ function solve_first_stage_problem(
     # Parameterize the model. First, fix the value of the incoming state
     # variables. Then parameterize the model depending on `noise`. Finally,
     # set the objective.
-    set_incoming_state(node, state)
+    set_incoming_state!(node, state)
     parameterize(node, noise)
 
     ############################################################################

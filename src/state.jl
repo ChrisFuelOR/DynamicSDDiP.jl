@@ -1,5 +1,5 @@
 # The functions
-# > "set_incoming_state",
+# > "set_incoming_state!",
 # > "setup_state",
 # > "get_outgoing_state",
 # and structs
@@ -37,7 +37,7 @@ end
 
 # Internal function: set the incoming state variables of node to the values
 # contained in state.
-function set_incoming_state(node::SDDP.Node, state::Dict{Symbol,Float64})
+function set_incoming_state!!(node::SDDP.Node, state::Dict{Symbol,Float64})
     for (state_name, value) in state
 
         # TODO: Check if required

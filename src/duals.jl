@@ -12,6 +12,9 @@
 # If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
 ################################################################################
 
+#*******************************************************************************
+# LP DUAL
+#*******************************************************************************
 
 """
 Solving the dual problem to obtain cut information - using LP relaxation
@@ -25,7 +28,88 @@ function get_dual_solution(
     duality_regime::DynamicSDDiP.LinearDuality,
     )
 
+    ############################################################################
+    # SOME INITIALIZATIONS
+    ############################################################################
+    subproblem = node.subproblem
+
+    # storages for return of dual values and binary state values (trial point)
+    # note that with NoStateApproximation bin_state will just remain empty
+    dual_values = Dict{Symbol,Float64}()
+    bin_state = Dict{Symbol, BinaryState}()
+    number_of_states = get_number_of_states(node, algo_params.state_approximation_regime)
+
+    ############################################################################
+    # INITIALIZE DUALS
+    ############################################################################
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "LP_relaxation" begin
+        dual_results = solve_LP_relaxation(node, subproblem, algo_params, applied_solvers, duality_regime.DynamicSDDiP.LPDuals)
+    end
+
+    dual_vars = dual_results.dual_vars
+    dual_obj = dual_results.dual_obj
+
+    @infiltrate algo_params.infiltrate_state in [:all]
+
+    ############################################################################
+    # SET DUAL VARIABLES AND STATES CORRECTLY FOR RETURN
+    ############################################################################
+    store_dual_values!(node, dual_values, dual_vars, binary_state, integrality_handler, algo_params.state_approximation_regime)
+
+    return (
+        dual_values=dual_values,
+        bin_state=bin_state,
+        intercept=dual_obj,
+        iterations=1,
+        lag_status=nothing,
+    )
+
+
+function solve_LP_relaxation(
+    node::SDDP.Node,
+    subproblem::JuMP.Model,
+    algo_params::DynamicSDDiP.AlgoParams,
+    applied_solvers::DynamicSDDiP.AppliedSolvers,
+    dual_initalization_regime::DynamicSDDiP.LPDuals,
+)
+
+    # Get number of states and create zero vector for duals
+    number_of_states = get_number_of_states(node, algo_params.state_approximation_regime)
+    dual_vars_initial = zeros(number_of_states)
+
+    # Create LP Relaxation
+    undo_relax = JuMP.relax_integrality(subproblem);
+
+    # Define appropriate solver
+    set_solver(subproblem, algo_params, applied_solvers, :LP_relax)
+
+    # Solve LP Relaxation
+    JuMP.optimize!(subproblem)
+    @assert JuMP.termination_status(subproblem) == MOI.OPTIMAL
+
+    dual_obj = JuMP.objective_value(subproblem)
+
+    # Get dual values (reduced costs) for binary states as initial solution # TODO
+    get_and_set_dual_values!(node, dual_vars_initial, algo_params.state_approximation_regime)
+
+    # Note: due to JuMP's dual convention, we need to flip the sign for
+    # maximization problems.
+    dual_sign = JuMP.objective_sense(node.subproblem) == MOI.MIN_SENSE ? 1 : -1
+    dual_vars_initial = dual_sign * dual_vars_initial
+
+    # Undo relaxation
+    undo_relax()
+
+    return(
+        dual_obj = dual_obj
+        dual_vars = dual_vars_initial
+    )
 end
+
+
+#*******************************************************************************
+# STRENGTHENED DUAL
+#*******************************************************************************
 
 """
 Solving the dual problem to obtain cut information - using LP relaxation
@@ -40,7 +124,55 @@ function get_dual_solution(
     duality_regime::DynamicSDDiP.StrengthenedDuality,
     )
 
+    ############################################################################
+    # SOME INITIALIZATIONS
+    ############################################################################
+    subproblem = node.subproblem
+
+    # storages for return of dual values and binary state values (trial point)
+    # note that with NoStateApproximation bin_state will just remain empty
+    dual_values = Dict{Symbol,Float64}()
+    bin_state = Dict{Symbol, BinaryState}()
+    number_of_states = get_number_of_states(node, algo_params.state_approximation_regime)
+
+    ############################################################################
+    # INITIALIZE DUALS
+    ############################################################################
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "LP_relaxation" begin
+        dual_results = solve_LP_relaxation(node, subproblem, algo_params, applied_solvers, duality_regime.DynamicSDDiP.LPDuals)
+    end
+
+    dual_vars = dual_results.dual_vars
+    dual_obj = dual_results.dual_obj
+
+    @infiltrate algo_params.infiltrate_state in [:all]
+
+    ############################################################################
+    # GET STRENGTHENING INFORMATION
+    ############################################################################
+    # solve lagrangian relaxed problem for these dual values
+    if node.has_integrality
+        dual_obj = _getStrengtheningInformation(node, dual_vars, algo_params, applied_solvers)
+    end
+
+    ############################################################################
+    # SET DUAL VARIABLES AND STATES CORRECTLY FOR RETURN
+    ############################################################################
+    store_dual_values!(node, dual_values, dual_vars, binary_state, integrality_handler, algo_params.state_approximation_regime)
+
+    return (
+        dual_values=dual_values,
+        bin_state=bin_state,
+        intercept=dual_obj,
+        iterations=1,
+        lag_status=nothing,
+    )
 end
+
+
+#*******************************************************************************
+# LAGRANGIAN DUAL
+#*******************************************************************************
 
 """
 Solving the dual problem to obtain cut information - using Lagrangian dual
@@ -93,13 +225,6 @@ function get_dual_solution(
     primal_obj = JuMP.objective_value(subproblem)
     @assert JuMP.termination_status(subproblem) == MOI.OPTIMAL
 
-    # ADAPT TOTAL SOLVES APPROPRIATELY
-    if haskey(model.ext, :total_solves)
-        model.ext[:total_solves] += 1
-    else
-        model.ext[:total_solves] = 1
-    end
-
     # DEREGULARIZE PROBLEM IF REQUIRED
     deregularize_binary!(node, subproblem, algo_params.regularization_regime)
 
@@ -151,7 +276,7 @@ function get_dual_solution(
     ############################################################################
     # SET DUAL VARIABLES AND STATES CORRECTLY FOR RETURN
     ############################################################################
-    store_dual_values!(node, dual_vars, binary_state, integrality_handler, algo_params.state_approximation_regime)
+    store_dual_values!(node, dual_values, dual_vars, binary_state, integrality_handler, algo_params.state_approximation_regime)
 
     return (
         dual_values=dual_values,
@@ -161,6 +286,10 @@ function get_dual_solution(
         lag_status=lag_status,
     )
 
+
+#*******************************************************************************
+# AUXILIARY METHODS
+#*******************************************************************************
 
 """
 Determining objective and/or variable bounds for the Lagrangian dual
@@ -304,7 +433,7 @@ function initialize_duals(
     number_of_states = get_number_of_states(node, algo_params.state_approximation_regime)
     dual_vars_initial = zeros(number_of_states)
 
-    return
+    return dual_vars_initial
 
 end
 
@@ -332,14 +461,16 @@ function initialize_duals(
 
     # Solve LP Relaxation
     JuMP.optimize!(subproblem)
+    @assert JuMP.termination_status(subproblem) == MOI.OPTIMAL
+    # or MOI.FEASIBLE_POINT???
 
-    # Get dual values (reduced costs) for binary states as initial solution #TODO
+    # Get dual values (reduced costs) for binary states as initial solution # TODO
     get_and_set_dual_values!(node, dual_vars_initial, algo_params.state_approximation_regime)
 
     # Undo relaxation
     undo_relax()
 
-    return
+    return dual_vars_initial
 
 end
 
@@ -359,14 +490,15 @@ function get_and_set_dual_values!(node::SDDP.Node, dual_vars_initial::Vector{Flo
     state_approximation_regime::DynamicSDDiP.NoState)
 
     for (i, name) in enumerate(keys(node,states))
-        reference_to_constr = FixRef(name)
+        reference_to_constr = FixRef(name.in)
         dual_vars_initial[i] = JuMP.getdual(reference_to_constr)
     end
 
     return
 end
 
-function store_dual_values!(node::SDDP.Node, dual_vars::Vector{Float64}, bin_state::Dict{Symbol, BinaryState},
+function store_dual_values!(node::SDDP.Node, dual_values::Vector{Float64},
+    dual_vars::Vector{Float64}, bin_state::Dict{Symbol, BinaryState},
     integrality_handler::SDDP.SDDiP, state_approximation_regime::DynamicSDDiP.BinaryApproximation)
 
     for (i, name) in enumerate(keys(node.ext[:backward_data][:bin_states]))
@@ -381,7 +513,8 @@ function store_dual_values!(node::SDDP.Node, dual_vars::Vector{Float64}, bin_sta
     return
 end
 
-function store_dual_values!(node::SDDP.Node, dual_vars::Vector{Float64}, bin_state::Dict{Symbol, BinaryState},
+function store_dual_values!(node::SDDP.Node, dual_values::Vector{Float64},
+    dual_vars::Vector{Float64}, bin_state::Dict{Symbol, BinaryState},
     integrality_handler::SDDP.SDDiP, state_approximation_regime::DynamicSDDiP.NoStateApproximation)
 
     for (i, name) in enumerate(keys(node.states))

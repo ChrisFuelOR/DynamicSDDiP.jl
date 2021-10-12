@@ -109,7 +109,7 @@ function solve_subproblem_forward(
     # Parameterize the model. First, fix the value of the incoming state
     # variables. Then parameterize the model depending on `noise`. Finally,
     # set the objective.
-    set_incoming_state(node, state)
+    set_incoming_state!(node, state)
     parameterize(node, noise)
 
     ############################################################################
@@ -125,12 +125,6 @@ function solve_subproblem_forward(
     ############################################################################
     @infiltrate infiltrate_state in [:all]
     JuMP.optimize!(subproblem)
-
-    if haskey(model.ext, :total_solves)
-        model.ext[:total_solves] += 1
-    else
-        model.ext[:total_solves] = 1
-    end
 
     # Maybe attempt numerical recovery as in SDDP
 

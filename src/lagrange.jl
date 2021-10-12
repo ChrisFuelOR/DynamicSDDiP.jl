@@ -623,6 +623,7 @@ function solve_lagrangian_dual(
         # DETERMINE NEXT ITERATION USING PROXIMAL PROBLEM
         ########################################################################
         # Objective function of approx model has to be adapted to new center
+        # TODO: Does this work with π[i]?
         JuMP.@objective(approx_model, Min, sum((π_k[i] - π[i])^2 for i in 1:number_of_states))
         set_solver(approx_model, algo_params, applied_solvers, :level_bundle)
         JuMP.optimize!(approx_model)
@@ -677,11 +678,64 @@ function solve_lagrangian_dual(
     ############################################################################
     # LOGGING
     ############################################################################
-    print_helper(print_lag_iteration, lag_log_file_handle, iter, t_k, L_star, L_k)
+    # print_helper(print_lag_iteration, lag_log_file_handle, iter, t_k, L_star, L_k)
 
     # Set dual_vars (here π_k) to the optimal solution
     π_k = π_star
 
     return (lag_obj = s * L_star, iterations = iter, lag_status = lag_status)
 
+end
+
+
+"""
+Solve lagrangian relaxation to obtain intercept for strengthened Benders cuts
+"""
+function _getStrengtheningInformation(
+    node::SDDP.Node,
+    π_k::Vector{Float64},
+    algo_params::NCNBD.AlgoParams,
+    applied_solvers::NCNBD.AppliedSolvers,
+    )
+
+    ############################################################################
+    # INITIALIZATION
+    ############################################################################
+    number_of_states = get_number_of_states(node, algo_params.state_approximation_regime)
+    # The original value for x (former old_rhs)
+    x_in_value = zeros(number_of_states)
+    # The current estimate for π (in our case determined in initialization)
+    # π_k
+    # The current value of ̄x-z (former subgradients)
+    h_k = zeros(number_of_states)
+    # The expression for ̄x-z (former slacks)
+    h_expr = Vector{AffExpr}(undef, number_of_states)
+
+    # Set solver for inner problem
+    #---------------------------------------------------------------------------
+    set_solver(node.subproblem, algo_params, applied_solvers, :lagrange_relax)
+
+    ############################################################################
+    # RELAXING THE COPY CONSTRAINTS
+    ############################################################################
+    relax_copy_constraints(node, x_in_value, h_expr, algo_params.state_approximation_regime)
+
+    ########################################################################
+    # SOLVE LAGRANGIAN RELAXATION FOR GIVEN DUAL_VARS
+    ########################################################################
+    # Evaluate the inner problem and determine a subgradient
+    Lag_obj = _solve_Lagrangian_relaxation!(node, π_k, h_expr, h_k, false)
+    @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
+
+    ############################################################################
+    # RESTORE THE COPY CONSTRAINT x.in = value(x.in) (̄x = z)
+    ############################################################################
+    restore_copy_constraints(node, x_in_value, algo_params.state_approximation_regime)
+
+    ############################################################################
+    # RESET SOLVER
+    ############################################################################
+    set_solver(node.subproblem, algo_params, applied_solvers, :forward_pass)
+
+    return lag_obj
 end
