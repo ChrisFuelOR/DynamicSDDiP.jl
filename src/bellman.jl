@@ -1,8 +1,7 @@
 # The functions
 # > "BellmanFunction",
 # > "bellman_term",
-# > "initialize_bellman_function_MILP"
-# > "initialize_bellman_function_MINLP"
+# > "initialize_bellman_function_nonconvex"
 # > "refine_bellman_function"
 # > "_add_average_cut"
 # > "_add_cut"
@@ -28,17 +27,17 @@
 
 mutable struct SampledState
     state::Dict{Symbol,Float64}
-    dominating_cut::NCNBD.NonlinearCut
+    dominating_cut::DynamicSDDiP.NonlinearCut
     best_objective::Float64
 end
 
 mutable struct LevelOneOracle
-    cuts::Vector{NCNBD.NonlinearCut}
-    states::Vector{NCNBD.SampledState}
-    cuts_to_be_deleted::Vector{NCNBD.NonlinearCut}
+    cuts::Vector{DynamicSDDiP.NonlinearCut}
+    states::Vector{DynamicSDDiP.SampledState}
+    cuts_to_be_deleted::Vector{DynamicSDDiP.NonlinearCut}
     deletion_minimum::Int
     function LevelOneOracle(deletion_minimum)
-        return new(NCNBD.NonlinearCut[], SDDP.SampledState[], NCNBD.NonlinearCut[], deletion_minimum)
+        return new(DynamicSDDiP.NonlinearCut[], SDDP.SampledState[], DynamicSDDiP.NonlinearCut[], deletion_minimum)
     end
 end
 
@@ -95,58 +94,9 @@ function bellman_term(bellman_function::NCNBD.BellmanFunction)
 end
 
 """
-Initializing the bellman function for the MILP subproblems.
+Initializing the bellman function for the subproblems.
 """
-function initialize_bellman_function_MILP(
-    factory::SDDP.InstanceFactory{BellmanFunction},
-    model::SDDP.PolicyGraph{T},
-    node::SDDP.Node{T},
-) where {T}
-    lower_bound, upper_bound, deletion_minimum, cut_type = -Inf, Inf, 0, SDDP.SINGLE_CUT
-    if length(factory.args) > 0
-        error("Positional arguments $(factory.args) ignored in BellmanFunction.")
-    end
-    for (kw, value) in factory.kwargs
-        if kw == :lower_bound
-            lower_bound = value
-        elseif kw == :upper_bound
-            upper_bound = value
-        elseif kw == :deletion_minimum
-            deletion_minimum = value
-        elseif kw == :cut_type
-            cut_type = value
-        else
-            error("Keyword $(kw) not recognised as argument to BellmanFunction.")
-        end
-    end
-    if lower_bound == -Inf && upper_bound == Inf
-        error("You must specify a finite bound on the cost-to-go term.")
-    end
-    if length(node.children) == 0
-        lower_bound = upper_bound = 0.0
-    end
-    Θᴳ = JuMP.@variable(node.ext[:linSubproblem], Θ, base_name="Θᴳ")
-    lower_bound > -Inf && JuMP.set_lower_bound(Θᴳ, lower_bound)
-    upper_bound < Inf && JuMP.set_upper_bound(Θᴳ, upper_bound)
-    # Initialize bounds for the objective states. If objective_state==nothing,
-    # this check will be skipped by dispatch.
-    SDDP._add_initial_bounds(node.objective_state, Θᴳ)
-    x′ = Dict(key => var.out for (key, var) in node.ext[:lin_states])
-    obj_μ = node.objective_state !== nothing ? node.objective_state.μ : nothing
-    belief_μ = node.belief_state !== nothing ? node.belief_state.μ : nothing
-    return BellmanFunction(
-        NonConvexApproximation(Θᴳ, x′, obj_μ, belief_μ, deletion_minimum),
-        NonConvexApproximation[],
-        cut_type,
-        Set{Vector{Float64}}(),
-    )
-end
-
-
-"""
-Initializing the bellman function for the MINLP subproblems.
-"""
-function initialize_bellman_function_MINLP(
+function initialize_bellman_function_nonconvex(
     factory::SDDP.InstanceFactory{BellmanFunction},
     model::SDDP.PolicyGraph{T},
     node::SDDP.Node{T},
@@ -204,14 +154,14 @@ function refine_bellman_function(
     bellman_function::BellmanFunction,
     risk_measure::SDDP.AbstractRiskMeasure,
     trial_points::Dict{Symbol,Float64},
-    used_trial_points::Dict{Symbol,Float64},
+    anchor_points::Dict{Symbol,Float64},
     bin_states::Vector{Dict{Symbol,BinaryState}},
     dual_variables::Vector{Dict{Symbol,Float64}},
     noise_supports::Vector,
     nominal_probability::Vector{Float64},
     objective_realizations::Vector{Float64},
-    algoParams::NCNBD.AlgoParams,
-    appliedSolvers::NCNBD.AppliedSolvers,
+    algo_params::DynamicSDDiP.AlgoParams,
+    applied_solvers::DynamicSDDiP.AppliedSolvers,
 ) where {T}
     # Sanity checks.
     @assert length(dual_variables) ==
@@ -236,15 +186,15 @@ function refine_bellman_function(
             node,
             node_index,
             trial_points,
-            used_trial_points,
+            anchor_points,
             bin_states,
             risk_adjusted_probability,
             objective_realizations,
             dual_variables,
             offset,
-            algoParams,
+            algo_params,
             model.ext[:iteration],
-            appliedSolvers
+            applied_solvers
         )
     else  # Add a multi-cut
         @assert bellman_function.cut_type == SDDP.MULTI_CUT
@@ -271,15 +221,15 @@ function _add_average_cut(
     node::SDDP.Node,
     node_index::Int64,
     trial_points::Dict{Symbol,Float64},
-    used_trial_points::Dict{Symbol,Float64},
+    anchor_points::Dict{Symbol,Float64},
     bin_states::Vector{Dict{Symbol,BinaryState}},
     risk_adjusted_probability::Vector{Float64},
     objective_realizations::Vector{Float64},
     dual_variables::Vector{Dict{Symbol,Float64}},
     offset::Float64,
-    algoParams::NCNBD.AlgoParams,
+    algo_params::DynamicSDDiP.AlgoParams,
     iteration::Int64,
-    appliedSolvers::NCNBD.AppliedSolvers,
+    applied_solvers::DynamicSDDiP.AppliedSolvers,
 )
 
     N = length(risk_adjusted_probability)
@@ -306,7 +256,7 @@ function _add_average_cut(
 
     # As cuts are created for the value function of the following state,
     # we need the parameters for this stage
-    sigma = algoParams.sigma[node_index+1]
+    sigma = algo_params.sigma[node_index+1]
 
     _add_cut(
         node,
@@ -316,15 +266,15 @@ function _add_average_cut(
         πᵏ,
         bin_states,
         trial_points,
-        used_trial_points,
+        anchor_points,
         obj_y,
         belief_y,
-        algoParams.binaryPrecision,
+        algo_params.binary_precision,
         sigma,
         iteration,
-        algoParams.infiltrate_state,
-        appliedSolvers,
-        cut_selection = algoParams.cut_selection
+        algo_params.infiltrate_state,
+        applied_solvers,
+        cut_selection = algo_params.cut_selection
     )
 
     return (theta = θᵏ, pi = πᵏ, λ = bin_states, obj_y = obj_y, belief_y = belief_y)
@@ -346,11 +296,11 @@ function _add_cut(
     xᵏ::Dict{Symbol,Float64},
     obj_y::Union{Nothing,NTuple{N,Float64}},
     belief_y::Union{Nothing,Dict{T,Float64}},
-    binaryPrecision::Dict{Symbol,Float64},
+    binary_precision::Dict{Symbol,Float64},
     sigma::Float64,
     iteration::Int64,
     infiltrate_state::Symbol,
-    appliedSolvers::NCNBD.AppliedSolvers;
+    applied_solvers::DynamicSDDiP.AppliedSolvers;
     cut_selection::Bool = false
 ) where {N,T}
 
@@ -364,7 +314,7 @@ function _add_cut(
     # CONSTRUCT NONLINEAR CUT STRUCT
     ############################################################################
     #TODO: Should we add λᵏ? Actually, this information is not required.
-    cut = NonlinearCut(θᵏ, πᵏ, xᵏ, λᵏ, copy(binaryPrecision), copy(sigma),
+    cut = NonlinearCut(θᵏ, πᵏ, xᵏ, λᵏ, copy(binary_precision), copy(sigma),
                        JuMP.VariableRef[], JuMP.ConstraintRef[],
                        JuMP.VariableRef[], JuMP.ConstraintRef[], obj_y, belief_y, 1, iteration)
 
@@ -373,8 +323,8 @@ function _add_cut(
     add_cut_constraints_to_models(node, V, V_lin, cut, infiltrate_state)
 
     if cut_selection
-        TimerOutputs.@timeit NCNBD_TIMER "cut_selection" begin
-            NCNBD._cut_selection_update(node, V, V_lin, cut, xᵏ, trial_points, appliedSolvers, infiltrate_state)
+        TimerOutputs.@timeit DynamicSDDiP_TIMER "cut_selection" begin
+            NCNBD._cut_selection_update(node, V, V_lin, cut, xᵏ, trial_points, applied_solvers, infiltrate_state)
         end
     else
         push!(V.cut_oracle.cuts, cut)
@@ -696,7 +646,7 @@ function _cut_selection_update(
     cut::NCNBD.NonlinearCut,
     anchor_state::Dict{Symbol,Float64},
     trial_state::Dict{Symbol,Float64},
-    appliedSolvers::NCNBD.AppliedSolvers,
+    applied_solvers::NCNBD.AppliedSolvers,
     infiltrate_state::Symbol,
 )
     # if cut.obj_y !== nothing || cut.belief_y !== nothing
@@ -715,8 +665,8 @@ function _cut_selection_update(
 
     # GET TRIAL STATE AND BINARY STATE
     ############################################################################
-    sampled_state_anchor = NCNBD.SampledState(anchor_state, cut, _eval_height(node, cut, anchor_state, appliedSolvers))
-    sampled_state_trial = NCNBD.SampledState(trial_state, cut, _eval_height(node, cut, trial_state, appliedSolvers))
+    sampled_state_anchor = NCNBD.SampledState(anchor_state, cut, _eval_height(node, cut, anchor_state, applied_solvers))
+    sampled_state_trial = NCNBD.SampledState(trial_state, cut, _eval_height(node, cut, trial_state, applied_solvers))
 
     # NOTE: By considering both type of states, we have way more states than
     # cuts, so we may not eliminiate that many cuts.
@@ -729,7 +679,7 @@ function _cut_selection_update(
     # Loop through previously sampled states and compare the height of the most recent cut
     # against the current best. If this new cut is an improvement, store this one instead.
     for old_state in oracle.states
-        height = _eval_height(node, cut, old_state.state, appliedSolvers)
+        height = _eval_height(node, cut, old_state.state, applied_solvers)
         if SDDP._dominates(height, old_state.best_objective, is_minimization)
             old_state.dominating_cut.non_dominated_count -= 1
             cut.non_dominated_count += 1
@@ -754,7 +704,7 @@ function _cut_selection_update(
 
         # For anchor state (is this required? the cuts should be tight here and
         # we also do not have a stochastic program)
-        height = _eval_height(node, old_cut, anchor_state, appliedSolvers)
+        height = _eval_height(node, old_cut, anchor_state, applied_solvers)
         if SDDP._dominates(height, sampled_state_anchor.best_objective, is_minimization)
             sampled_state_anchor.dominating_cut.non_dominated_count -= 1
             old_cut.non_dominated_count += 1
@@ -764,7 +714,7 @@ function _cut_selection_update(
         end
 
         # For trial state
-        height = _eval_height(node, old_cut, trial_state, appliedSolvers)
+        height = _eval_height(node, old_cut, trial_state, applied_solvers)
         if SDDP._dominates(height, sampled_state_trial.best_objective, is_minimization)
             sampled_state_trial.dominating_cut.non_dominated_count -= 1
             old_cut.non_dominated_count += 1
@@ -850,11 +800,11 @@ end
 Evaluating the cuts at a specific point.
 """
 # Internal function: calculate the height of `cut` evaluated at `state`.
-function _eval_height(node::SDDP.Node, cut::NCNBD.NonlinearCut, states::Dict{Symbol,Float64}, appliedSolvers::NCNBD.AppliedSolvers)
+function _eval_height(node::SDDP.Node, cut::NCNBD.NonlinearCut, states::Dict{Symbol,Float64}, applied_solvers::NCNBD.AppliedSolvers)
 
     # Create a new JuMP model to evaluate the height of a non-convex cut
     model = JuMP.Model()
-    JuMP.set_optimizer(model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>appliedSolvers.LP, "optcr"=>0.0))
+    JuMP.set_optimizer(model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.LP, "optcr"=>0.0))
 
     # Storages for coefficients and binary states
     binary_state_storage = JuMP.VariableRef[]
