@@ -89,7 +89,7 @@ function solve_LP_relaxation(
 
     dual_obj = JuMP.objective_value(subproblem)
 
-    # Get dual values (reduced costs) for binary states as initial solution # TODO
+    # Get dual values (reduced costs) for binary states as initial solution
     get_and_set_dual_values!(node, dual_vars_initial, algo_params.state_approximation_regime)
 
     # Note: due to JuMP's dual convention, we need to flip the sign for
@@ -464,7 +464,7 @@ function initialize_duals(
     @assert JuMP.termination_status(subproblem) == MOI.OPTIMAL
     # or MOI.FEASIBLE_POINT???
 
-    # Get dual values (reduced costs) for binary states as initial solution # TODO
+    # Get dual values (reduced costs) for binary states as initial solution
     get_and_set_dual_values!(node, dual_vars_initial, algo_params.state_approximation_regime)
 
     # Undo relaxation

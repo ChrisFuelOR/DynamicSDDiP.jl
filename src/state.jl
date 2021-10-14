@@ -40,7 +40,6 @@ end
 function set_incoming_state!!(node::SDDP.Node, state::Dict{Symbol,Float64})
     for (state_name, value) in state
 
-        # TODO: Check if required
         prepare_state_fixing!(node, state_name)
 
         # Fix value (bounds are automatically deleted by force argument)

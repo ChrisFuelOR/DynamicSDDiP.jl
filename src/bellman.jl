@@ -220,7 +220,7 @@ function refine_bellman_function(
         )
     else  # Add a multi-cut
         @assert bellman_function.cut_type == SDDP.MULTI_CUT
-        #TODO: Not implemented so far, see SDDP.jl
+        # TODO: Not implemented so far, see SDDP.jl
     end
 end
 
@@ -273,8 +273,6 @@ function _add_average_cut(
     ############################################################################
     # ADD THE CUT USING THE NEW EXPECTED COEFFICIENTS
     ############################################################################
-    # TODO: Hier dann Unterscheidung für state_approximation_regime
-
     _add_cut(
         node,
         node.bellman_function.global_theta,

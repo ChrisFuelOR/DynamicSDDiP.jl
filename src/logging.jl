@@ -282,7 +282,7 @@ Write the log of the most recent training to a csv for post-analysis.
 Assumes that the model has been trained via [`DynamicSDDiP.solve`](@ref).
 """
 function write_log_to_csv(model::SDDP.PolicyGraph, filename::String, algo_params::DynamicSDDiP.AlgoParams)
-    # TODO
+    # TO-DO
 end
 
 

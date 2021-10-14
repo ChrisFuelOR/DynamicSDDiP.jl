@@ -167,3 +167,41 @@ function _solve_primal_problem(
     JuMP.set_objective_function(model, primal_obj)
     return L_λ
 end
+
+
+using SDDP
+
+mutable struct DeterministicStopping <: SDDP.AbstractStoppingRule
+    rtol::Float64
+    atol::Float64
+    function DeterministicStopping(;
+        rtol=1e-8,
+        atol=1e-8
+    )
+        return new(rtol, atol)
+    end
+end
+
+v = [DeterministicStopping(), 4, 3.5]
+
+DeterministicStopping in v
+
+v[1] == DeterministicStopping()
+
+isequal(v[1], DeterministicStopping)
+
+typeof(DeterministicStopping)
+
+a = v[1]
+
+a
+
+a == DeterministicStopping
+
+isa(a, DeterministicStopping)
+
+isa(, DeterministicStopping)
+
+
+
+contains
