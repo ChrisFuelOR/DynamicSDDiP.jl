@@ -360,7 +360,7 @@ mutable struct AlgoParams
         log_frequency = 1,
         log_file = "DynamicSDDiP.log",
         run_numerical_stability_report = true,
-        infiltrate_state = :None,
+        infiltrate_state = :none,
         )
         return new(
             stopping_rules,
@@ -398,6 +398,22 @@ struct AppliedSolvers
     MINLP :: Any
     NLP :: Any
     Lagrange :: Any
+
+    function AppliedSolvers(;
+        LP = "Gurobi",
+        MILP = "Gurobi",
+        MINLP = "Gurobi",
+        NLP = "SCIP",
+        Lagrange = "Gurobi",
+        )
+        return new(
+            LP,
+            MILP,
+            MINLP,
+            NLP,
+            Lagrange
+            )
+    end
 end
 
 ################################################################################
