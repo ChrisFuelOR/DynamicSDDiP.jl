@@ -58,7 +58,7 @@ function forward_sigma_test(
                 incoming_state_value, # only values, no State struct!
                 noise,
                 scenario_path[1:depth],
-                algo_params.infiltrate_state
+                algo_params.infiltrate_state,
                 algo_params.regularization_regime,
             )
         end
@@ -76,7 +76,7 @@ function forward_sigma_test(
                 incoming_state_value, # only values, no State struct!
                 noise,
                 scenario_path[1:depth],
-                algo_params.infiltrate_state
+                algo_params.infiltrate_state,
                 DynamicSDDiP.NoRegularization,
             )
         end

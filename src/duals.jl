@@ -63,6 +63,7 @@ function get_dual_solution(
         iterations=1,
         lag_status=nothing,
     )
+end
 
 
 function solve_LP_relaxation(
@@ -101,8 +102,8 @@ function solve_LP_relaxation(
     undo_relax()
 
     return(
-        dual_obj = dual_obj
-        dual_vars = dual_vars_initial
+        dual_obj = dual_obj,
+        dual_vars = dual_vars_initial,
     )
 end
 
@@ -285,7 +286,7 @@ function get_dual_solution(
         iterations=lag_iterations,
         lag_status=lag_status,
     )
-
+end
 
 #*******************************************************************************
 # AUXILIARY METHODS
@@ -487,7 +488,7 @@ function get_and_set_dual_values!(node::SDDP.Node, dual_vars_initial::Vector{Flo
 end
 
 function get_and_set_dual_values!(node::SDDP.Node, dual_vars_initial::Vector{Float64},
-    state_approximation_regime::DynamicSDDiP.NoState)
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation)
 
     for (i, name) in enumerate(keys(node,states))
         reference_to_constr = FixRef(name.in)
@@ -499,7 +500,7 @@ end
 
 function store_dual_values!(node::SDDP.Node, dual_values::Vector{Float64},
     dual_vars::Vector{Float64}, bin_state::Dict{Symbol, BinaryState},
-    integrality_handler::SDDP.SDDiP, state_approximation_regime::DynamicSDDiP.BinaryApproximation)
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation)
 
     for (i, name) in enumerate(keys(node.ext[:backward_data][:bin_states]))
         dual_values[name] = dual_vars[i]
@@ -515,11 +516,21 @@ end
 
 function store_dual_values!(node::SDDP.Node, dual_values::Vector{Float64},
     dual_vars::Vector{Float64}, bin_state::Dict{Symbol, BinaryState},
-    integrality_handler::SDDP.SDDiP, state_approximation_regime::DynamicSDDiP.NoStateApproximation)
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation)
 
     for (i, name) in enumerate(keys(node.states))
         dual_values[name] = dual_vars[i]
     end
 
     return
+end
+
+function get_number_of_states(node::SDDP.Node, state_approximation_regime::DynamicSDDiP.BinaryApproximation)
+
+    return length(node.ext[:backward_data][:bin_states])
+end
+
+function get_number_of_states(node::SDDP.Node, state_approximation_regime::DynamicSDDiP.NoStateApproximation)
+
+    return length(node.states)
 end

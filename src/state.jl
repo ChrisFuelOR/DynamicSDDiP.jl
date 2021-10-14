@@ -146,13 +146,3 @@ struct BinaryState
     x_name::Symbol # name of original state it is related to
     k::Int64 # index and exponent
 end
-
-function get_number_of_states(node::SDDP.Node, state_approximation_regime::DynamicSDDiP.BinaryApproximation)
-
-    return length(node.ext[:backward_data][:bin_states])
-end
-
-function get_number_of_states(node::SDDP.Node, state_approximation_regime::DynamicSDDiP.NoStateApproximation)
-
-    return length(node.states)
-end

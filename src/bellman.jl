@@ -177,10 +177,10 @@ function refine_bellman_function(
     # CHECK IF ALL ELEMENTS CONTAINING INFORMATION ON ALL BACKWARD OPENINGS
     # HAVE THE SAME/REQUIRED LENGTH
     ############################################################################
-    @assert length(dual_variables) ==
-    length(noise_supports) ==
-    length(nominal_probability) ==
-    length(objective_realizations) ==
+    @assert (length(dual_variables) == length(noise_supports)
+                                    == length(nominal_probability)
+                                    == length(objective_realizations)
+                                    )
 
     ############################################################################
     # RISK-RELATED PREPARATIOn
@@ -613,7 +613,7 @@ function represent_cut_projection_closure!(
         iteration,
         beta,
         ########################################################################
-        related_coefficients
+        related_coefficients,
         ########################################################################
         γ,
         μ,
@@ -671,14 +671,14 @@ function add_complementarity_constraints!(
     complementarity_constraint_1 = JuMP.@constraint(
         model,
         [k=1:K],
-        ν[k] * γ[k] = 0
+        ν[k] * γ[k] == 0
     )
     append!(cut_constraints, complementarity_constraint_1)
 
     complementarity_constraint_2 = JuMP.@constraint(
         model,
         [k=1:K],
-        μ[k] * (γ[k]-1) = 0
+        μ[k] * (γ[k]-1) == 0
     )
     append!(cut_constraints, complementarity_constraint_2)
 
@@ -950,7 +950,7 @@ end
 function set_up_dict_for_duals(
     bin_states::Dict{Symbol,BinaryState},
     trial_points::Dict{Symbol,Float64},
-    state_approximation_regime::DynamicSDDiP.BinaryApproximation
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation
     )
 
     return Dict(key => 0.0 for key in keys(trial_points))

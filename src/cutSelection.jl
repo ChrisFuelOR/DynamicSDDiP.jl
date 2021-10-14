@@ -20,7 +20,7 @@ Trivial cut selection function if no cut selection is used.
 function _cut_selection_update(
     node::SDDP.Node,
     V::DynamicSDDiP.CutApproximation,
-    cut::Union{DynamicSDDiP.NonlinearCut,DynamicSDDiP.LinearCut}
+    cut::Union{DynamicSDDiP.NonlinearCut,DynamicSDDiP.LinearCut},
     anchor_state::Dict{Symbol,Float64},
     trial_state::Dict{Symbol,Float64},
     applied_solvers::DynamicSDDiP.AppliedSolvers,
@@ -40,7 +40,7 @@ Simple cut selection feature for nonlinear cuts.
 function _cut_selection_update(
     node::SDDP.Node,
     V::DynamicSDDiP.CutApproximation,
-    cut::DynamicSDDiP.NonlinearCut
+    cut::DynamicSDDiP.NonlinearCut,
     anchor_state::Dict{Symbol,Float64},
     trial_state::Dict{Symbol,Float64},
     applied_solvers::DynamicSDDiP.AppliedSolvers,
@@ -172,7 +172,7 @@ Simple cut selection feature for linear cuts.
 function _cut_selection_update(
     node::SDDP.Node,
     V::DynamicSDDiP.CutApproximation,
-    cut::DynamicSDDiP.LinearCut
+    cut::DynamicSDDiP.LinearCut,
     anchor_state::Dict{Symbol,Float64},
     trial_state::Dict{Symbol,Float64},
     applied_solvers::DynamicSDDiP.AppliedSolvers,

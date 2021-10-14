@@ -344,7 +344,7 @@ Determining the anchor points in the original space if BinaryApproximation
 is used.
 """
 function determine_anchor_states(
-    node::DynamicSDDiP.Node,
+    node::SDDP.Node,
     outgoing_state::Dict{Symbol,Float64},
     state_approximation_regime::DynamicSDDiP.BinaryApproximation,
 )
@@ -395,7 +395,7 @@ Determining the anchor points in the original space if no state approximation
 is used.
 """
 function determine_anchor_states(
-    node::DynamicSDDiP.Node,
+    node::SDDP.Node,
     outgoing_state::Dict{Symbol,Float64},
     state_approximation_regime::DynamicSDDiP.NoStateApproximation,
 )

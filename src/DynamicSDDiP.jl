@@ -24,9 +24,9 @@ using Infiltrator
 
 # Write your package code here.
 include("state.jl")
+include("typedefs.jl")
 include("JuMP.jl")
 
-include("typedefs.jl")
 include("logging.jl")
 
 include("stopping.jl")

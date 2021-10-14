@@ -58,7 +58,7 @@ function _solve_Lagrangian_relaxation!(
 
     # Set the Lagrangian relaxation of the objective in the primal model
     old_obj = JuMP.objective_function(model)
-    JuMP.set_objective_function(model, @expression(old_obj - π_k' * h_expr))
+    JuMP.set_objective_function(model, @expression(model, old_obj - π_k' * h_expr))
 
     # Optimization
     JuMP.optimize!(model)
@@ -85,7 +85,7 @@ function solve_lagrangian_dual(
     node_index::Int64,
     primal_obj::Float64,
     π_k::Vector{Float64},
-    bound_results::Tuple{Float64,Float64}
+    bound_results::Tuple{Float64,Float64},
     algo_params::DynamicSDDiP.AlgoParams,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     dual_solution_regime::DynamicSDDiP.Kelley
@@ -155,7 +155,7 @@ function solve_lagrangian_dual(
     @variable(approx_model, π⁺[1:number_of_states] >= 0)
     @variable(approx_model, π⁻[1:number_of_states] >= 0)
     @expression(approx_model, π, π⁺ .- π⁻) # not required to be a constraint
-    set_multiplier_bounds!(approx_model, number_of_states bound_results.dual_bound)
+    set_multiplier_bounds!(approx_model, number_of_states, bound_results.dual_bound)
 
     ############################################################################
     # CUTTING-PLANE METHOD
@@ -221,6 +221,7 @@ function solve_lagrangian_dual(
             # sometimes this occurs due to numerical issues
             # still leads to a valid cut
             lag_status = :conv
+        end
     elseif all(h_k .== 0)
         # NO OPTIMALITY ACHIEVED, BUT STILL ALL SUBGRADIENTS ARE ZERO
         # may occur due to numerical issues
@@ -314,7 +315,7 @@ end
 
 function restore_copy_constraints!(
     node::SDDP.Node,
-    x_in_value::Vector{Float64}
+    x_in_value::Vector{Float64},
     state_approximation_regime::DynamicSDDiP.BinaryApproximation,
     )
 
@@ -328,7 +329,7 @@ end
 
 function restore_copy_constraints!(
     node::SDDP.Node,
-    x_in_value::Vector{Float64}
+    x_in_value::Vector{Float64},
     state_approximation_regime::DynamicSDDiP.NoStateApproximation,
     )
 
@@ -365,7 +366,7 @@ achieved in total.
 
 function magnanti_wong!(
     node::SDDP.Node,
-    approx_model::JuMP.model,
+    approx_model::JuMP.Model,
     π_k::Vector{Float64},
     π_star::Vector{Float64},
     t_k::Float64,
@@ -408,7 +409,7 @@ end
 
 function magnanti_wong!(
     node::SDDP.Node,
-    approx_model::JuMP.model,
+    approx_model::JuMP.Model,
     π_k::Vector{Float64},
     π_star::Vector{Float64},
     t_k::Float64,
@@ -436,7 +437,7 @@ function solve_lagrangian_dual(
     node_index::Int64,
     primal_obj::Float64,
     π_k::Vector{Float64},
-    bound_results::Tuple{Float64,Float64}
+    bound_results::Tuple{Float64,Float64},
     algo_params::DynamicSDDiP.AlgoParams,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     dual_solution_regime::DynamicSDDiP.LevelBundle
@@ -509,7 +510,7 @@ function solve_lagrangian_dual(
     @variable(approx_model, π⁺[1:number_of_states] >= 0)
     @variable(approx_model, π⁻[1:number_of_states] >= 0)
     @expression(approx_model, π, π⁺ .- π⁻) # not required to be a constraint
-    set_multiplier_bounds!(approx_model, number_of_states bound_results.dual_bound)
+    set_multiplier_bounds!(approx_model, number_of_states, bound_results.dual_bound)
 
     ############################################################################
     # CUTTING-PLANE METHOD
@@ -654,6 +655,7 @@ function solve_lagrangian_dual(
             # sometimes this occurs due to numerical issues
             # still leads to a valid cut
             lag_status = :conv
+        end
     elseif all(h_k .== 0)
         # NO OPTIMALITY ACHIEVED, BUT STILL ALL SUBGRADIENTS ARE ZERO
         # may occur due to numerical issues

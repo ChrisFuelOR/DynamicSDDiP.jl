@@ -249,8 +249,6 @@ Default is Regularization.
 ################################################################################
 abstract type AbstractDualityRegime end
 
-mutable struct LagrangianDuality <: AbstractDualityRegime end
-
 mutable struct LagrangianDuality <: AbstractDualityRegime
     atol::Float64
     rtol::Float64
@@ -301,6 +299,7 @@ mutable struct CutSelection <: AbstractCutSelectionRegime
     )
         return new(cut_deletion_minimum)
     end
+end
 
 mutable struct NoCutSelection <: AbstractCutSelectionRegime end
 
@@ -328,7 +327,7 @@ mutable struct AlgoParams
     duality_regime::AbstractDualityRegime
     cut_selection_regime::AbstractCutSelectionRegime
     ############################################################################
-    risk_measure = SDDP.Expectation()
+    risk_measure::SDDP.AbstractRiskMeasure
     forward_pass::SDDP.AbstractForwardPass
     sampling_scheme::SDDP.AbstractSamplingScheme
     backward_sampling_scheme::SDDP.AbstractBackwardSamplingScheme
@@ -349,6 +348,7 @@ mutable struct AlgoParams
         regularization_regime = Regularization(),
         duality_regime = LagrangianDuality(),
         cut_selection_regime = CutSelection(),
+        risk_measure = SDDP.Expectation(),
         forward_pass = SDDP.DefaultForwardPass(),
         sampling_scheme = SDDP.InSampleMonteCarlo(),
         backward_sampling_scheme = SDDP.CompleteSampler(),
@@ -378,7 +378,7 @@ mutable struct AlgoParams
             print_level,
             log_frequency,
             log_file,
-            run_numerical_stability_report
+            run_numerical_stability_report,
             infiltrate_state,
             )
     end
@@ -428,7 +428,7 @@ mutable struct NonlinearCut <: Cut
     ############################################################################
     trial_state::Dict{Symbol,Float64}
     anchor_state::Dict{Symbol,Float64}
-    binary_state::Dict{Symbol,BinaryState}
+    binary_state::Dict{Symbol,DynamicSDDiP.BinaryState}
     binary_precision::Dict{Symbol,Float64}
     ############################################################################
     sigma::Float64

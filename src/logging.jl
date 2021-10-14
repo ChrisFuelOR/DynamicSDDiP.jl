@@ -267,7 +267,7 @@ function print_footer(io, training_results)
     flush(io)
 end
 
-function log_iteration(algo_params::DynamicSDDiP.AlgoParams, log_file_handle::Any, log::DynamicSDDiP.log)
+function log_iteration(algo_params::DynamicSDDiP.AlgoParams, log_file_handle::Any, log::DynamicSDDiP.Log)
     if algo_params.print_level > 0 && mod(length(log), algo_params.log_frequency) == 0
         print_helper(print_iteration, log_file_handle, log[end])
     end
