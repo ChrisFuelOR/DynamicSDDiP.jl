@@ -207,7 +207,7 @@ mutable struct BinaryApproximation <: AbstractStateApproximationRegime
     binary_precision::Dict{Symbol, Float64}
     cut_projection_regime::AbstractCutProjectionRegime
     function BinaryApproximation(;
-        binary_precision = ...,
+        binary_precision = Dict{Symbol, Float64}(),
         cut_projection_regime = BigM(),
     )
         return new(binary_precision, cut_projection_regime)
@@ -420,8 +420,8 @@ mutable struct NonlinearCut <: Cut
     cut_variables::Vector{JuMP.VariableRef}
     cut_constraints::Vector{JuMP.ConstraintRef}
     ############################################################################
-    # obj_y::Union{Nothing,NTuple{N,Float64} where {N}} #TODO
-    # belief_y::Union{Nothing,Dict{T,Float64} where {T}} #TODO
+    # obj_y::Union{Nothing,NTuple{N,Float64} where {N}}
+    # belief_y::Union{Nothing,Dict{T,Float64} where {T}}
     ############################################################################
     non_dominated_count::Int
     ############################################################################
