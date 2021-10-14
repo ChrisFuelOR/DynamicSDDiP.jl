@@ -107,12 +107,23 @@ function print_parameters(io, algo_params::DynamicSDDiP.AlgoParams, applied_solv
     println(io)
     println(io)
 
-    # Printing the parameters used
-    # TODO: Stopping rules
-    println(io, Printf.@sprintf("opt_rtol: %1.4e", algo_params.opt_rtol))
-    println(io, Printf.@sprintf("opt_atol: %1.4e", algo_params.opt_atol))
-    println(io, Printf.@sprintf("iteration_limit: %5d", algo_params.iteration_limit))
-    println(io, Printf.@sprintf("time_limit (sec): %6d", algo_params.time_limit))
+    ############################################################################
+    # PRINTING THE PARAMETERS USED
+    ############################################################################
+    if isempty(algo_params.stopping_rules)
+        println(io, "No stopping rule defined.")
+    else
+        for i in algo_params.stopping_rules
+            if isa(algo_params.stopping_rules[i], DeterministicStopping)
+                println(io, Printf.@sprintf("opt_rtol: %1.4e", algo_params.opt_rtol))
+                println(io, Printf.@sprintf("opt_atol: %1.4e", algo_params.opt_atol))
+            elseif isa(algo_params.stopping_rules[i], SDDP.IterationLimit)
+                println(io, Printf.@sprintf("iteration_limit: %5d", algo_params.iteration_limit))
+            elseif isa(algo_params.stopping_rules[i], )
+                println(io, Printf.@sprintf("time_limit (sec): %6d", algo_params.time_limit))
+            end
+        end
+    end
     println(io, "------------------------------------------------------------------------")
 
     print(io, "Binary approximation used: ")
