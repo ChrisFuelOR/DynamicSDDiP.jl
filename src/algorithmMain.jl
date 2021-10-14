@@ -82,7 +82,7 @@ function solve(
     #---------------------------------------------------------------------------
     # fortunately, node.bellman_function requires no specific type
     for (key, node) in model.nodes
-        node.bellman_function = initialize_bellman_function_nonconvex(bellman_function, model, node)
+        node.bellman_function = DynamicSDDiP.initialize_bellman_function(bellman_function, model, node)
         node.bellman_function.cut_type = algo_params.cut_type
         node.bellman_function.global_theta.cut_oracle.deletion_minimum =
             algo_params.cut_selection_regime.cut_deletion_minimum
@@ -91,6 +91,7 @@ function solve(
         end
     end
 
+    ############################################################################
     # MODEL START
     ############################################################################
     status = :not_solved
@@ -107,6 +108,7 @@ function solve(
     finally
     end
 
+    ############################################################################
     # lOG MODEL RESULTS
     ############################################################################
     results = DynamicSDDiP.Results(status, log)

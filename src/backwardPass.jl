@@ -79,13 +79,21 @@ function backward_pass(
             applied_solvers
         )
 
+        ########################################################################
         # RECONSTRUCT ANCHOR POINTS IN BACKWARD PASS
-        ####################################################################
+        ########################################################################
         anchor_states = determine_anchor_states(node, outgoing_state, algo_params.state_approximation_regime)
         @infiltrate algo_params.infiltrate_state in [:all]
 
+        ########################################################################
         # REFINE BELLMAN FUNCTION BY ADDING CUTS
-        ####################################################################
+        ########################################################################
+        """
+        Note that for all backward openings, bin_state is the same,
+        so we can just use bin_state[1] in the following.
+        Maybe this should be changed later.
+        """
+
         TimerOutputs.@timeit DynamicSDDiP_TIMER "update_bellman" begin
             new_cuts = refine_bellman_function(
                 model,
@@ -95,7 +103,7 @@ function backward_pass(
                 options.risk_measures[node_index],
                 outgoing_state,
                 anchor_states,
-                items.bin_state,
+                items.bin_state[1],
                 items.duals,
                 items.supports,
                 items.probability,
@@ -104,14 +112,16 @@ function backward_pass(
                 applied_solvers
             )
         end
+
         push!(cuts[node_index], new_cuts)
-        #NOTE: Has to be adapted for stochastic case
+        # NOTE: This has to be adapted for stochastic case
         push!(model.ext[:lag_iterations], sum(items.lag_iterations))
         push!(model.ext[:lag_status], items.lag_status[1])
 
         #TODO: Implement cut-sharing as in SDDP
 
     end
+    
     return cuts
 end
 

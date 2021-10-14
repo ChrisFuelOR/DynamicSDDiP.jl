@@ -168,15 +168,23 @@ BigM means that the complementarity constraints of the KKT conditions of
     the cut projection closure are reformulated using a big-M approach.
 SOS1 means that the complemnentarity constraints of the KKT conditions of
     the cut projection closure are reformulated using SOS1 constraints.
-Bilinear means that by using strong duality the cuts are integrated in a
-    bilinear way. This implies that MINLP solvers have to be used to solve
-    the subproblems.
+KKT means that the complementarity constraints of the KKT conditions are used
+    in their original bilinear form.
+StrongDuality means that by using strong duality the cuts are integrated in a
+    bilinear way.
 Default is BigM.
+
+Note that for KKT and StrongDuality the subproblems become nonlinear, and thus
+    an MINLP solver (e.g. Gurobi) has to be used to solve them.
+    Moreover, in these cases, only zeros should be used as initialization
+    method and only Lagrangian cuts should be determined, since the LP
+    relaxation is no LP anymore and may yield useless results.
 """
 
 mutable struct BigM <: AbstractCutProjectionRegime end
 mutable struct SOS1 <: AbstractCutProjectionRegime end
-mutable struct Bilinear <: AbstractCutProjectionRegime end
+mutable struct KKT <: AbstractCutProjectionRegime end
+mutable struct StrongDuality <: AbstractCutProjectionRegime end
 
 ################################################################################
 # BINARY APPROXIMATION
@@ -393,8 +401,33 @@ struct AppliedSolvers
 end
 
 ################################################################################
-# DEFINING NONLINEAR CUTS
+# DEFINING CUTS
 ################################################################################
+
+abstract type Cut end
+
+mutable struct NonlinearCut <: Cut
+    intercept::Float64
+    coefficients::Dict{Symbol,Float64}
+    ############################################################################
+    trial_state::Dict{Symbol,Float64}
+    anchor_state::Dict{Symbol,Float64}
+    binary_state::Dict{Symbol,BinaryState}
+    binary_precision::Dict{Symbol,Float64}
+    ############################################################################
+    sigma::Float64
+    ############################################################################
+    cut_variables::Vector{JuMP.VariableRef}
+    cut_constraints::Vector{JuMP.ConstraintRef}
+    ############################################################################
+    # obj_y::Union{Nothing,NTuple{N,Float64} where {N}} #TODO
+    # belief_y::Union{Nothing,Dict{T,Float64} where {T}} #TODO
+    ############################################################################
+    non_dominated_count::Int
+    ############################################################################
+    iteration::Int64
+end
+
 """
 The first two arguments define the cut coefficients (in the binary space).
 
@@ -421,22 +454,18 @@ Note that if no binary approximation is used, trial_state and anchor_state
 will always be the same and only one cut_constraint has to be stored.
 """
 
-mutable struct NonlinearCut
+mutable struct LinearCut <: Cut
     intercept::Float64
     coefficients::Dict{Symbol,Float64}
     ############################################################################
-    trial_state::Dict{Symbol,Float64}
-    anchor_state::Dict{Symbol,Float64}
-    binary_state::Dict{Symbol,BinaryState}
-    binary_precision::Dict{Symbol,Float64}
+    trial_state::Dict{Symbol,Float64} # same as anchor state
     ############################################################################
     sigma::Float64
     ############################################################################
-    cut_variables::Vector{JuMP.VariableRef}
-    cut_constraints::Vector{JuMP.ConstraintRef}
+    cut_constraint::JuMP.ConstraintRef
     ############################################################################
-    obj_y::Union{Nothing,NTuple{N,Float64} where {N}} #TODO
-    belief_y::Union{Nothing,Dict{T,Float64} where {T}} #TODO
+    # obj_y::Union{Nothing,NTuple{N,Float64} where {N}}
+    # belief_y::Union{Nothing,Dict{T,Float64} where {T}}
     ############################################################################
     non_dominated_count::Int
     ############################################################################

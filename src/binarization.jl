@@ -51,10 +51,10 @@ function changeStateSpace!(
         # Save fixed value of state
         fixed_value = JuMP.fix_value(state_comp.in)
         bw_data[:fixed_state_value][state_name] = fixed_value
-        epsilon = binary_precision[state_name]
+        beta = binary_precision[state_name]
 
         # Set up state for backward pass using binary approximation
-        setup_state_binarization!(subproblem, state_comp, state_name, epsilon, bw_data)
+        setup_state_binarization!(subproblem, state_comp, state_name, beta, bw_data)
     end
 
     return
@@ -278,14 +278,14 @@ function setup_state_binarization!(
             ####################################################################
             # STATE VARIABLE IS CONTINUOUS
             ####################################################################
-            epsilon = binary_precision
+            beta = binary_precision
 
             """ see comment above for integer case """
 
             ####################################################################
             # INTRODUCE BINARY VARIABLES TO THE PROBLEM
             ####################################################################
-            num_vars = SDDP._bitsrequired(round(Int, state_comp.info.in.upper_bound / epsilon))
+            num_vars = SDDP._bitsrequired(round(Int, state_comp.info.in.upper_bound / beta))
 
             binary_vars = JuMP.@variable(
                 subproblem,
@@ -309,7 +309,7 @@ function setup_state_binarization!(
             ####################################################################
             binary_constraint = JuMP.@constraint(
                 subproblem,
-                state_comp.in == SDDP.bincontract([binary_vars[i] for i in 1:num_vars], epsilon)
+                state_comp.in == SDDP.bincontract([binary_vars[i] for i in 1:num_vars], beta)
             )
 
             # store in list for later access and deletion
@@ -319,7 +319,7 @@ function setup_state_binarization!(
             # FIX NEW VARIABLES
             ####################################################################
             # Get fixed values from fixed value of original state
-            fixed_binary_values = SDDP.binexpand(bw_data[:fixed_state_value][state_name], state_comp.info.in.upper_bound, epsilon)
+            fixed_binary_values = SDDP.binexpand(bw_data[:fixed_state_value][state_name], state_comp.info.in.upper_bound, beta)
             # Fix binary variables
             for i in 1:num_vars
                 #JuMP.unset_binary(binary_vars[i].in)
@@ -352,8 +352,8 @@ function determine_anchor_states(
     anchor_states = Dict{Symbol,Float64}()
     for (name, value) in outgoing_state
         state_comp = node.states[name]
-        epsilon = state_approximation_regime.binary_precision[name]
-        (approx_state_value, )  = determine_anchor_state(state_comp, value, epsilon)
+        beta = state_approximation_regime.binary_precision[name]
+        (approx_state_value, )  = determine_anchor_state(state_comp, value, beta)
         anchor_states[name] = approx_state_value
     end
 

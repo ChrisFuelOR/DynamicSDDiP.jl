@@ -15,23 +15,26 @@ function set_solver!(
     algorithmic_step::Symbol,
 )
 
+    cut_projection_regime = algo_params.state_approximation_regime.cut_projection_regime
+
     # CHOOSE THE CORRECT TYPE OF SOLVER AND SOLVER
     ############################################################################
     if algorithmic_step in [:forward_pass, :backward_pass]
-        if algo_params.cut_projection_method == :Bilinear
+        if cut_projection_regime == DynamicSDDiP.KKT || cut_projection_regime == DynamicSDDiP.StrongDuality
             solver = applied_solvers.MINLP
         else
             solver = applied_solvers.MILP
         end
     elseif algorithmic_step in [:lagrange_relax]
-        if algo_params.cut_projection_method == :Bilinear
+        if cut_projection_regime == DynamicSDDiP.KKT || cut_projection_regime == DynamicSDDiP.StrongDuality
             solver = applied_solvers.MINLP
         else
             solver = applied_solvers.lagrange
         end
     elseif algorithmic_step in [:level_bundle]
         solver = applied_solvers.NLP
-    elseif algorithmic_step in [:LP_relax, :kelley]
+    elseif algorithmic_step in [:LP_relax, :kelley, :cut_selection]
+        # TODO: What about nonlinear cut projections here?
         solver = applied_solvers.LP
     end
 

@@ -41,6 +41,9 @@ typeof(return_results)
 using JuMP
 using GLPK
 approx_model = JuMP.Model(GLPK.Optimizer)
+ν = JuMP.@variable(approx_model, [1:10], lower_bound=0)
+typeof(ν)
+
 @variable(approx_model, t <= 100)
 @objective(approx_model, Max, t)
 

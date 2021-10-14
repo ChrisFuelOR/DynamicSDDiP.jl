@@ -86,8 +86,8 @@ function solve_lagrangian_dual(
     primal_obj::Float64,
     π_k::Vector{Float64},
     bound_results::Tuple{Float64,Float64}
-    algo_params::NCNBD.AlgoParams,
-    applied_solvers::NCNBD.AppliedSolvers,
+    algo_params::DynamicSDDiP.AlgoParams,
+    applied_solvers::DynamicSDDiP.AppliedSolvers,
     dual_solution_regime::DynamicSDDiP.Kelley
     )
 
@@ -437,8 +437,8 @@ function solve_lagrangian_dual(
     primal_obj::Float64,
     π_k::Vector{Float64},
     bound_results::Tuple{Float64,Float64}
-    algo_params::NCNBD.AlgoParams,
-    applied_solvers::NCNBD.AppliedSolvers,
+    algo_params::DynamicSDDiP.AlgoParams,
+    applied_solvers::DynamicSDDiP.AppliedSolvers,
     dual_solution_regime::DynamicSDDiP.LevelBundle
     )
 
@@ -699,8 +699,8 @@ Solve lagrangian relaxation to obtain intercept for strengthened Benders cuts
 function _getStrengtheningInformation(
     node::SDDP.Node,
     π_k::Vector{Float64},
-    algo_params::NCNBD.AlgoParams,
-    applied_solvers::NCNBD.AppliedSolvers,
+    algo_params::DynamicSDDiP.AlgoParams,
+    applied_solvers::DynamicSDDiP.AppliedSolvers,
     )
 
     ############################################################################
