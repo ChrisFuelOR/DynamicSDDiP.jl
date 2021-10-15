@@ -13,7 +13,7 @@
 function JuMP.build_variable(
     _error::Function,
     info::JuMP.VariableInfo,
-    ::Type{DynamicSDDiP.State};
+    ::Type{SDDP.State};
     initial_value = NaN,
     kwargs...,
 )
@@ -25,7 +25,7 @@ function JuMP.build_variable(
             " the root node.",
         )
     end
-    return StateInfo(
+    return SDDP.StateInfo(
         JuMP.VariableInfo(
             false,
             NaN, # lower bound
@@ -44,37 +44,34 @@ function JuMP.build_variable(
     )
 end
 
-function JuMP.add_variable(subproblem::JuMP.Model, state_info::StateInfo, name::String)
-
-    # Store bounds also in state, since they have to be relaxed and readded later
-    # if state_info.out.has_lb
-    #     lb = state_info.out.lower_bound
-    # else
-    #     lb = -Inf
-    # end
-    #
-    # if state_info.out.has_ub
-    #     ub = state_info.out.upper_bound
-    # else
-    #     ub = Inf
-    # end
-
-    state = State(
-        JuMP.add_variable(problem, JuMP.ScalarVariable(state_info.in), name * "_in"),
-        JuMP.add_variable(problem, JuMP.ScalarVariable(state_info.out), name * "_out"),
-        state_info
+function JuMP.add_variable(
+    subproblem::JuMP.Model,
+    state_info::SDDP.StateInfo,
+    name::String,
+)
+    state = SDDP.State(
+        JuMP.add_variable(
+            subproblem,
+            JuMP.ScalarVariable(state_info.in),
+            name * "_in",
+        ),
+        JuMP.add_variable(
+            subproblem,
+            JuMP.ScalarVariable(state_info.out),
+            name * "_out",
+        ),
     )
-
-    node = get_node(subproblem)
+    node = SDDP.get_node(subproblem)
     sym_name = Symbol(name)
     @assert !haskey(node.states, sym_name)  # JuMP prevents duplicate names.
     node.states[sym_name] = state
-    graph = get_policy_graph(subproblem)
+    graph = SDDP.get_policy_graph(subproblem)
     graph.initial_root_state[sym_name] = state_info.initial_value
     return state
 end
 
-JuMP.variable_type(model::JuMP.Model, ::Type{State}) = State
+
+JuMP.variable_type(model::JuMP.Model, ::Type{State}) = SDDP.State
 
 function JuMP.value(state::State{JuMP.VariableRef})
     return State(JuMP.value(state.in), JuMP.value(state.out))

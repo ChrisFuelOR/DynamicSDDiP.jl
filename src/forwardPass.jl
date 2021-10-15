@@ -59,6 +59,7 @@ function forward_pass(model::SDDP.PolicyGraph{T}, options::DynamicSDDiP.Options,
                 incoming_state_value, # only values, no State struct!
                 noise,
                 scenario_path[1:depth],
+                algo_params,
                 algo_params.regularization_regime,
             )
         end
@@ -97,7 +98,7 @@ function solve_subproblem_forward(
     state::Dict{Symbol,Float64},
     noise,
     scenario_path::Vector{Tuple{T,S}},
-    infiltrate_state::Symbol,
+    algo_params::DynamicSDDiP.AlgoParams,
     regularization_regime::DynamicSDDiP.AbstractRegularizationRegime;
 ) where {T,S}
 
@@ -123,7 +124,7 @@ function solve_subproblem_forward(
     ############################################################################
     # SOLUTION
     ############################################################################
-    @infiltrate infiltrate_state in [:all]
+    @infiltrate algo_params.infiltrate_state in [:all]
     JuMP.optimize!(subproblem)
 
     # Maybe attempt numerical recovery as in SDDP
@@ -131,7 +132,7 @@ function solve_subproblem_forward(
     state = get_outgoing_state(node)
     objective = JuMP.objective_value(subproblem)
     stage_objective = objective - JuMP.value(bellman_term(node.bellman_function))
-    @infiltrate infiltrate_state in [:all]
+    @infiltrate algo_params.infiltrate_state in [:all]
 
     ############################################################################
     # DE-REGULARIZE SUBPROBLEM IF REQUIRED

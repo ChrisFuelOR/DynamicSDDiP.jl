@@ -17,20 +17,20 @@ function regularize_subproblem!(node::SDDP.Node, node_index::Int64,
     # It is then subtracted from the fixed value to obtain the so called slack.
 
     reg_data = node.ext[:regularization_data]
-    reg_data[:fixed_state_value] = Dict{Symbol,Float64}()
     reg_data[:slacks] = Any[]
     reg_data[:reg_variables] = JuMP.VariableRef[]
     reg_data[:reg_constraints] = JuMP.ConstraintRef[]
 
     number_of_states = 0
 
-    # UNFIX THE STATE VARIABLES
+    # UNFIX THE STATE VARIABLES (RELAXATION)
     ############################################################################
     for (i, (name, state_comp)) in enumerate(node.states)
         reg_data[:fixed_state_value][name] = JuMP.fix_value(state_comp.in)
         push!(reg_data[:slacks], reg_data[:fixed_state_value][name] - state_comp.in)
         JuMP.unfix(state_comp.in)
-        follow_state_unfixing!(state_comp)
+        variable_info = node.ext[:state_info_storage][name].in
+        follow_state_unfixing!(state_comp, variable_info)
         number_of_states = i
     end
 
@@ -141,8 +141,12 @@ function regularize_binary!(node::SDDP.Node, subproblem::JuMP.Model, sigma::Floa
     ############################################################################
     Umax = 0
     for (i, (name, state_comp)) in enumerate(node.states)
-        if state_comp.info.out.upper_bound > Umax
-            Umax = state_comp.info.out.upper_bound
+
+        # TODO: is .out correct here?
+        variable_info = node.ext[:state_info_storage][name].out
+
+        if variable_info.upper_bound > Umax
+            Umax = variable_info.upper_bound
         end
     end
     # Here, not sigma, but a different regularization parameter is used

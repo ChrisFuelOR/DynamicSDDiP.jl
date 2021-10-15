@@ -376,8 +376,11 @@ function get_norm_bound(
 
     B_norm_bound = 0
     for (name, state_comp) in node.states
-        if state_comp.info.in.upper_bound > B_norm_bound
-            B_norm_bound = state_comp.info.in.upper_bound
+
+        variable_info = node.ext[:state_info_storage][name].in
+
+        if variable_info.upper_bound > B_norm_bound
+            B_norm_bound = variable_info.upper_bound
         end
     end
     dual_bound = algo_params.regularization_regime.sigma[node_index] * B_norm_bound

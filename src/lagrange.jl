@@ -320,7 +320,7 @@ function restore_copy_constraints!(
     )
 
     for (i, (_, bin_state)) in enumerate(node.ext[:backward_data][:bin_states])
-        #prepare_state_fixing!(node, state_comp)
+        # prepare_state_fixing!(node, state_comp)
         JuMP.fix(bin_state, x_in_value[i], force = true)
     end
 
@@ -334,7 +334,7 @@ function restore_copy_constraints!(
     )
 
     for (i, (_, state)) in enumerate(node.states)
-        #prepare_state_fixing!(node, state_comp)
+        # prepare_state_fixing!(node, state_comp)
         JuMP.fix(state.in, x_in_value[i], force = true)
     end
 

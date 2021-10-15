@@ -49,21 +49,21 @@ function set_solver!(
     # SET THE CORRECT SOLVER WITH THE REQUIRED PROPERTIES
     ############################################################################
     if solver == "CPLEX"
-        set_optimizer(node.subproblem, optimizer_with_attributes(
+        set_optimizer(subproblem, optimizer_with_attributes(
             GAMS.Optimizer,
             "Solver"=>solver,
             "optcr"=>0.0,
             "numericalemphasis"=>numerical_focus)
             )
     elseif solver == "Gurobi"
-        set_optimizer(node.subproblem, optimizer_with_attributes(
+        set_optimizer(subproblem, optimizer_with_attributes(
             GAMS.Optimizer,
             "Solver"=>solver,
             "optcr"=>0.0,
             "NumericFocus"=>numerical_focus)
             )
     else
-        set_optimizer(node.subproblem, optimizer_with_attributes(
+        set_optimizer(subproblem, optimizer_with_attributes(
             GAMS.Optimizer,
             "Solver"=>solver,
             "optcr"=>0.0)

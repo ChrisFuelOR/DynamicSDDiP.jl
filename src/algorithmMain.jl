@@ -15,6 +15,8 @@
 # If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
 ################################################################################
 
+const DynamicSDDiP_TIMER = TimerOutputs.TimerOutput()
+
 """
 Solves the `model`. In contrast to SDDP.jl, all parameters configuring
 the algorithm are given (and possibly pre-defined) in algo_params.
@@ -35,11 +37,11 @@ function solve(
     log_file_handle = open(algo_params.log_file, "a")
     log = Log[]
 
-    if print_level > 0
+    if algo_params.print_level > 0
         print_helper(print_banner, log_file_handle)
     end
 
-    if print_level > 1
+    if algo_params.print_level > 1
         print_helper(print_parameters, log_file_handle, algo_params, applied_solvers)
     end
 
@@ -76,6 +78,20 @@ function solve(
         end
     end
 
+    # Prepare sigma
+    #---------------------------------------------------------------------------
+    regime = algo_params.regularization_regime
+    if regime == DynamicSDDiP.Regularization && isempty(regime.sigma)
+        for (node_index, _) in model.nodes
+            if node_index == 1
+                # first stage requires no regularization
+                push!(regime.sigma, 0.0)
+            else
+                push!(regime.sigma, 1.0)
+            end
+        end
+    end
+
     # Prepare options for logging
     #---------------------------------------------------------------------------
     options = DynamicSDDiP.Options(
@@ -91,7 +107,8 @@ function solve(
     ############################################################################
     # Update the nodes with the selected cut type (SINGLE_CUT or MULTI_CUT)
     # and the cut deletion minimum.
-    if algo_params.cut_selection_regime.cut_deletion_minimum < 0
+    regime = algo_params.cut_selection_regime
+    if regime == DynamicSDDiP.CutSelection && regime.cut_deletion_minimum < 0
         algo_params.cut_selection_regime.cut_deletion_minimum = typemax(Int)
     end
 
@@ -99,12 +116,28 @@ function solve(
     #---------------------------------------------------------------------------
     # fortunately, node.bellman_function requires no specific type
     for (key, node) in model.nodes
-        node.bellman_function = DynamicSDDiP.initialize_bellman_function(bellman_function, model, node)
-        node.bellman_function.cut_type = algo_params.cut_type
-        node.bellman_function.global_theta.cut_oracle.deletion_minimum =
-            algo_params.cut_selection_regime.cut_deletion_minimum
-        for oracle in node.bellman_function.local_thetas
-            oracle.cut_oracle.deletion_minimum = algo_params.cut_selection_regime.cut_deletion_minimum
+
+        if key != model.root_node
+
+            if model.objective_sense == MOI.MIN_SENSE
+                lower_bound = JuMP.lower_bound(node.bellman_function.global_theta.theta)
+                upper_bound = Inf
+            elseif model.objective_sense == MOI.MAX_SENSE
+                upper_bound = JuMP.upper_bound(node.bellman_function.global_theta.theta)
+                lower_bound = -Inf
+            end
+
+            bellman_function = BellmanFunction(lower_bound = lower_bound, upper_bound = upper_bound)
+            node.bellman_function = DynamicSDDiP.initialize_bellman_function(bellman_function, model, node)
+            node.bellman_function.cut_type = algo_params.cut_type
+
+            if algo_params.cut_selection_regime == DynamicSDDiP.CutSelection
+                node.bellman_function.global_theta.cut_oracle.deletion_minimum =
+                    algo_params.cut_selection_regime.cut_deletion_minimum
+                for oracle in node.bellman_function.local_thetas
+                    oracle.cut_oracle.deletion_minimum = algo_params.cut_selection_regime.cut_deletion_minimum
+                end
+            end
         end
     end
 
@@ -113,11 +146,11 @@ function solve(
     ############################################################################
     status = :not_solved
     try
-        status = solve_DynamicSDDiP(parallel_scheme, model, options, algo_params, applied_solvers)
+        status = solve_DynamicSDDiP(algo_params.parallel_scheme, model, options, algo_params, applied_solvers)
     catch ex
         if isa(ex, InterruptException)
             status = :interrupted
-            interrupt(parallel_scheme)
+            interrupt(algo_params.parallel_scheme)
         else
             close(log_file_handle)
             rethrow(ex)
@@ -159,25 +192,26 @@ function solve_DynamicSDDiP(parallel_scheme::SDDP.Serial, model::SDDP.PolicyGrap
         #-----------------------------------------------------------------------
         if node_index > 1
             for (i, (name, state)) in enumerate(node.states)
-                # Get correct state_info
-                state_info = model.nodes[node_index-1].states[name].info.out
+                state_out_previous_stage = model.nodes[node_index-1].states[name].out
+                state_in = state.in
 
-                if state_info.has_lb
-                    JuMP.set_lower_bound(state.in, state_info.lower_bound)
-                end
-                if state_info.has_ub
-                    JuMP.set_upper_bound(state.in, state_info.upper_bound)
-                end
-                if state_info.binary
-                    JuMP.set_binary(state.in)
-                elseif state_info.integer
-                    JuMP.set_integer(state.in)
-                end
+                set_up_state_in_info!(state_out_previous_stage, state_in)
 
-                # Store info to reset it later
-                state.info.in = state_info
             end
         end
+
+        # Store info for all states (state.in, state.out) for later
+        # This is required for variable fixing and unfixing
+        #-----------------------------------------------------------------------
+        node.ext[:state_info_storage] = Dict{Symbol,DynamicSDDiP.StateInfoStorage}()
+
+        for (i, (name, state)) in enumerate(node.states)
+                variable_info_in = get_variable_info(state.in)
+                variable_info_out = get_variable_info(state.out)
+
+                node.ext[:state_info_storage][name] = DynamicSDDiP.StateInfoStorage(variable_info_in, variable_info_out)
+        end
+
     end
 
     @infiltrate algo_params.infiltrate_state == :all
@@ -186,7 +220,8 @@ function solve_DynamicSDDiP(parallel_scheme::SDDP.Serial, model::SDDP.PolicyGrap
     # CALL ACTUAL SOLUTION PROCEDURE
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "loop" begin
-        status = master_loop(parallel_scheme, model, options, algo_params, applied_solvers)
+        status = master_loop(parallel_scheme, model, options, algo_params,
+            applied_solvers, algo_params.regularization_regime)
     end
     return status
 

@@ -224,9 +224,9 @@ abstract type AbstractRegularizationRegime end
 mutable struct Regularization <: AbstractRegularizationRegime
     sigma :: Vector{Float64}
     sigma_factor :: Float64
-    function BinaryApproximation(;
-        sigma = 1,
-        sigma_factor = 5
+    function Regularization(;
+        sigma = Float64[],
+        sigma_factor = 5.0
     )
         return new(sigma, sigma_factor)
     end
@@ -258,7 +258,7 @@ mutable struct LagrangianDuality <: AbstractDualityRegime
     dual_solution_regime::AbstractDualSolutionRegime
     dual_choice_regime::AbstractDualChoiceRegime
     dual_status_regime::AbstractDualStatusRegime
-    function BinaryApproximation(;
+    function LagrangianDuality(;
         atol = 1e-8,
         rtol = 1e-8,
         iteration_limit = 1000,
@@ -340,6 +340,7 @@ mutable struct AlgoParams
     log_frequency::Int
     log_file::String
     run_numerical_stability_report::Bool
+    numerical_focus::Bool
     infiltrate_state::Symbol
 
     function AlgoParams(;
@@ -360,14 +361,16 @@ mutable struct AlgoParams
         log_frequency = 1,
         log_file = "DynamicSDDiP.log",
         run_numerical_stability_report = true,
+        numerical_focus = false,
         infiltrate_state = :none,
-        )
+    )
         return new(
             stopping_rules,
             state_approximation_regime,
             regularization_regime,
             duality_regime,
             cut_selection_regime,
+            risk_measure,
             forward_pass,
             sampling_scheme,
             backward_sampling_scheme,
@@ -379,8 +382,9 @@ mutable struct AlgoParams
             log_frequency,
             log_file,
             run_numerical_stability_report,
+            numerical_focus,
             infiltrate_state,
-            )
+        )
     end
 end
 

@@ -321,7 +321,9 @@ function _eval_height(node::SDDP.Node, cut::DynamicSDDiP.NonlinearCut,
     binary_variables_so_far = 0
 
     for (i, (state_name, state_comp)) in enumerate(node.states)
-        if state_comp.info.out.binary
+        variable_info = node.ext[:state_info_storage][state_name].out
+
+        if variable_info.binary
             ####################################################################
             # BINARY CASE
             ####################################################################
@@ -346,17 +348,17 @@ function _eval_height(node::SDDP.Node, cut::DynamicSDDiP.NonlinearCut,
             ####################################################################
             # NON-BINARY CASE
             ####################################################################
-            if !isfinite(state_comp.info.out.upper_bound) || !state_comp.info.out.has_ub
+            if !isfinite(variable_info.upper_bound) || !variable_info.has_ub
                 error("When using SDDiP, state variables require an upper bound.")
             end
 
             # Get K and beta
-            if state_comp.info.out.integer
+            if variable_info.integer
                 beta = 1
-                K = SDDP._bitsrequired(state_comp.info.out.upper_bound)
+                K = SDDP._bitsrequired(variable_info.upper_bound)
             else
                 beta = cut.binary_precision[state_name]
-                K = SDDP._bitsrequired(round(Int, state_comp.info.out.upper_bound / beta))
+                K = SDDP._bitsrequired(round(Int, variable_info.upper_bound / beta))
             end
 
             # introduce binary variables to the model

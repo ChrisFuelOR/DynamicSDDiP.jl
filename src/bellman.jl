@@ -419,22 +419,24 @@ function add_cut_constraints_to_models(
         they are required anyway.
         """
 
-        if !isfinite(state_comp.info.out.upper_bound) || !state_comp.info.out.has_ub || !state_comp.info.out.binary
+        variable_info = node.ext[:state_info_storage][state_name].out
+
+        if !isfinite(variable_info.upper_bound) || !variable_info.has_ub || !variable_info.binary
             error("When using DynamicSDDiP, state variables require an upper bound.")
         end
 
         ####################################################################
         # DETERMINE K (number of [0,1] variables required) AND BETA
         ####################################################################
-        if state_comp.info.out.binary
+        if variable_info.binary
             beta = 1
-            K = SDDP._bitsrequired(state_comp.info.out.upper_bound)
-        elseif state_comp.info.out.integer
+            K = SDDP._bitsrequired(variable_info.upper_bound)
+        elseif variable_info.integer
             beta = 1
-            K = SDDP._bitsrequired(state_comp.info.out.upper_bound)
+            K = SDDP._bitsrequired(variable_info.upper_bound)
         else
             beta = cut.binary_precision[name]
-            K = SDDP._bitsrequired(round(Int, state_comp.info.out.upper_bound / beta))
+            K = SDDP._bitsrequired(round(Int, variable_info.upper_bound / beta))
         end
 
         ####################################################################

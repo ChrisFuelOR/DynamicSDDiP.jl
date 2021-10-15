@@ -53,8 +53,11 @@ function changeStateSpace!(
         bw_data[:fixed_state_value][state_name] = fixed_value
         beta = binary_precision[state_name]
 
+        # Get variable info for this state to restore bounds and integer type
+        variable_info = node.ext[:state_info_storage][name].in
+
         # Set up state for backward pass using binary approximation
-        setup_state_binarization!(subproblem, state_comp, state_name, beta, bw_data)
+        setup_state_binarization!(subproblem, state_comp, state_name, beta, bw_data, variable_info)
     end
 
     return
@@ -151,10 +154,11 @@ Setting up the binary state variables.
 """
 function setup_state_binarization!(
     subproblem::JuMP.Model,
-    state_comp::State,
+    state_comp::SDDP.State,
     state_name::Symbol,
     binary_precision::Float64,
-    bw_data::Dict{Symbol,Any}
+    bw_data::Dict{Symbol,Any},
+    variable_info::DynamicSDDiP.VariableInfo,
 )
 
     # Get name of state variable in String representation
@@ -163,7 +167,7 @@ function setup_state_binarization!(
     ############################################################################
     # STATE IS ALREADY BINARY
     ############################################################################
-    if state_comp.info.in.binary
+    if variable_info.binary
         """ In this case, the variable must not be unfixed and, in principle,
         no new variables or constraints have to be introduced.
 
@@ -209,14 +213,14 @@ function setup_state_binarization!(
         ########################################################################
         # Unfix the original state
         JuMP.unfix(state_comp.in)
-        follow_state_unfixing!(state_comp)
+        follow_state_unfixing!(state_comp, variable_info)
 
     else
-        if !isfinite(state_comp.info.in.upper_bound) || !state_comp.info.in.has_ub
+        if !isfinite(variable_info.upper_bound) || !variable_info.has_ub
             error("When using SDDiP, state variables require an upper bound.")
         end
 
-        if state_comp.info.in.integer
+        if variable_info.integer
             ####################################################################
             # STATE VARIABLE IS INTEGER
             ####################################################################
@@ -229,7 +233,7 @@ function setup_state_binarization!(
             ####################################################################
             # INTRODUCE BINARY VARIABLES TO THE PROBLEM
             ####################################################################
-            num_vars = SDDP._bitsrequired(state_comp.info.in.upper_bound)
+            num_vars = SDDP._bitsrequired(variable_info.upper_bound)
 
             binary_vars = JuMP.@variable(
                 subproblem,
@@ -260,7 +264,7 @@ function setup_state_binarization!(
             # FIX NEW VARIABLES
             ####################################################################
             # Get fixed values from fixed value of original state
-            fixed_binary_values = SDDP.binexpand(bw_data[:fixed_state_value][state_name], state_comp.info.in.upper_bound)
+            fixed_binary_values = SDDP.binexpand(bw_data[:fixed_state_value][state_name], variable_info.upper_bound)
             # Fix binary variables
             for i in 1:num_vars
                 #JuMP.unset_binary(binary_vars[i].in)
@@ -272,7 +276,7 @@ function setup_state_binarization!(
             ####################################################################
             # Unfix the original state
             JuMP.unfix(state_comp.in)
-            follow_state_unfixing!(state_comp)
+            follow_state_unfixing!(state_comp, variable_info)
 
         else
             ####################################################################
@@ -285,7 +289,7 @@ function setup_state_binarization!(
             ####################################################################
             # INTRODUCE BINARY VARIABLES TO THE PROBLEM
             ####################################################################
-            num_vars = SDDP._bitsrequired(round(Int, state_comp.info.in.upper_bound / beta))
+            num_vars = SDDP._bitsrequired(round(Int, variable_info.upper_bound / beta))
 
             binary_vars = JuMP.@variable(
                 subproblem,
@@ -319,7 +323,7 @@ function setup_state_binarization!(
             # FIX NEW VARIABLES
             ####################################################################
             # Get fixed values from fixed value of original state
-            fixed_binary_values = SDDP.binexpand(bw_data[:fixed_state_value][state_name], state_comp.info.in.upper_bound, beta)
+            fixed_binary_values = SDDP.binexpand(bw_data[:fixed_state_value][state_name], variable_info.upper_bound, beta)
             # Fix binary variables
             for i in 1:num_vars
                 #JuMP.unset_binary(binary_vars[i].in)
@@ -331,7 +335,7 @@ function setup_state_binarization!(
             ####################################################################
             # Unfix the original state
             JuMP.unfix(state_comp.in)
-            follow_state_unfixing!(state_comp)
+            follow_state_unfixing!(state_comp, variable_info)
         end
     end
 
@@ -365,24 +369,25 @@ end
 Determining a single anchor state in the original space.
 """
 function determine_anchor_state(
-    state_comp::State,
+    state_comp::SDDP.State,
     state_value::Float64,
     binaryPrecision::Float64,
+    variable_info::DynamicSDDiP.VariableInfo,
 )
 
-    if state_comp.info.out.binary
+    if variable_info.binary
         fixed_binary_values = state_value
         approx_state_value = state_value
     else
-        if !isfinite(state_comp.info.out.upper_bound) || !state_comp.info.out.has_ub
+        if !isfinite(variable_info.upper_bound) || !variable_info.has_ub
             error("When using SDDiP, state variables require an upper bound.")
         end
 
-        if state_comp.info.out.integer
-            fixed_binary_values = SDDP.binexpand(state_value, state_comp.info.out.upper_bound)
+        if variable_info.integer
+            fixed_binary_values = SDDP.binexpand(state_value, variable_info.upper_bound)
             approx_state_value = SDDP.bincontract(fixed_binary_values)
         else
-            fixed_binary_values = SDDP.binexpand(state_value, state_comp.info.out.upper_bound, binaryPrecision)
+            fixed_binary_values = SDDP.binexpand(state_value, variable_info.upper_bound, binaryPrecision)
             approx_state_value = SDDP.bincontract(fixed_binary_values, binaryPrecision)
         end
     end

@@ -82,7 +82,8 @@ function backward_pass(
         ########################################################################
         # RECONSTRUCT ANCHOR POINTS IN BACKWARD PASS
         ########################################################################
-        anchor_states = determine_anchor_states(node, outgoing_state, algo_params.state_approximation_regime)
+        variable_info = node.ext[:state_info_storage][name].out
+        anchor_states = determine_anchor_states(node, outgoing_state, algo_params.state_approximation_regime, variable_info)
         @infiltrate algo_params.infiltrate_state in [:all]
 
         ########################################################################
@@ -121,7 +122,7 @@ function backward_pass(
         #TODO: Implement cut-sharing as in SDDP
 
     end
-    
+
     return cuts
 end
 

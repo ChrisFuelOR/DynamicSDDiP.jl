@@ -72,9 +72,12 @@ function binary_refinement(
     # Consider stage 2 here (should be the same for all following stages)
     # Precision is only used (and increased) for continuous variables
     for (name, state_comp) in model.nodes[2].states
-        if !state_comp.info.in.binary && !state_comp.info.in.integer
+
+        variable_info = node.ext[:state_info_storage][name].in
+
+        if !variable_info.binary && !variable_info.integer
             current_prec = binary_precision[name]
-            ub = state_comp.info.in.upper_bound
+            ub = variable_info.upper_bound
             K = SDDP._bitsrequired(round(Int, ub / current_prec))
             new_prec = ub / sum(2^(k-1) for k in 1:K+1)
 
