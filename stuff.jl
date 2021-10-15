@@ -40,12 +40,25 @@ typeof(return_results)
 
 using JuMP
 using GLPK
-approx_model = JuMP.Model(GLPK.Optimizer)
+using GAMS
+approx_model = JuMP.Model(GAMS.Optimizer)
+set_optimizer(approx_model, optimizer_with_attributes(
+    GAMS.Optimizer,
+    "Solver"=>"Gurobi",
+    "optcr"=>0.0,
+    )
+)
 ν = JuMP.@variable(approx_model, [1:10], lower_bound=0)
 typeof(ν)
 
 @variable(approx_model, t <= 100)
 @objective(approx_model, Max, t)
+
+JuMP.unset_silent(approx_model)
+JuMP.optimize!(approx_model)
+JuMP.set_silent(approx_model)
+JuMP.optimize!(approx_model)
+
 
 # Create the dual variables
 # Note that the real dual multipliers are split up into two non-negative

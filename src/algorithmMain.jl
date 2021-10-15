@@ -64,7 +64,7 @@ function solve(
     # Prepare binary_precision
     #---------------------------------------------------------------------------
     regime = algo_params.state_approximation_regime
-    if regime == DynamicSDDiP.BinaryApproximation && isempty(regime.binary_precision)
+    if isa(regime,DynamicSDDiP.BinaryApproximation) && isempty(regime.binary_precision)
         # If no binary_precision dict has been defined explicitly, it is
         # initialized as empty. Then, for each state take a default precision.
         for (name, state_comp) in model.nodes[1].states
@@ -81,7 +81,7 @@ function solve(
     # Prepare sigma
     #---------------------------------------------------------------------------
     regime = algo_params.regularization_regime
-    if regime == DynamicSDDiP.Regularization && isempty(regime.sigma)
+    if isa(regime,DynamicSDDiP.Regularization) && isempty(regime.sigma)
         for (node_index, _) in model.nodes
             if node_index == 1
                 # first stage requires no regularization
@@ -468,7 +468,7 @@ function iteration(
     binary_refinement = :none
 
     TimerOutputs.@timeit DynamicSDDiP_TIMER "bin_refinement" begin
-        if !isnothing(previousSolution) && bound_check
+        if !isnothing(previous_solution) && bound_check
                 refinement_check = DynamicSDDiP.binary_refinement_check(
                     model,
                     previous_solution,
@@ -499,8 +499,8 @@ function iteration(
             applied_solvers,
             forward_trajectory.scenario_path,
             forward_trajectory.sampled_states,
-            forward_trajectory.objective_states,
-            forward_trajectory.belief_states,
+            # forward_trajectory.objective_states,
+            # forward_trajectory.belief_states,
         )
     end
 

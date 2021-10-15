@@ -110,8 +110,8 @@ function forward_sigma_test(
     return (
         scenario_path = scenario_path,
         sampled_states = sampled_states,
-        objective_states = objective_states,
-        belief_states = belief_states,
+        # objective_states = objective_states,
+        # belief_states = belief_states,
         cumulative_value = cumulative_value,
         sigma_increased = sigma_increased,
     )

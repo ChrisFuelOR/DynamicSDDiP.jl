@@ -27,8 +27,9 @@ function backward_pass(
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     scenario_path::Vector{Tuple{T,NoiseType}},
     sampled_states::Vector{Dict{Symbol,Float64}},
-    objective_states::Vector{NTuple{N,Float64}},
-    belief_states::Vector{Tuple{Int,Dict{T,Float64}}}) where {T,NoiseType,N}
+    # objective_states::Vector{NTuple{N,Float64}},
+    # belief_states::Vector{Tuple{Int,Dict{T,Float64}}}) where {T,NoiseType,N}
+    ) where {T,NoiseType}
 
     ############################################################################
     # INITIALIZATION
@@ -70,8 +71,8 @@ function backward_pass(
             node_index,
             items,
             1.0,
-            belief_state,
-            objective_state,
+            # belief_state,
+            # objective_state,
             outgoing_state,
             algo_params.backward_sampling_scheme,
             scenario_path[1:index],
@@ -136,8 +137,8 @@ function solve_all_children(
     node_index::Int64,
     items::BackwardPassItems,
     belief::Float64,
-    belief_state,
-    objective_state,
+    # belief_state,
+    # objective_state,
     outgoing_state::Dict{Symbol,Float64},
     backward_sampling_scheme::SDDP.AbstractBackwardSamplingScheme,
     scenario_path,
@@ -251,16 +252,11 @@ function solve_subproblem_backward(
     end
 
     ############################################################################
-    # RESET SOLVER (as it may have been changed in between for some reason)
-    ############################################################################
-    DynamicSDDiP.set_solver!(subproblem, algo_params, applied_solvers, :backward_pass)
-
-    ############################################################################
     # SOLVE DUAL PROBLEM TO OBTAIN CUT INFORMATION
     ############################################################################
     # Solve dual and return a dict with the multipliers of the copy constraints.
     TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_dual" begin
-        dual_results = get_dual_solution(node, node_index, solver_obj, algo_params, applied_solvers, algo_params.duality_regime)
+        dual_results = get_dual_solution(node, node_index, algo_params, applied_solvers, algo_params.duality_regime)
     end
 
     ############################################################################

@@ -17,12 +17,12 @@
 # cost/value-to-go term.
 function set_objective(subproblem::JuMP.Model)
     node = SDDP.get_node(subproblem)
-    objective_state_component = SDDP.get_objective_state_component(node)
-    belief_state_component = SDDP.get_belief_state_component(node)
-    if objective_state_component != JuMP.AffExpr(0.0) ||
-       belief_state_component != JuMP.AffExpr(0.0)
-        node.stage_objective_set = false
-    end
+    # objective_state_component = SDDP.get_objective_state_component(node)
+    # belief_state_component = SDDP.get_belief_state_component(node)
+    # if objective_state_component != JuMP.AffExpr(0.0) ||
+    #   belief_state_component != JuMP.AffExpr(0.0)
+    #    node.stage_objective_set = false
+    # end
     if !node.stage_objective_set
         JuMP.set_objective(
             subproblem,
@@ -30,8 +30,8 @@ function set_objective(subproblem::JuMP.Model)
             @expression(
                 subproblem,
                 node.stage_objective +
-                objective_state_component +
-                belief_state_component +
+                # objective_state_component +
+                # belief_state_component +
                 bellman_term(node.bellman_function)
             )
         )

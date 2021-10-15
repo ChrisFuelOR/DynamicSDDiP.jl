@@ -38,18 +38,7 @@ function model_config()
 
     # State approximation and cut projection configuration
     cut_projection_regime = DynamicSDDiP.BigM()
-    binary_precision = Dict{Symbol, Float64}() # TODO
-
-    # for (name, state_comp) in model.nodes[1].ext[:lin_states]
-    #     ub = JuMP.upper_bound(state_comp.out)
-    #
-    #     string_name = string(name)
-    #     if occursin("gen", string_name)
-    #         binaryPrecision[name] = binaryPrecisionFactor * ub
-    #     else
-    #         binaryPrecision[name] = 1
-    #     end
-    # end
+    binary_precision = Dict{Symbol, Float64}()
 
     state_approximation_regime = DynamicSDDiP.BinaryApproximation(
                                     binary_precision = binary_precision,
@@ -106,6 +95,20 @@ function model_starter(
     model = model_definition()
 
     ############################################################################
+    # DEFINE BINARY APPROXIMATION IF INTENDED
+    ############################################################################
+    # for (name, state_comp) in model.nodes[1].ext[:lin_states]
+    #     ub = JuMP.upper_bound(state_comp.out)
+    #
+    #     string_name = string(name)
+    #     if occursin("gen", string_name)
+    #         binaryPrecision[name] = binaryPrecisionFactor * ub
+    #     else
+    #         binaryPrecision[name] = 1
+    #     end
+    # end
+
+    ############################################################################
     # SOLVE MODEL
     ############################################################################
     DynamicSDDiP.solve(model, algo_params, applied_solvers)
@@ -128,7 +131,7 @@ function model_definition()
         ########################################################################
 
         # State variables
-        JuMP.@variable(subproblem, 0.0 <= b <= 2.0, SDDP.State, Bin, initial_value = 0)
+        JuMP.@variable(subproblem, 0.0 <= b <= 2.0, SDDP.State, initial_value = 0)
 
         # Constraints
         b = subproblem[:b]

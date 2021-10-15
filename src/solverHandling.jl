@@ -75,5 +75,7 @@ function set_solver!(
 
     end
 
+    JuMP.unset_silent(subproblem)
+
     return
 end

@@ -131,8 +131,7 @@ Note that for the Lagrangian dual (or the binarization) this is not used so far,
 since we do not use binary, but continuous [0,1] variables there, and thus
 the variables are not integer or binary anyway.
 
-I'm not sure what the third method is for.
-
+The third one is used for the binary case.
 """
 function prepare_state_fixing!(node::SDDP.Node, state_name::Symbol)
     if JuMP.is_binary(node.states[state_name].in)
@@ -151,14 +150,14 @@ function prepare_state_fixing!(node::SDDP.Node, state::SDDP.State)
     end
 end
 
-# function prepare_state_fixing_binary!(node::SDDP.Node, state::JuMP.VariableRef)
-#     if JuMP.is_binary(state)
-#         JuMP.unset_binary(state)
-#     elseif JuMP.is_integer(state)
-#         JuMP.unset_integer(state)
-#     end
-#     return
-# end
+function prepare_state_fixing_binary!(node::SDDP.Node, state::JuMP.VariableRef)
+    if JuMP.is_binary(state)
+        JuMP.unset_binary(state)
+    elseif JuMP.is_integer(state)
+        JuMP.unset_integer(state)
+    end
+     return
+end
 
 ################################################################################
 
@@ -212,7 +211,7 @@ function follow_state_unfixing!(state::SDDP.State, variable_info::DynamicSDDiP.V
         JuMP.set_lower_bound(state.in, variable_info.lower_bound)
     end
     if variable_info.has_ub
-        JuMP.set_upper_bound(state.in, variable_info.in.upper_bound)
+        JuMP.set_upper_bound(state.in, variable_info.upper_bound)
     end
     if variable_info.binary
         JuMP.set_binary(state.in)

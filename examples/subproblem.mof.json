@@ -1,0 +1,216 @@
+{
+  "name": "MathOptFormat Model",
+  "version": {
+    "major": 0,
+    "minor": 5
+  },
+  "variables": [
+    {
+      "name": "bin_b_in[1]"
+    },
+    {
+      "name": "bin_b_in[2]"
+    },
+    {
+      "name": "bin_b_in[3]"
+    },
+    {
+      "name": "b_in"
+    },
+    {
+      "name": "b_out"
+    },
+    {
+      "name": "x6"
+    },
+    {
+      "name": "Θᴳ"
+    }
+  ],
+  "objective": {
+    "sense": "min",
+    "function": {
+      "type": "ScalarAffineFunction",
+      "terms": [
+        {
+          "coefficient": 1.0,
+          "variable": "Θᴳ"
+        }
+      ],
+      "constant": 1.0
+    }
+  },
+  "constraints": [
+    {
+      "name": "c1",
+      "function": {
+        "type": "ScalarAffineFunction",
+        "terms": [
+          {
+            "coefficient": -1.0,
+            "variable": "b_in"
+          },
+          {
+            "coefficient": 1.0,
+            "variable": "b_out"
+          }
+        ],
+        "constant": 0.0
+      },
+      "set": {
+        "type": "EqualTo",
+        "value": 1.2
+      }
+    },
+    {
+      "name": "c2",
+      "function": {
+        "type": "ScalarAffineFunction",
+        "terms": [
+          {
+            "coefficient": -0.2857142857142857,
+            "variable": "bin_b_in[1]"
+          },
+          {
+            "coefficient": -0.5714285714285714,
+            "variable": "bin_b_in[2]"
+          },
+          {
+            "coefficient": -1.1428571428571428,
+            "variable": "bin_b_in[3]"
+          },
+          {
+            "coefficient": 1.0,
+            "variable": "b_in"
+          }
+        ],
+        "constant": 0.0
+      },
+      "set": {
+        "type": "EqualTo",
+        "value": 0.0
+      }
+    },
+    {
+      "name": "c1_1",
+      "function": {
+        "type": "SingleVariable",
+        "variable": "bin_b_in[1]"
+      },
+      "set": {
+        "type": "EqualTo",
+        "value": 0.0
+      }
+    },
+    {
+      "name": "c2_1",
+      "function": {
+        "type": "SingleVariable",
+        "variable": "bin_b_in[2]"
+      },
+      "set": {
+        "type": "EqualTo",
+        "value": 0.0
+      }
+    },
+    {
+      "name": "c3",
+      "function": {
+        "type": "SingleVariable",
+        "variable": "bin_b_in[3]"
+      },
+      "set": {
+        "type": "EqualTo",
+        "value": 1.0
+      }
+    },
+    {
+      "name": "c4",
+      "function": {
+        "type": "SingleVariable",
+        "variable": "b_in"
+      },
+      "set": {
+        "type": "GreaterThan",
+        "lower": 0.0
+      }
+    },
+    {
+      "name": "c5",
+      "function": {
+        "type": "SingleVariable",
+        "variable": "b_out"
+      },
+      "set": {
+        "type": "GreaterThan",
+        "lower": 0.0
+      }
+    },
+    {
+      "name": "c6",
+      "function": {
+        "type": "SingleVariable",
+        "variable": "x6"
+      },
+      "set": {
+        "type": "GreaterThan",
+        "lower": 0.0
+      }
+    },
+    {
+      "name": "c7",
+      "function": {
+        "type": "SingleVariable",
+        "variable": "Θᴳ"
+      },
+      "set": {
+        "type": "GreaterThan",
+        "lower": 0.0
+      }
+    },
+    {
+      "name": "c4_1",
+      "function": {
+        "type": "SingleVariable",
+        "variable": "b_in"
+      },
+      "set": {
+        "type": "LessThan",
+        "upper": 2.0
+      }
+    },
+    {
+      "name": "c5_1",
+      "function": {
+        "type": "SingleVariable",
+        "variable": "b_out"
+      },
+      "set": {
+        "type": "LessThan",
+        "upper": 2.0
+      }
+    },
+    {
+      "name": "c6_1",
+      "function": {
+        "type": "SingleVariable",
+        "variable": "x6"
+      },
+      "set": {
+        "type": "LessThan",
+        "upper": 0.0
+      }
+    },
+    {
+      "name": "c7_1",
+      "function": {
+        "type": "SingleVariable",
+        "variable": "Θᴳ"
+      },
+      "set": {
+        "type": "LessThan",
+        "upper": 0.0
+      }
+    }
+  ]
+}

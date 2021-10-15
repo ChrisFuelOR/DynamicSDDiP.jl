@@ -22,7 +22,6 @@ Solving the dual problem to obtain cut information - using LP relaxation
 function get_dual_solution(
     node::SDDP.Node,
     node_index::Int64,
-    solver_obj::Float64,
     algo_params::DynamicSDDiP.AlgoParams,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     duality_regime::DynamicSDDiP.LinearDuality,
@@ -119,7 +118,6 @@ and strengthening by Lagrangian relaxation
 function get_dual_solution(
     node::SDDP.Node,
     node_index::Int64,
-    solver_obj::Float64,
     algo_params::DynamicSDDiP.AlgoParams,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     duality_regime::DynamicSDDiP.StrengthenedDuality,
@@ -181,7 +179,6 @@ Solving the dual problem to obtain cut information - using Lagrangian dual
 function get_dual_solution(
     node::SDDP.Node,
     node_index::Int64,
-    solver_obj::Float64,
     algo_params::DynamicSDDiP.AlgoParams,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     duality_regime::DynamicSDDiP.LagrangianDuality,
@@ -217,6 +214,9 @@ function get_dual_solution(
     node.ext[:regularization_data] = Dict{Symbol,Any}()
     regularize_binary!(node, node_index, subproblem, algo_params.regularization_regime)
 
+    # RESET SOLVER (as it may have been changed in between for some reason)
+    DynamicSDDiP.set_solver!(subproblem, algo_params, applied_solvers, :backward_pass)
+
     # SOLVE PRIMAL PROBLEM (can be regularized or not)
     TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_primal" begin
         JuMP.optimize!(subproblem)
@@ -234,8 +234,7 @@ function get_dual_solution(
     ############################################################################
     # GET BOUNDS FOR LAGRANGIAN DUAL
     ############################################################################
-    bound_results = get_dual_bounds(node, algo_params, primal_obj, duality_regime.dual_bound_regime)
-
+    bound_results = get_dual_bounds(node, node_index, algo_params, primal_obj, duality_regime.dual_bound_regime)
     @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
     try
@@ -250,7 +249,6 @@ function get_dual_solution(
                     primal_obj,
                     dual_vars,
                     bound_results,
-                    integrality_handler,
                     algo_params,
                     applied_solvers,
                     duality_regime.dual_solution_regime

@@ -54,7 +54,7 @@ function changeStateSpace!(
         beta = binary_precision[state_name]
 
         # Get variable info for this state to restore bounds and integer type
-        variable_info = node.ext[:state_info_storage][name].in
+        variable_info = node.ext[:state_info_storage][state_name].in
 
         # Set up state for backward pass using binary approximation
         setup_state_binarization!(subproblem, state_comp, state_name, beta, bw_data, variable_info)

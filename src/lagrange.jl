@@ -85,11 +85,11 @@ function solve_lagrangian_dual(
     node_index::Int64,
     primal_obj::Float64,
     π_k::Vector{Float64},
-    bound_results::Tuple{Float64,Float64},
+    bound_results::NamedTuple{(:obj_bound, :dual_bound),Tuple{Float64,Float64}},
     algo_params::DynamicSDDiP.AlgoParams,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     dual_solution_regime::DynamicSDDiP.Kelley
-    )
+    ) where
 
     ############################################################################
     # INITIALIZATION
@@ -437,7 +437,7 @@ function solve_lagrangian_dual(
     node_index::Int64,
     primal_obj::Float64,
     π_k::Vector{Float64},
-    bound_results::Tuple{Float64,Float64},
+    bound_results::NamedTuple{(:obj_bound, :dual_bound),Tuple{Float64,Float64}},
     algo_params::DynamicSDDiP.AlgoParams,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     dual_solution_regime::DynamicSDDiP.LevelBundle

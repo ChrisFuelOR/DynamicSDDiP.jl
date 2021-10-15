@@ -17,6 +17,7 @@ function regularize_subproblem!(node::SDDP.Node, node_index::Int64,
     # It is then subtracted from the fixed value to obtain the so called slack.
 
     reg_data = node.ext[:regularization_data]
+    reg_data[:fixed_state_value] = Dict{Symbol,Float64}()
     reg_data[:slacks] = Any[]
     reg_data[:reg_variables] = JuMP.VariableRef[]
     reg_data[:reg_constraints] = JuMP.ConstraintRef[]
@@ -123,7 +124,7 @@ end
 """
 Regularizing the backward pass problem in binary space if regularization is used.
 """
-function regularize_binary!(node::SDDP.Node, subproblem::JuMP.Model, sigma::Float64, regularization_regime::DynamicSDDiP.Regularization)
+function regularize_binary!(node::SDDP.Node, node_index::Int64, subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.Regularization)
 
     bw_data = node.ext[:backward_data]
     binary_states = bw_data[:bin_states]
@@ -150,7 +151,7 @@ function regularize_binary!(node::SDDP.Node, subproblem::JuMP.Model, sigma::Floa
         end
     end
     # Here, not sigma, but a different regularization parameter is used
-    sigma_bin = sigma * Umax
+    sigma_bin = regularization_regime.sigma[node_index] * Umax
 
     ############################################################################
     # UNFIX THE STATE VARIABLES
@@ -205,7 +206,7 @@ end
 Trivial regularization of the backward pass problem in binary space
 if no regularization is used.
 """
-function regularize_binary!(node::SDDP.Node, subproblem::JuMP.Model, sigma::Float64, regularization_regime::DynamicSDDiP.NoRegularization)
+function regularize_binary!(node::SDDP.Node, node_index::Int64, subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.NoRegularization)
 
     return
 end
