@@ -29,7 +29,7 @@ function set_solver!(
         if cut_projection_regime == DynamicSDDiP.KKT || cut_projection_regime == DynamicSDDiP.StrongDuality
             solver = applied_solvers.MINLP
         else
-            solver = applied_solvers.lagrange
+            solver = applied_solvers.Lagrange
         end
     elseif algorithmic_step in [:level_bundle]
         solver = applied_solvers.NLP
@@ -75,7 +75,7 @@ function set_solver!(
 
     end
 
-    JuMP.unset_silent(subproblem)
+    JuMP.set_silent(subproblem)
 
     return
 end

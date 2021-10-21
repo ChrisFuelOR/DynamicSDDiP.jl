@@ -89,7 +89,7 @@ function solve_lagrangian_dual(
     algo_params::DynamicSDDiP.AlgoParams,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     dual_solution_regime::DynamicSDDiP.Kelley
-    ) where
+    )
 
     ############################################################################
     # INITIALIZATION
@@ -126,7 +126,8 @@ function solve_lagrangian_dual(
     ############################################################################
     # RELAXING THE COPY CONSTRAINTS
     ############################################################################
-    relax_copy_constraints(node, x_in_value, h_expr, algo_params.state_approximation_regime)
+    relax_copy_constraints!(node, x_in_value, h_expr, algo_params.state_approximation_regime)
+    node.ext[:backward_data][:old_rhs] = x_in_value
 
     ############################################################################
     # LOGGING OF LAGRANGIAN DUAL
@@ -139,7 +140,7 @@ function solve_lagrangian_dual(
     ############################################################################
     # Approximation of Lagrangian dual by cutting planes
     # Optimizer is re-set anyway
-    approx_model = JuMP.Model(GLPK.Optimizer)
+    approx_model = JuMP.Model(Gurobi.Optimizer)
     set_solver!(approx_model, algo_params, applied_solvers, :kelley)
 
     # Create the objective
@@ -164,7 +165,8 @@ function solve_lagrangian_dual(
     lag_status = :none
 
     # set up optimal value of approx_model (former f_approx)
-    t_k = -Inf
+    t_k = 0 # why zero?
+    #-inf is not possible, since then the while loop would not start at all
 
     while iter <= iteration_limit && !isapprox(L_star, t_k, atol = atol, rtol = rtol)
         iter += 1
@@ -196,7 +198,7 @@ function solve_lagrangian_dual(
         JuMP.optimize!(approx_model)
         @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
         t_k = JuMP.objective_value(approx_model)
-        π_k .= JuMP.value(π)
+        π_k .= JuMP.value.(π)
         @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
         #print("UB: ", f_approx, ", LB: ", f_actual)
@@ -235,8 +237,8 @@ function solve_lagrangian_dual(
     ############################################################################
     # APPLY MAGNANTI AND WONG APPROACH IF INTENDED
     ############################################################################
-    magnanti_wong!(node, approx_model, π_k, π_star, t_k, h_expr, h_k, s, L_k, L_star,
-        iteration_limit, atol, rtol, algo_params.dual_choice_regime)
+    magnanti_wong!(node, approx_model, π_k, π_star, t_k, h_expr, h_k, s, L_star,
+        iteration_limit, atol, rtol, algo_params.duality_regime.dual_choice_regime, iter)
 
     ############################################################################
     # RESTORE THE COPY CONSTRAINT x.in = value(x.in) (̄x = z)
@@ -251,7 +253,7 @@ function solve_lagrangian_dual(
     ############################################################################
     # LOGGING
     ############################################################################
-    print_helper(print_lag_iteration, lag_log_file_handle, iter, t_k, L_star, L_k)
+    # print_helper(print_lag_iteration, lag_log_file_handle, iter, t_k, L_star, L_k)
 
     # Set dual_vars (here π_k) to the optimal solution
     π_k = π_star
@@ -270,16 +272,16 @@ function relax_copy_constraints!(
 
     for (i, (_, state)) in enumerate(node.ext[:backward_data][:bin_states])
         # Store original value of ̄x, which z was fixed to
-        x_in_value[i] = JuMP.fix_value(bin_state)
+        x_in_value[i] = JuMP.fix_value(state)
         # Store expression for slack
-        h_expr[i] = @expression(node.subproblem, bin_state - x_in_value[i])
+        h_expr[i] = @expression(node.subproblem, state - x_in_value[i])
         # Relax copy constraint (i.e. z does not have to take the value of ̄x anymore)
-        JuMP.unfix(bin_state)
+        JuMP.unfix(state)
 
         # Set bounds to ensure that inner problems are feasible
         # As we use binary approximation, 0 and 1 can be used
-        JuMP.set_lower_bound(bin_state, 0)
-        JuMP.set_upper_bound(bin_state, 1)
+        JuMP.set_lower_bound(state, 0)
+        JuMP.set_upper_bound(state, 1)
 
     end
 
@@ -350,6 +352,9 @@ end
 
 function set_multiplier_bounds!(approx_model::JuMP.Model, number_of_states::Int, dual_bound::Float64)
 
+    π⁺ = approx_model[:π⁺]
+    π⁻ = approx_model[:π⁻]
+
     for i in 1:number_of_states
         JuMP.set_upper_bound(π⁺[i], dual_bound)
         JuMP.set_upper_bound(π⁻[i], dual_bound)
@@ -373,13 +378,18 @@ function magnanti_wong!(
     h_expr::Vector{GenericAffExpr{Float64,VariableRef}},
     h_k::Vector{Float64},
     s::Int,
-    L_k::Float64,
     L_star::Float64,
     iteration_limit::Int,
     atol::Float64,
     rtol::Float64,
     dual_choice_regime::DynamicSDDiP.MagnantiWongChoice,
+    iter::Int,
     )
+
+    π⁺ = approx_model[:π⁺]
+    π⁻ = approx_model[:π⁻]
+    t = approx_model[:t]
+    π = approx_model[:π]
 
     # Reset objective
     @objective(approx_model, Min, sum(π⁺) + sum(π⁻))
@@ -392,7 +402,7 @@ function magnanti_wong!(
         JuMP.optimize!(approx_model)
         @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
         π_k .= value.(π)
-        L_k = _solve_Lagrangian_relaxation(node.subproblem, π_k, h_expr, h_k)
+        L_k = _solve_Lagrangian_relaxation!(node, π_k, h_expr, h_k, true)
         if isapprox(L_star, L_k, atol = atol, rtol = rtol)
             # At this point we tried the smallest ‖π‖ from the cutting plane
             # problem, and it returned the optimal dual objective value. No
@@ -416,12 +426,12 @@ function magnanti_wong!(
     h_expr::Vector{GenericAffExpr{Float64,VariableRef}},
     h_k::Vector{Float64},
     s::Int,
-    L_k::Float64,
     L_star::Float64,
     iteration_limit::Int,
     atol::Float64,
     rtol::Float64,
     dual_choice_regime::DynamicSDDiP.StandardChoice,
+    iter::Int,
     )
 
     return
@@ -670,7 +680,7 @@ function solve_lagrangian_dual(
     # APPLY MAGNANTI AND WONG APPROACH IF INTENDED
     ############################################################################
     magnanti_wong!(node, approx_model, π_k, π_star, t_k, h_expr, h_k, s, L_k, L_star,
-        iteration_limit, atol, rtol, algo_params.dual_choice_regime)
+        iteration_limit, atol, rtol, algo_params.dual_choice_regime, iter)
 
     ############################################################################
     # RESTORE THE COPY CONSTRAINT x.in = value(x.in) (̄x = z)

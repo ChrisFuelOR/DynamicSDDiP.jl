@@ -140,18 +140,19 @@ function regularize_binary!(node::SDDP.Node, node_index::Int64, subproblem::JuMP
     ############################################################################
     # DETERMINE SIGMA TO BE USED IN BINARY SPACE
     ############################################################################
-    Umax = 0
+    U_max = 0
     for (i, (name, state_comp)) in enumerate(node.states)
 
         # TODO: is .out correct here?
         variable_info = node.ext[:state_info_storage][name].out
 
-        if variable_info.upper_bound > Umax
-            Umax = variable_info.upper_bound
+        if variable_info.upper_bound > U_max
+            U_max = variable_info.upper_bound
         end
     end
+
     # Here, not sigma, but a different regularization parameter is used
-    sigma_bin = regularization_regime.sigma[node_index] * Umax
+    sigma_bin = regularization_regime.sigma[node_index] * U_max
 
     ############################################################################
     # UNFIX THE STATE VARIABLES

@@ -28,7 +28,7 @@ function forward_sigma_test(
     # Storage for the list of outgoing states that we visit on the forward pass.
     sampled_states = Dict{Symbol,Float64}[]
     # Our initial incoming state.
-    incoming_state_value = copy(model.ext[:lin_initial_root_state])
+    incoming_state_value = copy(options.initial_state)
     # A cumulator for the stage-objectives.
     cumulative_value = 0.0
 
@@ -58,17 +58,15 @@ function forward_sigma_test(
                 incoming_state_value, # only values, no State struct!
                 noise,
                 scenario_path[1:depth],
-                algo_params.infiltrate_state,
+                algo_params,
                 algo_params.regularization_regime,
             )
         end
 
-        #@infiltrate
-
         # SOLVE NON-REGULARIZED PROBLEM
         ########################################################################
         # Solve the subproblem, note that `require_duals = false`.
-        TimerOutputs.@timeit DynamicSDDiP "solve_sigma_test" begin
+        TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_sigma_test" begin
             non_reg_results = solve_subproblem_forward(
                 model,
                 node,
@@ -76,8 +74,8 @@ function forward_sigma_test(
                 incoming_state_value, # only values, no State struct!
                 noise,
                 scenario_path[1:depth],
-                algo_params.infiltrate_state,
-                DynamicSDDiP.NoRegularization,
+                algo_params,
+                DynamicSDDiP.NoRegularization(),
             )
         end
 

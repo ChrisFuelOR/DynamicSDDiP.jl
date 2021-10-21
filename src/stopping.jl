@@ -16,10 +16,10 @@
 
 stopping_rule_status(::DeterministicStopping) = :DeterministicStopping
 
-function convergence_test(graph::SDDP.PolicyGraph, log::Vector{Log}, rule::DeterministicStopping, loop::Symbol)
+function convergence_test(graph::SDDP.PolicyGraph, log::Vector{Log}, rule::DeterministicStopping)
 
-    bool_rtol = abs(log[end].best_upper_bound - log[end].lower_bound)/abs(max(log[end].best_upper_bound, log[end].lower_bound)) <= log[end].algo_params.opt_rtol
-    bool_atol = log[end].best_upper_bound - log[end].lower_bound <= log[end].algo_params.opt_atol
+    bool_rtol = abs(log[end].best_upper_bound - log[end].lower_bound)/abs(max(log[end].best_upper_bound, log[end].lower_bound)) <= rule.rtol
+    bool_atol = log[end].best_upper_bound - log[end].lower_bound <= rule.atol
     bool_neg = log[end].best_upper_bound - log[end].lower_bound >= -1e-4
 
     return (bool_rtol || bool_atol) && bool_neg
@@ -28,18 +28,14 @@ end
 # ======================= Iteration Limit Stopping Rule ====================== #
 stopping_rule_status(::SDDP.IterationLimit) = :iteration_limit
 
-function convergence_test(graph::SDDP.PolicyGraph, log::Vector{Log}, rule::SDDP.IterationLimit, loop::Symbol)
-    if loop == :inner
-        return false
-    elseif loop == :outer
-        return log[end].outer_iteration >= rule.limit
-    end
+function convergence_test(graph::SDDP.PolicyGraph, log::Vector{Log}, rule::SDDP.IterationLimit)
+    return log[end].iteration >= rule.limit
 end
 
 # ========================= Time Limit Stopping Rule ========================= #
 stopping_rule_status(::SDDP.TimeLimit) = :time_limit
 
-function convergence_test(graph::SDDP.PolicyGraph, log::Vector{Log}, rule::SDDP.TimeLimit, loop::Symbol)
+function convergence_test(graph::SDDP.PolicyGraph, log::Vector{Log}, rule::SDDP.TimeLimit)
     return log[end].time >= rule.limit
 end
 
@@ -48,10 +44,9 @@ function convergence_test(
     graph::SDDP.PolicyGraph,
     log::Vector{Log},
     stopping_rules::Vector{SDDP.AbstractStoppingRule},
-    loop::Symbol
 )
     for stopping_rule in stopping_rules
-        if convergence_test(graph, log, stopping_rule, loop)
+        if convergence_test(graph, log, stopping_rule)
             return true, stopping_rule_status(stopping_rule)
         end
     end

@@ -97,6 +97,7 @@ function solve(
     options = DynamicSDDiP.Options(
         model,
         model.initial_root_state,
+        algo_params.risk_measure,
         time(),
         log,
         log_file_handle
@@ -158,14 +159,16 @@ function solve(
     finally
     end
 
+    @infiltrate
+
     ############################################################################
     # lOG MODEL RESULTS
     ############################################################################
     results = DynamicSDDiP.Results(status, log)
     model.ext[:results] = results
-    if print_level > 0
+    if algo_params.print_level > 0
         print_helper(print_footer, log_file_handle, results)
-        if print_level > 1
+        if algo_params.print_level > 1
             print_helper(TimerOutputs.print_timer, log_file_handle, DynamicSDDiP_TIMER)
             print_helper(println, log_file_handle)
         end
@@ -208,13 +211,20 @@ function solve_DynamicSDDiP(parallel_scheme::SDDP.Serial, model::SDDP.PolicyGrap
         for (i, (name, state)) in enumerate(node.states)
                 variable_info_in = get_variable_info(state.in)
                 variable_info_out = get_variable_info(state.out)
-
                 node.ext[:state_info_storage][name] = DynamicSDDiP.StateInfoStorage(variable_info_in, variable_info_out)
         end
 
     end
 
     @infiltrate algo_params.infiltrate_state == :all
+
+    ############################################################################
+    # LOG ITERATION HEADER
+    ############################################################################
+    if algo_params.print_level > 0
+        print_helper(io -> println(io, "Solver: ", parallel_scheme, "\n"), options.log_file_handle)
+        print_helper(print_iteration_header, options.log_file_handle)
+    end
 
     ############################################################################
     # CALL ACTUAL SOLUTION PROCEDURE
@@ -285,6 +295,10 @@ function master_loop(parallel_scheme::SDDP.Serial, model::SDDP.PolicyGraph{T},
             algo_params.regularization_regime
         )
 
+        if result.has_converged
+            return result.status
+        end
+
         previous_solution = convergence_results.previous_solution
         previous_bound = convergence_results.previous_bound
         sigma_increased = convergence_results.sigma_increased
@@ -300,7 +314,8 @@ end
 Convergence handler if regularization is used.
 """
 
-function convergence_handler(result::DynamicSDDiP.IterationResult,
+function convergence_handler(
+    result::DynamicSDDiP.IterationResult,
     model::SDDP.PolicyGraph{T}, options::DynamicSDDiP.Options,
     algo_params::DynamicSDDiP.AlgoParams,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
@@ -325,12 +340,12 @@ function convergence_handler(result::DynamicSDDiP.IterationResult,
             previous_bound = nothing
             # binary refinement only when no sigma refinement has been made
             bound_check = false
+            # no convergence
+            result.has_converged = false
         else
             ####################################################################
-            # THE ALGORITHM TERMINATES
+            # THE ALGORITHM WILL TERMINATE
             ####################################################################
-            # return convergence status
-            return result.status
         end
 
     ############################################################################
@@ -369,7 +384,7 @@ function convergence_handler(result::DynamicSDDiP.IterationResult,
         sigma_increased = sigma_increased,
         previous_solution = previous_solution,
         previous_bound = previous_bound,
-        bound_check = bound_check
+        bound_check = bound_check,
     )
 end
 
@@ -511,6 +526,8 @@ function iteration(
         first_stage_results = calculate_bound(model)
     end
     bound = first_stage_results.bound
+
+    #@infiltrate
 
     ############################################################################
     # CHECK IF BEST KNOWN SOLUTION HAS BEEN IMPROVED

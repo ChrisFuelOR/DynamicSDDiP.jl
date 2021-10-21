@@ -73,7 +73,7 @@ function binary_refinement(
     # Precision is only used (and increased) for continuous variables
     for (name, state_comp) in model.nodes[2].states
 
-        variable_info = node.ext[:state_info_storage][name].in
+        variable_info = model.nodes[2].ext[:state_info_storage][name].in
 
         if !variable_info.binary && !variable_info.integer
             current_prec = binary_precision[name]

@@ -47,6 +47,8 @@ struct Options{T}
     # Storage for the set of possible sampling states at each node. We only use
     # this if there is a cycle in the policy graph.
     starting_states::Dict{T,Vector{Dict{Symbol,Float64}}}
+    # Risk measure to use at each node.
+    risk_measures::Dict{T,SDDP.AbstractRiskMeasure}
     # The node transition matrix.
     Φ::Dict{Tuple{T,T},Float64}
     # A list of nodes that contain a subset of the children of node i.
@@ -59,6 +61,7 @@ struct Options{T}
     function Options(
         model::SDDP.PolicyGraph{T},
         initial_state::Dict{Symbol,Float64},
+        risk_measures,
         start_time::Float64,
         log::Vector{DynamicSDDiP.Log},
         log_file_handle::Any
@@ -66,6 +69,7 @@ struct Options{T}
         return new{T}(
             initial_state,
             SDDP.to_nodal_form(model, x -> Dict{Symbol,Float64}[]),
+            SDDP.to_nodal_form(model, risk_measures),
             SDDP.build_Φ(model),
             SDDP.get_same_children(model),
             start_time,
@@ -86,10 +90,9 @@ function print_helper(f, io, args...)
 end
 
 function print_banner(io)
-    println(
-        io,
-        "--------------------------------------------------------------------------------",
-    )
+    println(io,"#########################################################################################################################################",)
+    println(io,"#########################################################################################################################################",)
+    println(io,"#########################################################################################################################################",)
     println(io, "DynamicSDDiP.jl (c) Christian Füllner, 2021")
     println(io, "re-uses code from SDDP.jl (c) Oscar Dowson, 2017-21")
     println(io)
@@ -113,76 +116,77 @@ function print_parameters(io, algo_params::DynamicSDDiP.AlgoParams, applied_solv
     if isempty(algo_params.stopping_rules)
         println(io, "No stopping rule defined.")
     else
-        for i in algo_params.stopping_rules
-            if isa(algo_params.stopping_rules[i], DeterministicStopping)
-                println(io, Printf.@sprintf("opt_rtol: %1.4e", algo_params.opt_rtol))
-                println(io, Printf.@sprintf("opt_atol: %1.4e", algo_params.opt_atol))
-            elseif isa(algo_params.stopping_rules[i], SDDP.IterationLimit)
-                println(io, Printf.@sprintf("iteration_limit: %5d", algo_params.iteration_limit))
-            elseif isa(algo_params.stopping_rules[i], )
-                println(io, Printf.@sprintf("time_limit (sec): %6d", algo_params.time_limit))
+        for i in 1:size(algo_params.stopping_rules,1)
+            rule = algo_params.stopping_rules[i]
+            if isa(rule, DeterministicStopping)
+                println(io, Printf.@sprintf("opt_rtol: %1.4e", rule.rtol))
+                println(io, Printf.@sprintf("opt_atol: %1.4e", rule.atol))
+            elseif isa(rule, SDDP.IterationLimit)
+                println(io, Printf.@sprintf("iteration_limit: %5d", rule.iteration_limit))
+            elseif isa(rule,  SDDP.TimeLimit)
+                println(io, Printf.@sprintf("time_limit (sec): %6d", rule.time_limit))
             end
         end
     end
-    println(io, "------------------------------------------------------------------------")
+    println(io, "----------------------------------------------------------------------------------------------------------------------------------------")
 
     print(io, "Binary approximation used: ")
     println(io, algo_params.state_approximation_regime)
-    if algo_params.state_approximation_regime == DynamicSDDiP.BinaryApproximation
+    if isa(algo_params.state_approximation_regime, DynamicSDDiP.BinaryApproximation)
         state_approximation_regime = algo_params.state_approximation_regime
         print(io, "Initial binary precision: ")
         println(io, state_approximation_regime.binary_precision)
         print(io, "Cut projection method: ")
-        println(io, state_approximation_regime.cut_projection_method)
+        println(io, state_approximation_regime.cut_projection_regime)
     end
 
-    println(io, "------------------------------------------------------------------------")
+    println(io, "----------------------------------------------------------------------------------------------------------------------------------------")
     print(io, "Regularization used: ")
     println(io, algo_params.regularization_regime)
-    if algo_params.regularization_regime == DynamicSDDiP.Regularization
-        println(io, Printf.@sprintf("Initial sigma: %4.1e", algo_params.sigma))
-        println(io, Printf.@sprintf("Sigma increase factor: %4.1e", algo_params.sigma:factor))
-    end
+    #if isa(algo_params.regularization_regime, DynamicSDDiP.Regularization)
+    #    println(io, Printf.@sprintf("Initial sigma: %4.1e", algo_params.sigma))
+    #    println(io, Printf.@sprintf("Sigma increase factor: %4.1e", algo_params.sigma:factor))
+    #end
 
-    println(io, "------------------------------------------------------------------------")
+    println(io, "----------------------------------------------------------------------------------------------------------------------------------------")
     print(io, "Cut family used: ")
     println(io, algo_params.duality_regime)
-    if algo_params.duality_regime == DynamicSDDiP.LagrangianDuality
-        duality_regime = algo_params.duality_regime
-        print(io, "Dual initialization: ")
-        println(io, duality_regime.dual_initialization_regime)
-        print(io, "Dual bounding: ")
-        println(io, duality_regime.dual_bound_regime)
-        print(io, "Dual solution method: ")
-        println(io, duality_regime.dual_solution_regime)
-        print(io, "Dual multiplier choice: ")
-        println(io, duality_regime.dual_choice_regime)
-        print(io, "Dual status regime: ")
-        println(io, duality_regime.dual_status_regime)
-        #print(io, "Numerical focus used: ")
-        #println(io, duality_regime.numerical_focus)
-        println(io, "------------------------------------------------------------------------")
-        dual_solution_regime = duality_regime.dual_solution_regime
-        println(io, Printf.@sprintf("Lagrangian rtol: %1.4e", dual_solution_regime.rtol))
-        println(io, Printf.@sprintf("Lagrangian atol: %1.4e", dual_solution_regime.atol))
-        println(io, Printf.@sprintf("iteration_limit: %5d", dual_solution_regime.iteration_limit))
-        if dual_solution_regime == DynamicSDDiP.LevelBundle
-            println(io, Printf.@sprintf("Level parameter: %2.4e", dual_solution_regime.level_factor))
-            println(io, Printf.@sprintf("Bundle alpha: %2.4e", dual_solution_regime.bundle_alpha))
-            println(io, Printf.@sprintf("Bundle factor: %2.4e", dual_solution_regime.bundle_factor))
-        end
-        println(io, "------------------------------------------------------------------------")
-
-    end
+    # if isa(algo_params.duality_regime, DynamicSDDiP.LagrangianDuality)
+    #     duality_regime = algo_params.duality_regime
+    #     print(io, "Dual initialization: ")
+    #     println(io, duality_regime.dual_initialization_regime)
+    #     print(io, "Dual bounding: ")
+    #     println(io, duality_regime.dual_bound_regime)
+    #     print(io, "Dual solution method: ")
+    #     println(io, duality_regime.dual_solution_regime)
+    #     print(io, "Dual multiplier choice: ")
+    #     println(io, duality_regime.dual_choice_regime)
+    #     print(io, "Dual status regime: ")
+    #     println(io, duality_regime.dual_status_regime)
+    #     #print(io, "Numerical focus used: ")
+    #     #println(io, duality_regime.numerical_focus)
+    #     println(io, "----------------------------------------------------------------------------------------------------------------------------------------")
+    #     dual_solution_regime = duality_regime.dual_solution_regime
+    #     println(io, Printf.@sprintf("Lagrangian rtol: %1.4e", dual_solution_regime.rtol))
+    #     println(io, Printf.@sprintf("Lagrangian atol: %1.4e", dual_solution_regime.atol))
+    #     println(io, Printf.@sprintf("iteration_limit: %5d", dual_solution_regime.iteration_limit))
+    #     if isa(dual_solution_regime, DynamicSDDiP.LevelBundle)
+    #         println(io, Printf.@sprintf("Level parameter: %2.4e", dual_solution_regime.level_factor))
+    #         println(io, Printf.@sprintf("Bundle alpha: %2.4e", dual_solution_regime.bundle_alpha))
+    #         println(io, Printf.@sprintf("Bundle factor: %2.4e", dual_solution_regime.bundle_factor))
+    #     end
+    #    println(io, "----------------------------------------------------------------------------------------------------------------------------------------")
+    #end
+    println(io, "----------------------------------------------------------------------------------------------------------------------------------------")
 
     print(io, "Cut selection used: ")
     println(io, algo_params.cut_selection_regime)
-    println(io, "------------------------------------------------------------------------")
-    print(io, Printf.@sprintf("LP solver: %15s", applied_solvers.LP))
-    print(io, Printf.@sprintf("MILP solver: %15s", applied_solvers.MILP))
-    print(io, Printf.@sprintf("(MI)NLP solver: %15s", applied_solvers.NLP))
-    print(io, Printf.@sprintf("Lagrange solver: %15s", applied_solvers.Lagrange))
-    println(io, "------------------------------------------------------------------------")
+    println(io, "----------------------------------------------------------------------------------------------------------------------------------------")
+    println(io, Printf.@sprintf("LP solver: %15s", applied_solvers.LP))
+    println(io, Printf.@sprintf("MILP solver: %15s", applied_solvers.MILP))
+    println(io, Printf.@sprintf("(MI)NLP solver: %15s", applied_solvers.NLP))
+    println(io, Printf.@sprintf("Lagrange solver: %15s", applied_solvers.Lagrange))
+    println(io, "----------------------------------------------------------------------------------------------------------------------------------------")
 
     flush(io)
 end
@@ -199,7 +203,7 @@ end
 function print_iteration(io, log::Log)
     print(io, lpad(Printf.@sprintf("%5d", log.iteration), 15))
     print(io, "   ")
-    print(io, lpad(Printf.@sprintf("%1.6e", log.upper_bound), 13))
+    print(io, lpad(Printf.@sprintf("%1.6e", log.current_upper_bound), 13))
     print(io, "   ")
     print(io, lpad(Printf.@sprintf("%1.6e", log.best_upper_bound), 16))
     print(io, "   ")
@@ -267,7 +271,7 @@ function print_footer(io, training_results)
     flush(io)
 end
 
-function log_iteration(algo_params::DynamicSDDiP.AlgoParams, log_file_handle::Any, log::DynamicSDDiP.Log)
+function log_iteration(algo_params::DynamicSDDiP.AlgoParams, log_file_handle::Any, log::Vector{DynamicSDDiP.Log})
     if algo_params.print_level > 0 && mod(length(log), algo_params.log_frequency) == 0
         print_helper(print_iteration, log_file_handle, log[end])
     end

@@ -275,7 +275,7 @@ function get_dual_solution(
     ############################################################################
     # SET DUAL VARIABLES AND STATES CORRECTLY FOR RETURN
     ############################################################################
-    store_dual_values!(node, dual_values, dual_vars, binary_state, integrality_handler, algo_params.state_approximation_regime)
+    store_dual_values!(node, dual_values, dual_vars, bin_state, algo_params.state_approximation_regime)
 
     return (
         dual_values=dual_values,
@@ -499,14 +499,16 @@ function get_and_set_dual_values!(node::SDDP.Node, dual_vars_initial::Vector{Flo
     return
 end
 
-function store_dual_values!(node::SDDP.Node, dual_values::Vector{Float64},
+function store_dual_values!(node::SDDP.Node, dual_values::Dict{Symbol, Float64},
     dual_vars::Vector{Float64}, bin_state::Dict{Symbol, BinaryState},
     state_approximation_regime::DynamicSDDiP.BinaryApproximation)
+
+    old_rhs = node.ext[:backward_data][:old_rhs]
 
     for (i, name) in enumerate(keys(node.ext[:backward_data][:bin_states]))
         dual_values[name] = dual_vars[i]
 
-        value = integrality_handler.old_rhs[i]
+        value = old_rhs[i]
         x_name = node.ext[:backward_data][:bin_x_names][name]
         k = node.ext[:backward_data][:bin_k][name]
         bin_state[name] = BinaryState(value, x_name, k)
@@ -515,7 +517,7 @@ function store_dual_values!(node::SDDP.Node, dual_values::Vector{Float64},
     return
 end
 
-function store_dual_values!(node::SDDP.Node, dual_values::Vector{Float64},
+function store_dual_values!(node::SDDP.Node, dual_values::Dict{Symbol, Float64},
     dual_vars::Vector{Float64}, bin_state::Dict{Symbol, BinaryState},
     state_approximation_regime::DynamicSDDiP.NoStateApproximation)
 

@@ -324,6 +324,7 @@ function setup_state_binarization!(
             ####################################################################
             # Get fixed values from fixed value of original state
             fixed_binary_values = SDDP.binexpand(bw_data[:fixed_state_value][state_name], variable_info.upper_bound, beta)
+
             # Fix binary variables
             for i in 1:num_vars
                 #JuMP.unset_binary(binary_vars[i].in)
@@ -357,7 +358,8 @@ function determine_anchor_states(
     for (name, value) in outgoing_state
         state_comp = node.states[name]
         beta = state_approximation_regime.binary_precision[name]
-        (approx_state_value, )  = determine_anchor_state(state_comp, value, beta)
+        variable_info = node.ext[:state_info_storage][name].out
+        (approx_state_value, )  = determine_anchor_state(state_comp, value, beta, variable_info)
         anchor_states[name] = approx_state_value
     end
 

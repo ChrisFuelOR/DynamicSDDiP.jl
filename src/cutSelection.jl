@@ -29,6 +29,25 @@ function _cut_selection_update(
     cut_selection_regime::DynamicSDDiP.NoCutSelection
 )
 
+    ############################################################################
+    # ADD CUTS AND STATES TO THE ORACLE
+    ############################################################################
+    oracle = V.cut_oracle
+
+    sampled_state_anchor = DynamicSDDiP.SampledState(anchor_state, cut, _eval_height(node, cut,
+    anchor_state, applied_solvers, algo_params))
+    sampled_state_trial = DynamicSDDiP.SampledState(trial_state, cut, _eval_height(node, cut, trial_state, applied_solvers, algo_params))
+
+    push!(oracle.states, sampled_state_anchor)
+    push!(oracle.states, sampled_state_trial)
+
+    push!(oracle.cuts, cut)
+
+    ############################################################################
+    # DETERMINE NUMBER OF CUTS FOR LOGGING
+    ############################################################################
+    count_cuts(node, V)
+
     return
 end
 
@@ -263,7 +282,7 @@ function _cut_selection_update(
     ############################################################################
     # DETERMINE NUMBER OF CUTS FOR LOGGING
     ############################################################################
-    counts_cuts(node, V)
+    count_cuts(node, V)
 
 end
 
@@ -320,7 +339,7 @@ function _eval_height(node::SDDP.Node, cut::DynamicSDDiP.NonlinearCut,
     all_coefficients = Float64[]
     binary_variables_so_far = 0
 
-    for (i, (state_name, state_comp)) in enumerate(node.states)
+    for (i, (state_name, value)) in enumerate(states)
         variable_info = node.ext[:state_info_storage][state_name].out
 
         if variable_info.binary

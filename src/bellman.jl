@@ -323,7 +323,7 @@ function _add_cut(
     for (key, λ) in λᵏ
         θᵏ -= πᵏ[key] * λᵏ[key].value
     end
-    @infiltrate infiltrate_state in [:bellman]
+    @infiltrate infiltrate_state in [:bellman, :all]
 
     ############################################################################
     # CONSTRUCT NONLINEAR CUT STRUCT
@@ -421,7 +421,7 @@ function add_cut_constraints_to_models(
 
         variable_info = node.ext[:state_info_storage][state_name].out
 
-        if !isfinite(variable_info.upper_bound) || !variable_info.has_ub || !variable_info.binary
+        if (!isfinite(variable_info.upper_bound) || !variable_info.has_ub) && !variable_info.binary
             error("When using DynamicSDDiP, state variables require an upper bound.")
         end
 
@@ -430,12 +430,12 @@ function add_cut_constraints_to_models(
         ####################################################################
         if variable_info.binary
             beta = 1
-            K = SDDP._bitsrequired(variable_info.upper_bound)
+            K = 1
         elseif variable_info.integer
             beta = 1
             K = SDDP._bitsrequired(variable_info.upper_bound)
         else
-            beta = cut.binary_precision[name]
+            beta = cut.binary_precision[state_name]
             K = SDDP._bitsrequired(round(Int, variable_info.upper_bound / beta))
         end
 
@@ -448,7 +448,7 @@ function add_cut_constraints_to_models(
                     model,
                     node,
                     ########################################################
-                    V.states[name], # state_comp
+                    V.states[state_name], # state_comp
                     state_name,
                     state_index,
                     ########################################################
@@ -475,7 +475,7 @@ function add_cut_constraints_to_models(
 
     end
 
-    @infiltrate infiltrate_state in [:bellman]
+    @infiltrate infiltrate_state in [:bellman, :all]
 
     ############################################################################
     # MAKE SOME VALIDITY CHECKS
@@ -503,7 +503,7 @@ function add_cut_constraints_to_models(
     ############################################################################
     # ADD SOS1 STRONG DUALITY CONSTRAINT
     ############################################################################
-    add_strong_duality_cut(model, node, cut, V, all_lambda, all_mu, all_eta,
+    add_strong_duality_cut!(model, node, cut, V, all_lambda, all_mu, all_eta,
         all_coefficients, number_of_states, number_of_duals,
         algo_params.state_approximation_regime.cut_projection_regime)
 
@@ -665,7 +665,7 @@ function add_complementarity_constraints!(
     cut_projection_regime::DynamicSDDiP.KKT,
 )
 
-    @infiltrate infiltrate_state in [:bellman]
+    @infiltrate infiltrate_state in [:bellman, :all]
 
     ############################################################################
     # ADD COMPLEMENTARITY CONSTRAINTS
@@ -717,7 +717,7 @@ function add_complementarity_constraints!(
     cut_projection_regime::DynamicSDDiP.BigM,
 )
 
-    @infiltrate infiltrate_state in [:bellman]
+    @infiltrate infiltrate_state in [:bellman, :all]
 
     ############################################################################
     # ADD ADDITIONAL BINARY VARIABLES
@@ -780,10 +780,19 @@ function get_bigM(node::SDDP.Node, sigma::Float64, beta::Float64, related_coeffi
     ############################################################################
     U_max = 0
     for (i, (name, state)) in enumerate(node.states)
+        variable_info = node.ext[:state_info_storage][name].out
 
-        if JuMP.upper_bound(state.in) > U_max
-            U_max = JuMP.upper_bound(state.in)
+        upper_bound = -Inf
+        if variable_info.binary
+            upper_bound = 1
+        elseif variable_info.has_ub
+            upper_bound = variable_info.upper_bound
         end
+
+        if upper_bound > U_max
+            U_max = upper_bound
+        end
+
     end
 
     ############################################################################
@@ -791,7 +800,7 @@ function get_bigM(node::SDDP.Node, sigma::Float64, beta::Float64, related_coeffi
     ############################################################################
     bigM = 0
     for k in 1:K
-        candidate = Umax * (sigma + abs(relatedCoefficients[k]) / (2^(k-1) * beta))
+        candidate = U_max * (sigma + abs(related_coefficients[k]) / (2^(k-1) * beta))
         if bigM < candidate
             bigM = candidate
         end
@@ -830,7 +839,7 @@ function add_complementarity_constraints!(
     cut_projection_regime::DynamicSDDiP.SOS1,
 )
 
-    @infiltrate infiltrate_state in [:bellman]
+    @infiltrate infiltrate_state in [:bellman, :all]
 
     ############################################################################
     # AUXILIARY VARIABLE
@@ -958,7 +967,7 @@ function set_up_dict_for_duals(
     return Dict(key => 0.0 for key in keys(trial_points))
 end
 
-function validity_checks(
+function validity_checks!(
     cut::DynamicSDDiP.NonlinearCut,
     V::DynamicSDDiP.CutApproximation,
     K_tilde::Int64,
@@ -976,13 +985,13 @@ function validity_checks(
                     == size(all_lambda, 1)
                     )
     @assert (number_of_states == size(all_eta, 1)
-                              == size(V.states, 1)
+                              == length(V.states)
                               )
 
     return
 end
 
-function validity_checks(
+function validity_checks!(
     cut::DynamicSDDiP.NonlinearCut,
     V::DynamicSDDiP.CutApproximation,
     K_tilde::Int64,
@@ -1023,7 +1032,7 @@ function get_cut_expression(
         V.theta - sum(all_coefficients[j] * all_lambda[j]  for j in 1:number_of_duals)
     )
 
-    return
+    return expr
 end
 
 function get_cut_expression(
@@ -1045,7 +1054,7 @@ function get_cut_expression(
         - sum(x * all_eta[i]  for (i, x) in V.states)
     )
 
-    return
+    return expr
 end
 
 function add_strong_duality_cut!(
@@ -1126,7 +1135,7 @@ function _add_cut(
     for (key, x) in xᵏ
         θᵏ -= πᵏ[key] * x
     end
-    @infiltrate infiltrate_state in [:bellman]
+    @infiltrate infiltrate_state in [:bellman, :all]
 
     ############################################################################
     # CONSTRUCT NONLINEAR CUT STRUCT
@@ -1178,7 +1187,7 @@ function add_cut_constraints_to_models(
     model = JuMP.owner_model(V.theta)
     @assert model == node.subproblem
 
-    @infiltrate infiltrate_state in [:bellman]
+    @infiltrate infiltrate_state in [:bellman, :all]
 
     ############################################################################
     # ADD THE LINEAR CUT CONSTRAINT

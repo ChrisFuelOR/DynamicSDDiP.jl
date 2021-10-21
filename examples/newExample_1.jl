@@ -24,7 +24,7 @@ function model_config()
     dual_solution_regime = DynamicSDDiP.Kelley()
     dual_bound_regime = DynamicSDDiP.BothBounds()
     dual_status_regime = DynamicSDDiP.Rigorous()
-    dual_choice_regime = DynamicSDDiP.StandardChoice()
+    dual_choice_regime = DynamicSDDiP.MagnantiWongChoice()
     duality_regime = DynamicSDDiP.LagrangianDuality(
         atol = 1e-8,
         rtol = 1e-8,
@@ -37,7 +37,7 @@ function model_config()
     )
 
     # State approximation and cut projection configuration
-    cut_projection_regime = DynamicSDDiP.BigM()
+    cut_projection_regime = DynamicSDDiP.SOS1()
     binary_precision = Dict{Symbol, Float64}()
 
     state_approximation_regime = DynamicSDDiP.BinaryApproximation(
@@ -129,16 +129,33 @@ function model_definition()
         ########################################################################
         # DEFINE STAGE-t MODEL
         ########################################################################
-
         # State variables
         JuMP.@variable(subproblem, 0.0 <= b <= 2.0, SDDP.State, initial_value = 0)
 
-        # Constraints
-        b = subproblem[:b]
-        JuMP.@constraint(subproblem, b.out == 1.2 + b.in)
+        if t == 1
 
-        # Stage objective
-        SDDP.@stageobjective(subproblem, 1)
+            # Constraints
+            b = subproblem[:b]
+            JuMP.@constraint(subproblem, b.out == 1.2 + b.in)
+
+            # Stage objective
+            SDDP.@stageobjective(subproblem, 1)
+
+        else
+            # Local variables
+            JuMP.@variable(subproblem, 0.0 <= x[i=1:4])
+            JuMP.set_integer(x[1])
+            JuMP.set_integer(x[2])
+
+            # Constraints
+            b = subproblem[:b]
+            JuMP.@constraint(subproblem, b.out == 0)
+            JuMP.@constraint(subproblem, con, 1.25*x[1] - x[2] + 0.5*x[3] + 1/3*x[4] == b.in)
+
+            # Stage objective
+            SDDP.@stageobjective(subproblem, x[1] - 0.75*x[2] + 0.75*x[3] + 2.5*x[4])
+
+        end
 
     end
 

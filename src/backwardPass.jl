@@ -83,8 +83,7 @@ function backward_pass(
         ########################################################################
         # RECONSTRUCT ANCHOR POINTS IN BACKWARD PASS
         ########################################################################
-        variable_info = node.ext[:state_info_storage][name].out
-        anchor_states = determine_anchor_states(node, outgoing_state, algo_params.state_approximation_regime, variable_info)
+        anchor_states = determine_anchor_states(node, outgoing_state, algo_params.state_approximation_regime)
         @infiltrate algo_params.infiltrate_state in [:all]
 
         ########################################################################
@@ -369,7 +368,6 @@ function solve_first_stage_problem(
     state = get_outgoing_state(node)
     stage_objective = JuMP.value(node.stage_objective)
     objective = JuMP.objective_value(subproblem)
-    dual_values = get_dual_variables(node, node.integrality_handler)
 
     ############################################################################
     # DETERMINE THE PROBLEM SIZE
@@ -384,7 +382,6 @@ function solve_first_stage_problem(
 
     return (
         state = state,
-        duals = dual_values,
         objective = objective,
         stage_objective = stage_objective,
         problem_size = problem_size

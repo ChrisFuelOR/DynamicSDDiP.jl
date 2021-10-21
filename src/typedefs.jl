@@ -357,7 +357,7 @@ mutable struct AlgoParams
         cut_type = SDDP.SINGLE_CUT,
         refine_at_similar_nodes = true,
         cycle_discretization_delta = 0.0,
-        print_level = 1,
+        print_level = 2,
         log_frequency = 1,
         log_file = "DynamicSDDiP.log",
         run_numerical_stability_report = true,
