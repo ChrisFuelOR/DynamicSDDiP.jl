@@ -20,14 +20,18 @@ function set_solver!(
     # CHOOSE THE CORRECT TYPE OF SOLVER AND SOLVER
     ############################################################################
     if algorithmic_step in [:forward_pass, :backward_pass]
-        if cut_projection_regime == DynamicSDDiP.KKT || cut_projection_regime == DynamicSDDiP.StrongDuality
+        if isa(cut_projection_regime, DynamicSDDiP.KKT)
             solver = applied_solvers.MINLP
+        elseif isa(cut_projection_regime, DynamicSDDiP.StrongDuality)
+            solver = applied_solvers.MIQCP
         else
             solver = applied_solvers.MILP
         end
     elseif algorithmic_step in [:lagrange_relax]
-        if cut_projection_regime == DynamicSDDiP.KKT || cut_projection_regime == DynamicSDDiP.StrongDuality
+        if isa(cut_projection_regime, DynamicSDDiP.KKT)
             solver = applied_solvers.MINLP
+        elseif isa(cut_projection_regime, DynamicSDDiP.StrongDuality)
+            solver = applied_solvers.MIQCP
         else
             solver = applied_solvers.Lagrange
         end
@@ -75,7 +79,11 @@ function set_solver!(
 
     end
 
-    JuMP.set_silent(subproblem)
+    if algo_params.silent
+        JuMP.set_silent(subproblem)
+    else
+        JuMP.unset_silent(subproblem)
+    end
 
     return
 end

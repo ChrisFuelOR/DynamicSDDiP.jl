@@ -268,7 +268,11 @@ function _add_average_cut(
     ############################################################################
     # As cuts are created for the value function of the following state,
     # we need the parameters for this stage.
-    sigma = algo_params.regularization_regime.sigma[node_index+1]
+    if isa(algo_params.regularization_regime, DynamicSDDiP.NoRegularization)
+        sigma = nothing
+    else
+        sigma = algo_params.regularization_regime.sigma[node_index+1]
+    end
 
     ############################################################################
     # ADD THE CUT USING THE NEW EXPECTED COEFFICIENTS
@@ -309,7 +313,7 @@ function _add_cut(
     xᵏ::Dict{Symbol,Float64}, # trial point (anchor point for cut without BinaryApproximation), outgoing_state
     # obj_y::Union{Nothing,NTuple{N,Float64}},
     # belief_y::Union{Nothing,Dict{T,Float64}},
-    sigma::Float64,
+    sigma::Union{Nothing,Float64},
     iteration::Int64,
     infiltrate_state::Symbol,
     algo_params::DynamicSDDiP.AlgoParams,
@@ -325,6 +329,12 @@ function _add_cut(
     end
     @infiltrate infiltrate_state in [:bellman, :all]
 
+    if isnothing(sigma)
+        sigma_use = nothing
+    else
+        sigma_use = copy(sigma)
+    end
+
     ############################################################################
     # CONSTRUCT NONLINEAR CUT STRUCT
     ############################################################################
@@ -335,7 +345,7 @@ function _add_cut(
             xᵏ_b,
             λᵏ,
             copy(state_approximation_regime.binary_precision),
-            copy(sigma),
+            sigma_use,
             JuMP.VariableRef[],
             JuMP.ConstraintRef[],
             # obj_y,
@@ -526,7 +536,7 @@ function represent_cut_projection_closure!(
     ########################################################
     coefficients::Dict{Symbol,Float64},
     binary_state::Dict{Symbol,BinaryState},
-    sigma::Float64,
+    sigma::Union{Nothing,Float64},
     cut_variables::Vector{JuMP.VariableRef},
     cut_constraints::Vector{JuMP.ConstraintRef},
     iteration::Int64,
@@ -648,7 +658,7 @@ function add_complementarity_constraints!(
     ########################################################################
     cut_variables::Vector{JuMP.VariableRef},
     cut_constraints::Vector{JuMP.ConstraintRef},
-    sigma::Float64,
+    sigma::Union{Nothing,Float64},
     iteration::Int64,
     beta::Float64,
     ########################################################################
@@ -700,7 +710,7 @@ function add_complementarity_constraints!(
     ########################################################################
     cut_variables::Vector{JuMP.VariableRef},
     cut_constraints::Vector{JuMP.ConstraintRef},
-    sigma::Float64,
+    sigma::Union{Nothing,Float64},
     iteration::Int64,
     beta::Float64,
     ########################################################################
@@ -773,7 +783,7 @@ end
 Determine a reasonable bigM value based on the maximum upper bound of all state
 components, sigma and beta. This could be improved later.
 """
-function get_bigM(node::SDDP.Node, sigma::Float64, beta::Float64, related_coefficients::Vector{Float64}, K::Int64)
+function get_bigM(node::SDDP.Node, sigma::Union{Nothing,Float64}, beta::Float64, related_coefficients::Vector{Float64}, K::Int64)
 
     ############################################################################
     # DETERMINE U_MAX
@@ -799,13 +809,18 @@ function get_bigM(node::SDDP.Node, sigma::Float64, beta::Float64, related_coeffi
     # DETERMINE BIG-M
     ############################################################################
     bigM = 0
-    for k in 1:K
-        candidate = U_max * (sigma + abs(related_coefficients[k]) / (2^(k-1) * beta))
-        if bigM < candidate
-            bigM = candidate
+    if isnothing(sigma)
+        # no regularization is used, so bigM is just bounded by an arbitrary value
+        bigM = 1e4
+    else
+        for k in 1:K
+            candidate = U_max * (sigma + abs(related_coefficients[k]) / (2^(k-1) * beta))
+            if bigM < candidate
+                bigM = candidate
+            end
         end
+        # bigM = sigma
     end
-    # bigM = sigma
 
     return bigM
 end
@@ -822,7 +837,7 @@ function add_complementarity_constraints!(
     ########################################################################
     cut_variables::Vector{JuMP.VariableRef},
     cut_constraints::Vector{JuMP.ConstraintRef},
-    sigma::Float64,
+    sigma::Union{Nothing,Float64},
     iteration::Int64,
     beta::Float64,
     ########################################################################
@@ -845,20 +860,20 @@ function add_complementarity_constraints!(
     # AUXILIARY VARIABLE
     ############################################################################
     # First represent γ[k]-1 as a new variable
-    ρ = JuMP.@variable(model, [k in 1:K], lower_bound=-1, upper__bound=0, base_name = "ρ_" * string(state_index) * "_it" * string(iteration))
+    ρ = JuMP.@variable(model, [k in 1:K], lower_bound=0, upper_bound=1, base_name = "ρ_" * string(state_index) * "_it" * string(iteration))
     append!(cut_variables, ρ)
 
-    ρ_constraint = JuMP.@constraint(model, [k in 1:K], ρ[k] == γ[k] - 1)
+    ρ_constraint = JuMP.@constraint(model, [k in 1:K], ρ[k] == 1 - γ[k])
     append!(cut_constraints, ρ_constraint)
 
     ############################################################################
     # ADD SOS1 CONSTRAINTS
     ############################################################################
     for k in 1:K
-        SOS1_constraint_1 = JuMP.@constraint(model, [γ[k], ν[k]] in SOS1())
-        SOS1_constraint_2 = JuMP.@constraint(model, [μ[k], ρ[k]] in SOS1())
-        append!(cut_constraints, SOS1_constraint_1)
-        append!(cut_constraints, SOS1_constraint_2)
+        SOS1_constraint_1 = JuMP.@constraint(model, [γ[k], ν[k]] in JuMP.SOS1())
+        SOS1_constraint_2 = JuMP.@constraint(model, [μ[k], ρ[k]] in JuMP.SOS1())
+        push!(cut_constraints, SOS1_constraint_1)
+        push!(cut_constraints, SOS1_constraint_2)
     end
 
     return
@@ -880,7 +895,7 @@ function represent_cut_projection_closure!(
     ########################################################
     coefficients::Dict{Symbol,Float64},
     binary_state::Dict{Symbol,BinaryState},
-    sigma::Float64,
+    sigma::Union{Nothing,Float64},
     cut_variables::Vector{JuMP.VariableRef},
     cut_constraints::Vector{JuMP.ConstraintRef},
     iteration::Int64,
@@ -910,6 +925,7 @@ function represent_cut_projection_closure!(
             related_coefficients[index] = coefficients[name]
         end
     end
+    append!(all_coefficients, related_coefficients)
 
     ############################################################################
     # ADD REQUIRED VARIABLES (CPC-CONSTRAINTS 4, 5)
@@ -1007,8 +1023,9 @@ function validity_checks!(
                     == size(all_coefficients, 1)
                     == size(all_mu, 1)
                     )
+
     @assert (number_of_states == size(all_eta, 1)
-                              == size(V.states, 1)
+                              == length(V.states)
                               )
 
     return
@@ -1050,8 +1067,8 @@ function get_cut_expression(
 
     expr = JuMP.@expression(
         model,
-        V.theta - sum(all_mu[j]  for j in 1:number_of_duals)
-        - sum(x * all_eta[i]  for (i, x) in V.states)
+        V.theta - sum(all_mu[j]  for j in 1:size(all_mu, 1))
+        - sum(x * all_eta[i]  for (i, (_,x)) in enumerate(V.states))
     )
 
     return expr
@@ -1075,7 +1092,7 @@ function add_strong_duality_cut!(
         model,
         sum(all_coefficients[j] * all_lambda[j]  for j in 1:number_of_duals)
         - sum(all_mu[j]  for j in 1:number_of_duals)
-        - sum(x * all_eta[i]  for (i, x) in V.states)
+        - sum(x * all_eta[i]  for (i, (_, x)) in enumerate(V.states))
     )
 
     constraint_ref = if JuMP.objective_sense(model) == MOI.MIN_SENSE
@@ -1121,7 +1138,7 @@ function _add_cut(
     xᵏ::Dict{Symbol,Float64}, # trial point (anchor point for cut without BinaryApproximation), outgoing_state
     # obj_y::Union{Nothing,NTuple{N,Float64}},
     # belief_y::Union{Nothing,Dict{T,Float64}},
-    sigma::Float64,
+    sigma::Union{Nothing,Float64},
     iteration::Int64,
     infiltrate_state::Symbol,
     algo_params::DynamicSDDiP.AlgoParams,
@@ -1137,6 +1154,12 @@ function _add_cut(
     end
     @infiltrate infiltrate_state in [:bellman, :all]
 
+    if isnothing(sigma)
+        sigma_use = nothing
+    else
+        sigma_use = copy(sigma)
+    end
+
     ############################################################################
     # CONSTRUCT NONLINEAR CUT STRUCT
     ############################################################################
@@ -1144,7 +1167,7 @@ function _add_cut(
             θᵏ,
             πᵏ,
             xᵏ,
-            copy(sigma),
+            sigma_use,
             JuMP.ConstraintRef,
             # obj_y,
             # belief_y,

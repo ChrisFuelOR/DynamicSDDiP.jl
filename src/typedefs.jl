@@ -93,7 +93,7 @@ mutable struct LevelBundle <: AbstractDualSolutionRegime
         # atol = 1e-8,
         # rtol = 1e-8,
         # iteration_limit = 1000,
-        level_factor = 1.0,
+        level_factor = 0.5,
         )
         #return new(atol, rtol, iteration_limit, level_factor)
         return new(level_factor)
@@ -240,7 +240,10 @@ Regularization means that in the forward pass some regularized value functions
     stopping criterion is satisfied. Furthermore, it can be exploited in combination
     with bounding the dual variables.
 NoRegularization means that no regularization is used. This may be detrimental
-    w.r.t. convergence.
+    w.r.t. convergence. Note that it also makes it difficult to bound the
+    dual multipliers and the bigM parameters appropriately.
+    For bigM so far 1e4 is used. For dual multipliers no bound is applied
+    even if BothBounds is chosen.
 Default is Regularization.
 """
 
@@ -341,6 +344,7 @@ mutable struct AlgoParams
     log_file::String
     run_numerical_stability_report::Bool
     numerical_focus::Bool
+    silent::Bool
     infiltrate_state::Symbol
 
     function AlgoParams(;
@@ -362,6 +366,7 @@ mutable struct AlgoParams
         log_file = "DynamicSDDiP.log",
         run_numerical_stability_report = true,
         numerical_focus = false,
+        silent = true,
         infiltrate_state = :none,
     )
         return new(
@@ -383,6 +388,7 @@ mutable struct AlgoParams
             log_file,
             run_numerical_stability_report,
             numerical_focus,
+            silent,
             infiltrate_state,
         )
     end
@@ -399,6 +405,7 @@ For the Lagrangian subproblems a separate solver can be defined if for
 struct AppliedSolvers
     LP :: Any
     MILP :: Any
+    MIQCP :: Any
     MINLP :: Any
     NLP :: Any
     Lagrange :: Any
@@ -406,13 +413,15 @@ struct AppliedSolvers
     function AppliedSolvers(;
         LP = "Gurobi",
         MILP = "Gurobi",
-        MINLP = "Gurobi",
+        MIQCP = "Gurobi",
+        MINLP = "SCIP",
         NLP = "SCIP",
         Lagrange = "Gurobi",
         )
         return new(
             LP,
             MILP,
+            MIQCP,
             MINLP,
             NLP,
             Lagrange
@@ -435,7 +444,7 @@ mutable struct NonlinearCut <: Cut
     binary_state::Dict{Symbol,DynamicSDDiP.BinaryState}
     binary_precision::Dict{Symbol,Float64}
     ############################################################################
-    sigma::Float64
+    sigma::Union{Nothing,Float64}
     ############################################################################
     cut_variables::Vector{JuMP.VariableRef}
     cut_constraints::Vector{JuMP.ConstraintRef}

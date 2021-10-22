@@ -195,12 +195,12 @@ end
 function print_iteration_header(io)
     println(
         io,
-        " Inner_Iteration   Upper Bound    Best Upper Bound     Lower Bound      Gap       Time (s)         sigma_ref    bin_ref     tot_var     bin_var     int_var       con       cuts   active     Lag iterations & status     ",
+        " Inner_Iteration   Upper Bound    Best Upper Bound     Lower Bound      Gap       Time (s)        Time_it (s)       sigma_ref    bin_ref     tot_var     bin_var     int_var       con       cuts   active     Lag iterations & status     ",
     )
     flush(io)
 end
 
-function print_iteration(io, log::Log)
+function print_iteration(io, log::Log, start_time::Float64)
     print(io, lpad(Printf.@sprintf("%5d", log.iteration), 15))
     print(io, "   ")
     print(io, lpad(Printf.@sprintf("%1.6e", log.current_upper_bound), 13))
@@ -214,6 +214,8 @@ function print_iteration(io, log::Log)
     print(io, lpad(Printf.@sprintf("%3.4f", gap), 8))
     print(io, "   ")
     print(io, lpad(Printf.@sprintf("%1.6e", log.time), 13))
+    print(io, "   ")
+    print(io, lpad(Printf.@sprintf("%1.6e", log.time - start_time), 13))
     print(io, "   ")
     if !isnothing(log.sigma_increased)
     	print(io, Printf.@sprintf("%9s", log.sigma_increased ? "true" : "false"))
@@ -273,7 +275,14 @@ end
 
 function log_iteration(algo_params::DynamicSDDiP.AlgoParams, log_file_handle::Any, log::Vector{DynamicSDDiP.Log})
     if algo_params.print_level > 0 && mod(length(log), algo_params.log_frequency) == 0
-        print_helper(print_iteration, log_file_handle, log[end])
+        # Get time() after last iteration to compute iteration specific time
+        if lastindex(log) > 1
+            start_time = log[end-1].time
+        else
+            start_time = 0.0
+        end
+
+        print_helper(print_iteration, log_file_handle, log[end], start_time)
     end
 end
 

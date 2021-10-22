@@ -159,7 +159,7 @@ function solve(
     finally
     end
 
-    @infiltrate
+    #@infiltrate
 
     ############################################################################
     # lOG MODEL RESULTS
@@ -231,7 +231,7 @@ function solve_DynamicSDDiP(parallel_scheme::SDDP.Serial, model::SDDP.PolicyGrap
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "loop" begin
         status = master_loop(parallel_scheme, model, options, algo_params,
-            applied_solvers, algo_params.regularization_regime)
+            applied_solvers)
     end
     return status
 
@@ -244,8 +244,7 @@ Loop function of DynamicSDDiP.
 
 function master_loop(parallel_scheme::SDDP.Serial, model::SDDP.PolicyGraph{T},
     options::DynamicSDDiP.Options, algo_params::DynamicSDDiP.AlgoParams,
-    applied_solvers::DynamicSDDiP.AppliedSolvers,
-    regularization_regime::DynamicSDDiP.Regularization) where {T}
+    applied_solvers::DynamicSDDiP.AppliedSolvers) where {T}
 
     ############################################################################
     # INITIALIZE PARAMETERS REQUIRED FOR REFINEMENTS
@@ -474,6 +473,8 @@ function iteration(
         forward_trajectory = DynamicSDDiP.forward_pass(model, options, algo_params, applied_solvers, algo_params.forward_pass)
     end
 
+    #@infiltrate
+
     ############################################################################
     # BINARY REFINEMENT
     ############################################################################
@@ -522,6 +523,7 @@ function iteration(
     ############################################################################
     # CALCULATE LOWER BOUND
     ############################################################################
+    #@infiltrate
     TimerOutputs.@timeit DynamicSDDiP_TIMER "calculate_bound" begin
         first_stage_results = calculate_bound(model)
     end

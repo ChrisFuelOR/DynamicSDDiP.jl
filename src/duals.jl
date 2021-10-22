@@ -381,7 +381,13 @@ function get_norm_bound(
             B_norm_bound = variable_info.upper_bound
         end
     end
-    dual_bound = algo_params.regularization_regime.sigma[node_index] * B_norm_bound
+
+    if isa(algo_params.regularization_regime, DynamicSDDiP.NoRegularization)
+        # if no regularization is used, bounds should be Inf even if intended to use
+        dual_bound = Inf
+    else
+        dual_bound = algo_params.regularization_regime.sigma[node_index] * B_norm_bound
+    end
 
     return dual_bound
 end
@@ -482,7 +488,7 @@ function get_and_set_dual_values!(node::SDDP.Node, dual_vars_initial::Vector{Flo
     for (i, name) in enumerate(keys(node.ext[:backward_data][:bin_states]))
        variable_name = node.ext[:backward_data][:bin_states][name]
        reference_to_constr = FixRef(variable_name)
-       dual_vars_initial[i] = JuMP.getdual(reference_to_constr)
+       dual_vars_initial[i] = JuMP.dual(reference_to_constr)
     end
 
     return
@@ -493,7 +499,7 @@ function get_and_set_dual_values!(node::SDDP.Node, dual_vars_initial::Vector{Flo
 
     for (i, name) in enumerate(keys(node,states))
         reference_to_constr = FixRef(name.in)
-        dual_vars_initial[i] = JuMP.getdual(reference_to_constr)
+        dual_vars_initial[i] = JuMP.dual(reference_to_constr)
     end
 
     return

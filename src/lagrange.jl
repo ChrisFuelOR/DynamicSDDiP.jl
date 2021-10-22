@@ -175,7 +175,10 @@ function solve_lagrangian_dual(
         # SOLVE LAGRANGIAN RELAXATION FOR GIVEN DUAL_VARS
         ########################################################################
         # Evaluate the inner problem and determine a subgradient
-        L_k = _solve_Lagrangian_relaxation!(node, π_k, h_expr, h_k, true)
+        TimerOutputs.@timeit DynamicSDDiP_TIMER "Lagrange_inner" begin
+            L_k = _solve_Lagrangian_relaxation!(node, π_k, h_expr, h_k, true)
+        end
+
         @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
         ########################################################################
@@ -195,7 +198,9 @@ function solve_lagrangian_dual(
         # SOLVE APPROXIMATION MODEL
         ########################################################################
         # Get a bound from the approximate model
-        JuMP.optimize!(approx_model)
+        TimerOutputs.@timeit DynamicSDDiP_TIMER "Lagrange_outer" begin
+            JuMP.optimize!(approx_model)
+        end
         @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
         t_k = JuMP.objective_value(approx_model)
         π_k .= JuMP.value.(π)
@@ -411,6 +416,7 @@ function magnanti_wong!(
             return
         end
         JuMP.@constraint(approx_model, t <= s * (L_k + h_k' * (π .- π_k)))
+
     end
 
     return
@@ -492,7 +498,8 @@ function solve_lagrangian_dual(
     ############################################################################
     # RELAXING THE COPY CONSTRAINTS
     ############################################################################
-    relax_copy_constraints(node, x_in_value, h_expr, algo_params.state_approximation_regime)
+    relax_copy_constraints!(node, x_in_value, h_expr, algo_params.state_approximation_regime)
+    node.ext[:backward_data][:old_rhs] = x_in_value
 
     ############################################################################
     # LOGGING OF LAGRANGIAN DUAL
@@ -505,7 +512,7 @@ function solve_lagrangian_dual(
     ############################################################################
     # Approximation of Lagrangian dual by cutting planes
     # Optimizer is re-set anyway
-    approx_model = JuMP.Model(GLPK.Optimizer)
+    approx_model = JuMP.Model(Gurobi.Optimizer)
 
     # Create the objective
     # Note that it is always formulated as a maximization problem, but that
@@ -523,13 +530,13 @@ function solve_lagrangian_dual(
     set_multiplier_bounds!(approx_model, number_of_states, bound_results.dual_bound)
 
     ############################################################################
-    # CUTTING-PLANE METHOD
+    # BUNDLE METHOD
     ############################################################################
     iter = 0
     lag_status = :none
 
     # set up optimal value of approx_model (former f_approx)
-    t_k = -Inf
+    t_k = 0
 
     while iter <= iteration_limit && !isapprox(L_star, t_k, atol = atol, rtol = rtol)
         iter += 1
@@ -538,7 +545,9 @@ function solve_lagrangian_dual(
         # SOLVE LAGRANGIAN RELAXATION FOR GIVEN DUAL_VARS
         ########################################################################
         # Evaluate the inner problem and determine a subgradient
-        L_k = _solve_Lagrangian_relaxation!(node, π_k, h_expr, h_k, true)
+        TimerOutputs.@timeit DynamicSDDiP_TIMER "Lagrange_inner" begin
+            L_k = _solve_Lagrangian_relaxation!(node, π_k, h_expr, h_k, true)
+        end
         @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
         ########################################################################
@@ -564,7 +573,9 @@ function solve_lagrangian_dual(
         # SOLVE APPROXIMATION MODEL
         ########################################################################
         # Get a bound from the approximate model
-        JuMP.optimize!(approx_model)
+        TimerOutputs.@timeit DynamicSDDiP_TIMER "Lagrange_outer" begin
+            JuMP.optimize!(approx_model)
+        end
         @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
         t_k = JuMP.objective_value(approx_model)
         @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
@@ -633,7 +644,7 @@ function solve_lagrangian_dual(
 
         level = f_up - gap * level_factor
         # - atol/10.0 for numerical issues?
-        JuMP.setlowerbound(t, level)
+        JuMP.set_lower_bound(t, level)
 
         ########################################################################
         # DETERMINE NEXT ITERATION USING PROXIMAL PROBLEM
@@ -642,9 +653,12 @@ function solve_lagrangian_dual(
         # TODO: Does this work with π[i]?
         JuMP.@objective(approx_model, Min, sum((π_k[i] - π[i])^2 for i in 1:number_of_states))
         set_solver!(approx_model, algo_params, applied_solvers, :level_bundle)
-        JuMP.optimize!(approx_model)
+        TimerOutputs.@timeit DynamicSDDiP_TIMER "Lagrange_Bundle" begin
+            JuMP.optimize!(approx_model)
+        end
+
         @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
-        π_k .= JuMP.value(π)
+        π_k .= JuMP.value.(π)
 
         ########################################################################
         if L_star > t_k + atol/10.0
@@ -679,8 +693,8 @@ function solve_lagrangian_dual(
     ############################################################################
     # APPLY MAGNANTI AND WONG APPROACH IF INTENDED
     ############################################################################
-    magnanti_wong!(node, approx_model, π_k, π_star, t_k, h_expr, h_k, s, L_k, L_star,
-        iteration_limit, atol, rtol, algo_params.dual_choice_regime, iter)
+    magnanti_wong!(node, approx_model, π_k, π_star, t_k, h_expr, h_k, s, L_star,
+        iteration_limit, atol, rtol, algo_params.duality_regime.dual_choice_regime, iter)
 
     ############################################################################
     # RESTORE THE COPY CONSTRAINT x.in = value(x.in) (̄x = z)
