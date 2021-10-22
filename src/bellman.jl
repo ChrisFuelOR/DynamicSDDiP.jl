@@ -1,17 +1,15 @@
 # The functions
 # > "BellmanFunction",
 # > "bellman_term",
-# > "initialize_bellman_function_nonconvex"
+# > "initialize_bellman_function"
 # > "refine_bellman_function"
 # > "_add_average_cut"
 # > "_add_cut"
 # > "add_cut_constraints_to_models"
-# > "_cut_selection_update"
-# > "_eval_height"
 # and structs
 # > "SampledState",
 # > "LevelOneOracle",
-# > "NonConvexApproximation"
+# > "CutApproximation"
 # > "BellmanFunction"
 # are derived from similar named functions and structs in the 'SDDP.jl' package by
 # Oscar Dowson and released under the Mozilla Public License 2.0.
@@ -25,48 +23,51 @@
 # If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
 ################################################################################
 
+################################################################################
+# DEFINING STRUCTURES TO STORE CUTS
+################################################################################
 mutable struct SampledState
     state::Dict{Symbol,Float64}
-    dominating_cut::DynamicSDDiP.NonlinearCut
+    dominating_cut::DynamicSDDiP.Cut
     best_objective::Float64
 end
 
 mutable struct LevelOneOracle
-    cuts::Vector{DynamicSDDiP.NonlinearCut}
+    cuts::Vector{DynamicSDDiP.Cut}
     states::Vector{DynamicSDDiP.SampledState}
-    cuts_to_be_deleted::Vector{DynamicSDDiP.NonlinearCut}
+    cuts_to_be_deleted::Vector{DynamicSDDiP.Cut}
     deletion_minimum::Int
     function LevelOneOracle(deletion_minimum)
-        return new(DynamicSDDiP.NonlinearCut[], SDDP.SampledState[], DynamicSDDiP.NonlinearCut[], deletion_minimum)
+        return new(DynamicSDDiP.Cut[], SDDP.SampledState[], DynamicSDDiP.Cut[], deletion_minimum)
     end
 end
 
-mutable struct NonConvexApproximation
+mutable struct CutApproximation
     theta::JuMP.VariableRef
     states::Dict{Symbol,JuMP.VariableRef}
-    objective_states::Union{Nothing,NTuple{N,JuMP.VariableRef} where {N}}
-    belief_states::Union{Nothing,Dict{T,JuMP.VariableRef} where {T}}
+    # objective_states::Union{Nothing,NTuple{N,JuMP.VariableRef} where {N}}
+    # belief_states::Union{Nothing,Dict{T,JuMP.VariableRef} where {T}}
     cut_oracle::LevelOneOracle
-    function NonConvexApproximation(
+    function CutApproximation(
         theta::JuMP.VariableRef,
         states::Dict{Symbol,JuMP.VariableRef},
-        objective_states,
-        belief_states,
+        # objective_states,
+        # belief_states,
         deletion_minimum::Int,
     )
         return new(
             theta,
             states,
-            objective_states,
-            belief_states,
+            # objective_states,
+            # belief_states,
             LevelOneOracle(deletion_minimum),
         )
     end
 end
 
 mutable struct BellmanFunction <: SDDP.AbstractBellmanFunction
-    global_theta::NonConvexApproximation
-    local_thetas::Vector{NonConvexApproximation}
+    global_theta::CutApproximation
+    local_thetas::Vector{CutApproximation}
     cut_type::SDDP.CutType
     # Cuts defining the dual representation of the risk measure.
     risk_set_cuts::Set{Vector{Float64}}
@@ -79,7 +80,7 @@ function BellmanFunction(;
     lower_bound = -Inf,
     upper_bound = Inf,
     deletion_minimum::Int = 1,
-    cut_type::SDDP.CutType = SDDP.MULTI_CUT,
+    cut_type::SDDP.CutType = SDDP.SINGLE_CUT,
 )
     return SDDP.InstanceFactory{BellmanFunction}(
         lower_bound = lower_bound,
@@ -89,14 +90,18 @@ function BellmanFunction(;
     )
 end
 
-function bellman_term(bellman_function::NCNBD.BellmanFunction)
+function bellman_term(bellman_function::DynamicSDDiP.BellmanFunction)
     return bellman_function.global_theta.theta
 end
+
+################################################################################
+# INITIALIZE BELLMAN FUNCTION
+################################################################################
 
 """
 Initializing the bellman function for the subproblems.
 """
-function initialize_bellman_function_nonconvex(
+function initialize_bellman_function(
     factory::SDDP.InstanceFactory{BellmanFunction},
     model::SDDP.PolicyGraph{T},
     node::SDDP.Node{T},
@@ -129,18 +134,22 @@ function initialize_bellman_function_nonconvex(
     upper_bound < Inf && JuMP.set_upper_bound(Θᴳ, upper_bound)
     # Initialize bounds for the objective states. If objective_state==nothing,
     # this check will be skipped by dispatch.
-    SDDP._add_initial_bounds(node.objective_state, Θᴳ)
+    # SDDP._add_initial_bounds(node.objective_state, Θᴳ)
     x′ = Dict(key => var.out for (key, var) in node.states)
-    obj_μ = node.objective_state !== nothing ? node.objective_state.μ : nothing
-    belief_μ = node.belief_state !== nothing ? node.belief_state.μ : nothing
+    ## obj_μ = node.objective_state !== nothing ? node.objective_state.μ : nothing
+    ## belief_μ = node.belief_state !== nothing ? node.belief_state.μ : nothing
     return BellmanFunction(
-        NonConvexApproximation(Θᴳ, x′, obj_μ, belief_μ, deletion_minimum),
-        NonConvexApproximation[],
+        ## CutApproximation(Θᴳ, x′, obj_μ, belief_μ, deletion_minimum),
+        CutApproximation(Θᴳ, x′, deletion_minimum),
+        CutApproximation[],
         cut_type,
         Set{Vector{Float64}}(),
     )
 end
 
+################################################################################
+# REFINE BELLMAN FUNCTION
+################################################################################
 
 """
 Refining the bellman function of a node by constructing a new cut
@@ -155,7 +164,7 @@ function refine_bellman_function(
     risk_measure::SDDP.AbstractRiskMeasure,
     trial_points::Dict{Symbol,Float64},
     anchor_points::Dict{Symbol,Float64},
-    bin_states::Vector{Dict{Symbol,BinaryState}},
+    bin_states::Dict{Symbol,BinaryState},
     dual_variables::Vector{Dict{Symbol,Float64}},
     noise_supports::Vector,
     nominal_probability::Vector{Float64},
@@ -163,12 +172,19 @@ function refine_bellman_function(
     algo_params::DynamicSDDiP.AlgoParams,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
 ) where {T}
-    # Sanity checks.
-    @assert length(dual_variables) ==
-    length(noise_supports) ==
-    length(nominal_probability) ==
-    length(objective_realizations) ==
-    length(bin_states)
+
+    ############################################################################
+    # CHECK IF ALL ELEMENTS CONTAINING INFORMATION ON ALL BACKWARD OPENINGS
+    # HAVE THE SAME/REQUIRED LENGTH
+    ############################################################################
+    @assert (length(dual_variables) == length(noise_supports)
+                                    == length(nominal_probability)
+                                    == length(objective_realizations)
+                                    )
+
+    ############################################################################
+    # RISK-RELATED PREPARATIOn
+    ############################################################################
     # Preliminaries that are common to all cut types.
     risk_adjusted_probability = similar(nominal_probability)
     offset = SDDP.adjust_probability(
@@ -180,7 +196,13 @@ function refine_bellman_function(
         model.objective_sense == MOI.MIN_SENSE,
     )
 
-    # The meat of the function.
+    ############################################################################
+    # ADD A NEW CUT TO THE CURRENT APPROXIMATION
+    ############################################################################
+    """ Note that so far only single cuts are supported by DynamicSDDiP.
+    For multi cuts some more implementation is required.
+    """
+
     if bellman_function.cut_type == SDDP.SINGLE_CUT
         return _add_average_cut(
             node,
@@ -198,16 +220,7 @@ function refine_bellman_function(
         )
     else  # Add a multi-cut
         @assert bellman_function.cut_type == SDDP.MULTI_CUT
-        #TODO: Not implemented so far
-        # SDDP._add_locals_if_necessary(node, bellman_function, length(dual_variables))
-        # return _add_multi_cut(
-        #     node,
-        #     used_trial_points,
-        #     risk_adjusted_probability,
-        #     objective_realizations,
-        #     dual_variables,
-        #     offset,
-        # )
+        # TODO: Not implemented so far, see SDDP.jl
     end
 end
 
@@ -215,14 +228,12 @@ end
 """
 Adding one more cut to the bellman function (taking expectations in stochastic case).
 """
-# Could also be shifted to SDDP.jl, since it overwrites an existing function,
-# but with additional arguments. Therefore, both methods can be distinguished.
 function _add_average_cut(
     node::SDDP.Node,
     node_index::Int64,
     trial_points::Dict{Symbol,Float64},
     anchor_points::Dict{Symbol,Float64},
-    bin_states::Vector{Dict{Symbol,BinaryState}},
+    bin_states::Dict{Symbol,BinaryState},
     risk_adjusted_probability::Vector{Float64},
     objective_realizations::Vector{Float64},
     dual_variables::Vector{Dict{Symbol,Float64}},
@@ -232,16 +243,19 @@ function _add_average_cut(
     applied_solvers::DynamicSDDiP.AppliedSolvers,
 )
 
+    # Some initializations
     N = length(risk_adjusted_probability)
-    @assert N == length(objective_realizations) == length(dual_variables) == length(bin_states)
-    bin_states = bin_states[1]
+    @assert N == length(objective_realizations) == length(dual_variables)
 
+    ############################################################################
+    # EXPECTED INTERCEPT AND DUAL VARIABLES
+    ############################################################################
     # Calculate the expected intercept and dual variables with respect to the
     # risk-adjusted probability distribution.
-    πᵏ = Dict(key => 0.0 for key in keys(bin_states))
+    πᵏ = set_up_dict_for_duals(bin_states, trial_points, algo_params.state_approximation_regime)
     θᵏ = offset
 
-    for i = 1:length(objective_realizations)
+    for i in 1:length(objective_realizations)
         p = risk_adjusted_probability[i]
         θᵏ += p * objective_realizations[i]
         for (key, dual) in dual_variables[i]
@@ -249,86 +263,109 @@ function _add_average_cut(
         end
     end
 
-    # Now add the average-cut to the subproblem. We include the objective-state
-    # component μᵀy and the belief state (if it exists).
-    obj_y = node.objective_state === nothing ? nothing : node.objective_state.state
-    belief_y = node.belief_state === nothing ? nothing : node.belief_state.belief
-
+    ############################################################################
+    # GET CORRECT SIGMA
+    ############################################################################
     # As cuts are created for the value function of the following state,
-    # we need the parameters for this stage
-    sigma = algo_params.sigma[node_index+1]
+    # we need the parameters for this stage.
+    if isa(algo_params.regularization_regime, DynamicSDDiP.NoRegularization)
+        sigma = nothing
+    else
+        sigma = algo_params.regularization_regime.sigma[node_index+1]
+    end
 
+    ############################################################################
+    # ADD THE CUT USING THE NEW EXPECTED COEFFICIENTS
+    ############################################################################
     _add_cut(
         node,
         node.bellman_function.global_theta,
-        node.ext[:lin_bellman_function].global_theta,
         θᵏ,
         πᵏ,
         bin_states,
-        trial_points,
         anchor_points,
-        obj_y,
-        belief_y,
-        algo_params.binary_precision,
+        trial_points,
+        # obj_y,
+        # belief_y,
         sigma,
         iteration,
         algo_params.infiltrate_state,
+        algo_params,
         applied_solvers,
-        cut_selection = algo_params.cut_selection
+        algo_params.state_approximation_regime,
     )
 
-    return (theta = θᵏ, pi = πᵏ, λ = bin_states, obj_y = obj_y, belief_y = belief_y)
+    return (theta = θᵏ, pi = πᵏ, λ = bin_states)
 end
 
 
 """
-Adding one more cut based on dual information.
+Adding one more cut based on dual information if BinaryApproximation is used.
 """
 # Add the cut to the model and the convex approximation.
 function _add_cut(
     node::SDDP.Node,
-    V::NonConvexApproximation,
-    V_lin::NonConvexApproximation,
-    θᵏ::Float64,
-    πᵏ::Dict{Symbol,Float64},
-    λᵏ::Dict{Symbol,BinaryState},
-    trial_points::Dict{Symbol,Float64},
-    xᵏ::Dict{Symbol,Float64},
-    obj_y::Union{Nothing,NTuple{N,Float64}},
-    belief_y::Union{Nothing,Dict{T,Float64}},
-    binary_precision::Dict{Symbol,Float64},
-    sigma::Float64,
+    V::DynamicSDDiP.CutApproximation,
+    θᵏ::Float64, # epigraph variable theta
+    πᵏ::Dict{Symbol,Float64}, # dual multipliers (cut coefficients)
+    λᵏ::Dict{Symbol,BinaryState}, # binary states (anchor point in binary space for cut using BinaryApproximation)
+    xᵏ_b::Dict{Symbol,Float64}, # anchor point for cut using BinaryApproximation
+    xᵏ::Dict{Symbol,Float64}, # trial point (anchor point for cut without BinaryApproximation), outgoing_state
+    # obj_y::Union{Nothing,NTuple{N,Float64}},
+    # belief_y::Union{Nothing,Dict{T,Float64}},
+    sigma::Union{Nothing,Float64},
     iteration::Int64,
     infiltrate_state::Symbol,
-    applied_solvers::DynamicSDDiP.AppliedSolvers;
-    cut_selection::Bool = false
+    algo_params::DynamicSDDiP.AlgoParams,
+    applied_solvers::DynamicSDDiP.AppliedSolvers,
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation,
 ) where {N,T}
 
-    # CORRECT INTERCEPT
+    ############################################################################
+    # CORRECT THE INTERCEPT (WE USE A DIFFERENT CUT FORMULA)
     ############################################################################
     for (key, λ) in λᵏ
         θᵏ -= πᵏ[key] * λᵏ[key].value
     end
-    @infiltrate infiltrate_state in [:bellman]
+    @infiltrate infiltrate_state in [:bellman, :all]
 
+    if isnothing(sigma)
+        sigma_use = nothing
+    else
+        sigma_use = copy(sigma)
+    end
+
+    ############################################################################
     # CONSTRUCT NONLINEAR CUT STRUCT
     ############################################################################
-    #TODO: Should we add λᵏ? Actually, this information is not required.
-    cut = NonlinearCut(θᵏ, πᵏ, xᵏ, λᵏ, copy(binary_precision), copy(sigma),
-                       JuMP.VariableRef[], JuMP.ConstraintRef[],
-                       JuMP.VariableRef[], JuMP.ConstraintRef[], obj_y, belief_y, 1, iteration)
+    cut = DynamicSDDiP.NonlinearCut(
+            θᵏ,
+            πᵏ,
+            xᵏ,
+            xᵏ_b,
+            λᵏ,
+            copy(state_approximation_regime.binary_precision),
+            sigma_use,
+            JuMP.VariableRef[],
+            JuMP.ConstraintRef[],
+            # obj_y,
+            # belief_y,
+            1,
+            iteration
+            )
 
-    # ADD CUT PROJECTION TO BOTH MODELS (MINLP AND MILP)
     ############################################################################
-    add_cut_constraints_to_models(node, V, V_lin, cut, infiltrate_state)
+    # ADD CUT PROJECTION TO SUBPROBLEM (we are already at the previous stage)
+    ############################################################################
+    add_cut_constraints_to_models(node, V, cut, algo_params, infiltrate_state)
 
-    if cut_selection
-        TimerOutputs.@timeit DynamicSDDiP_TIMER "cut_selection" begin
-            NCNBD._cut_selection_update(node, V, V_lin, cut, xᵏ, trial_points, applied_solvers, infiltrate_state)
-        end
-    else
-        push!(V.cut_oracle.cuts, cut)
-        push!(V_lin.cut_oracle.cuts, cut)
+    ############################################################################
+    # UPDATE CUT SELECTION
+    ############################################################################
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "cut_selection" begin
+        DynamicSDDiP._cut_selection_update(node, V, cut, xᵏ_b, xᵏ,
+            applied_solvers, algo_params, infiltrate_state,
+            algo_params.cut_selection_regime)
     end
 
     return
@@ -336,179 +373,149 @@ end
 
 
 """
-Adding the constraints to described the new cut to the subproblems.
+Adding the new cut to the subproblem in case of a NonlinearCut.
 """
 function add_cut_constraints_to_models(
     node::SDDP.Node,
-    V::NonConvexApproximation,
-    V_lin::NonConvexApproximation,
-    cut::NonlinearCut,
-    #λᵏ::Dict{Symbol,Float64},
+    V::DynamicSDDiP.CutApproximation,
+    cut::DynamicSDDiP.NonlinearCut,
+    algo_params::DynamicSDDiP.AlgoParams,
     infiltrate_state::Symbol,
     )
 
+    ############################################################################
+    # SOME INITIALIZATIONS
+    ############################################################################
     model = JuMP.owner_model(V.theta)
     @assert model == node.subproblem
 
-    model_lin = JuMP.owner_model(V_lin.theta)
-    @assert model_lin == node.ext[:linSubproblem]
+    number_of_states = length(node.states)
 
-    # In gamma, all lambda (or here gamma) variables are stored,
-    # such that they can be multiplied with the cut_coefficients (the coefficients
-    # relate to the lambdas, but cannot be directly matched with the original states anymore
-    # as they are written into one vector)
-    # All other constraints and variables are introduced per state component
-    gamma = JuMP.VariableRef[]
-    gamma_lin = JuMP.VariableRef[]
-    allCoefficients = Float64[]
-    allCoefficients_lin = Float64[]
+    """
+    Later on, in the cut formula, for each component of the dual vector
+    (in the binary space), we want to multiply the correct cut_coefficient
+    with a newly introduced (relaxed) binary variable.
 
-    duals_so_far = 0
-    duals_lin_so_far = 0
+    We use the vector all_lambda to store all these [0,1] variables.
+    Additionally, we make sure that at the same index of the vector
+    all_coefficients the corresponding cut_coefficient is stored.
 
-    # NOTE: Next steps are only done based on lin_states,
-    # since normal SDDP states do not have an info argument.
+    In some cases to represent the cut projection closure, we need similar
+    vector storages all_eta and all_mu.
 
-    # Determine maximum U for Big M constant
-    Umax = 0
-    for (i, (name, state_comp)) in enumerate(node.ext[:lin_states])
-        if state_comp.info.out.upper_bound > Umax
-            Umax = state_comp.info.out.upper_bound
-        end
-    end
+    All other constraints and variables are introduced per state component.
 
-    # ADD NEW VARIABLES AND CONSTRAINTS FOR CUT PROJECTION
+    K_tilde counts how many components of the duals (in the binary space)
+    have been considered so far.
+    """
+    all_coefficients = Float64[]
+    all_lambda = JuMP.VariableRef[]
+    all_eta = JuMP.VariableRef[]
+    all_mu = JuMP.VariableRef[]
+    K_tilde = 0
+
     ############################################################################
-    for (i, (name, state_comp)) in enumerate(node.ext[:lin_states])
-        if state_comp.info.out.binary
+    # ADD NEW VARIABLES AND CONSTRAINTS
+    ############################################################################
+    for (state_index, (state_name, state_comp)) in enumerate(node.states)
+        """
+        If a state is binary already, it may be possible to abstain from
+        introducing the cut projection / KKT constraints. That's actually
+        what I did in the NCNBD implementation. For example, it seems
+        unnecessary to introduce a new (relaxed) binary variable then.
+        However, I am not absolutely sure if we in fact do not require
+        the other constraints. Therefore, in this version, I also included
+        them for binary state variables. At least, if StrongDuality is used,
+        they are required anyway.
+        """
 
-            # No cut projection required in binary state
-            # Store states in gamma though for general cut expression
-            push!(gamma, V.states[name])
-            duals_so_far += 1
+        variable_info = node.ext[:state_info_storage][state_name].out
 
-            push!(gamma_lin, V_lin.states[name])
-            duals_lin_so_far += 1
+        if (!isfinite(variable_info.upper_bound) || !variable_info.has_ub) && !variable_info.binary
+            error("When using DynamicSDDiP, state variables require an upper bound.")
+        end
 
-            # Determine correct coefficient and add it to allCoefficients
-            # Maybe possible with where-statement
-            relatedCoefficient = 0.0
-            for (i, (bin_name, value)) in enumerate(cut.coefficients)
-                if cut.binary_state[bin_name].x_name == name
-                    relatedCoefficient = cut.coefficients[bin_name]
-                end
-            end
-            push!(allCoefficients, relatedCoefficient)
-            push!(allCoefficients_lin, relatedCoefficient)
-
+        ####################################################################
+        # DETERMINE K (number of [0,1] variables required) AND BETA
+        ####################################################################
+        if variable_info.binary
+            beta = 1
+            K = 1
+        elseif variable_info.integer
+            beta = 1
+            K = SDDP._bitsrequired(variable_info.upper_bound)
         else
-            if !isfinite(state_comp.info.out.upper_bound) || !state_comp.info.out.has_ub
-            error("When using SDDiP, state variables require an upper bound.")
-            end
-
-            if state_comp.info.out.integer
-                K = SDDP._bitsrequired(state_comp.info.out.upper_bound)
-                epsilon = 1
-            else
-                epsilon = cut.binary_precision[name]
-                K = SDDP._bitsrequired(round(Int, state_comp.info.out.upper_bound / epsilon))
-            end
-
-            # Call function to add projection constraints and variables to
-            # model and model_Lin
-            duals_so_far = add_cut_projection_to_model!(
-                                model,
-                                V.states[name],
-                                name,
-                                cut.coefficients,
-                                cut.binary_state,
-                                gamma,
-                                allCoefficients,
-                                cut.iteration,
-                                K,
-                                epsilon,
-                                cut.sigma,
-                                cut.cutVariables,
-                                cut.cutConstraints,
-                                i,
-                                duals_so_far,
-                                Umax,
-                                infiltrate_state)
-            duals_lin_so_far = add_cut_projection_to_model!(
-                                model_lin,
-                                V_lin.states[name],
-                                name,
-                                cut.coefficients,
-                                cut.binary_state,
-                                gamma_lin,
-                                allCoefficients_lin,
-                                cut.iteration,
-                                K,
-                                epsilon,
-                                cut.sigma,
-                                cut.cutVariables_lin,
-                                cut.cutConstraints_lin,
-                                i,
-                                duals_lin_so_far,
-                                Umax,
-                                infiltrate_state)
-
+            beta = cut.binary_precision[state_name]
+            K = SDDP._bitsrequired(round(Int, variable_info.upper_bound / beta))
         end
+
+        ####################################################################
+        # DEFINE CUT PROJECTION CLOSURE
+        ####################################################################
+        # For the current state component add all required variables
+        # and constraints to represent the cut projection closure
+        K_tilde = represent_cut_projection_closure!(
+                    model,
+                    node,
+                    ########################################################
+                    V.states[state_name], # state_comp
+                    state_name,
+                    state_index,
+                    ########################################################
+                    cut.coefficients,
+                    cut.binary_state,
+                    cut.sigma,
+                    cut.cut_variables,
+                    cut.cut_constraints,
+                    cut.iteration,
+                    beta,
+                    ########################################################
+                    all_coefficients,
+                    all_lambda,
+                    all_eta,
+                    all_mu,
+                    ########################################################
+                    K,
+                    K_tilde,
+                    ########################################################
+                    infiltrate_state,
+                    ########################################################
+                    algo_params.state_approximation_regime.cut_projection_regime
+                    )
+
     end
 
-    # ADD ORIGINAL CUT DESCRIPTION
+    @infiltrate infiltrate_state in [:bellman, :all]
+
     ############################################################################
-    yᵀμ = JuMP.AffExpr(0.0)
-    # if V.objective_states !== nothing
-    #     for (y, μ) in zip(cut.obj_y, V.objective_states)
-    #         JuMP.add_to_expression!(yᵀμ, y, μ)
-    #     end
-    # end
-    # if V.belief_states !== nothing
-    #     for (k, μ) in V.belief_states
-    #         JuMP.add_to_expression!(yᵀμ, cut.belief_y[k], μ)
-    #     end
-    # end
-
-    @infiltrate infiltrate_state in [:bellman]
-
-    @assert (size(gamma, 1) == size(collect(values(cut.coefficients)), 1)
-                           == duals_so_far
-                           == duals_lin_so_far
-                           == size(gamma_lin, 1)
-                           == size(allCoefficients, 1)
-                           == size(allCoefficients_lin, 1)
-                           )
-                           # == size(collect(values(λᵏ)), 1)
-    number_of_duals = size(gamma, 1)
-
-    # TO ORIGINAL MODEL
+    # MAKE SOME VALIDITY CHECKS
     ############################################################################
-    expr = @expression(
-        model,
-        V.theta + yᵀμ - sum(allCoefficients[j] * gamma[j]  for j=1:number_of_duals)
-    )
+    validity_checks!(cut, V, K_tilde, all_lambda, all_mu, all_eta,
+        all_coefficients, number_of_states,
+        algo_params.state_approximation_regime.cut_projection_regime)
+
+    number_of_duals = size(all_lambda, 1)
+
+    ############################################################################
+    # ADD THE ORIGINAL CUT CONSTRAINT AS WELL
+    ############################################################################
+    expr = get_cut_expression(model, node, V, all_lambda, all_mu, all_eta,
+        all_coefficients, number_of_states, number_of_duals,
+        algo_params.state_approximation_regime.cut_projection_regime)
 
     constraint_ref = if JuMP.objective_sense(model) == MOI.MIN_SENSE
         @constraint(model, expr >= cut.intercept)
     else
         @constraint(model, expr <= cut.intercept)
     end
-    push!(cut.cutConstraints, constraint_ref)
+    push!(cut.cut_constraints, constraint_ref)
 
-    # TO LINEAR MODEL
     ############################################################################
-    expr_lin = @expression(
-        model_lin,
-        V_lin.theta + yᵀμ - sum(allCoefficients[j] * gamma_lin[j]  for j=1:number_of_duals)
-    )
-
-    constraint_ref_lin = if JuMP.objective_sense(model_lin) == MOI.MIN_SENSE
-        @constraint(model_lin, expr_lin >= cut.intercept)
-    else
-        @constraint(model_lin, expr_lin <= cut.intercept)
-    end
-    push!(cut.cutConstraints_lin, constraint_ref_lin)
+    # ADD SOS1 STRONG DUALITY CONSTRAINT
+    ############################################################################
+    add_strong_duality_cut!(model, node, cut, V, all_lambda, all_mu, all_eta,
+        all_coefficients, number_of_states, number_of_duals,
+        algo_params.state_approximation_regime.cut_projection_regime)
 
     return
 
@@ -516,385 +523,709 @@ end
 
 
 """
-Defining the constraints and variables corresponding to the cut projection
-from binary to original space.
+Defining the constraints and variables corresponding to representing
+the cut projection closure.
 """
-function add_cut_projection_to_model!(
+function represent_cut_projection_closure!(
     model::JuMP.Model,
+    node::SDDP.Node,
+    ########################################################
     state_comp::JuMP.VariableRef,
     state_name::Symbol,
+    state_index::Int64,
+    ########################################################
     coefficients::Dict{Symbol,Float64},
     binary_state::Dict{Symbol,BinaryState},
-    gamma::Vector{JuMP.VariableRef},
-    allCoefficients::Vector{Float64},
+    sigma::Union{Nothing,Float64},
+    cut_variables::Vector{JuMP.VariableRef},
+    cut_constraints::Vector{JuMP.ConstraintRef},
     iteration::Int64,
+    beta::Float64,
+    ########################################################
+    all_coefficients::Vector{Float64},
+    all_lambda::Vector{JuMP.VariableRef},
+    all_eta::Vector{JuMP.VariableRef},
+    all_mu::Vector{JuMP.VariableRef},
+    ########################################################
     K::Int64,
-    epsilon::Float64,
-    sigma::Float64,
-    cutVariables::Vector{JuMP.VariableRef},
-    cutConstraints::Vector{JuMP.ConstraintRef},
-    i::Int64,
-    duals_so_far::Int64,
-    Umax::Float64,
+    K_tilde::Int64,
+    ########################################################
     infiltrate_state::Symbol,
+    ########################################################
+    cut_projection_regime::Union{DynamicSDDiP.SOS1, DynamicSDDiP.BigM, DynamicSDDiP.KKT}
     )
 
-    # ADD VARIABLES FOR CUT PROJECTION
-    ####################################################################
-    ν = JuMP.@variable(model, [k in 1:K], lower_bound=0, base_name = "ν_" * string(i) * "_it" * string(iteration))
-    μ = JuMP.@variable(model, [k in 1:K], lower_bound=0, base_name = "μ_" * string(i) * "_it" * string(iteration))
-    η = JuMP.@variable(model, base_name = "η_" * string(i) * "_it" * string(iteration))
-    γ = JuMP.@variable(model, [k in 1:K], lower_bound=0, upper_bound=1, base_name = "γ_" * string(i) * "_it" * string(iteration))
-    w = JuMP.@variable(model, [k in 1:K], binary=true, base_name = "w_" * string(i) * "_it" * string(iteration))
-    u = JuMP.@variable(model, [k in 1:K], binary=true, base_name = "u_" * string(i) * "_it" * string(iteration))
-    append!(gamma, γ)
-
-    #Store those variables!
-    append!(cutVariables, ν)
-    append!(cutVariables, μ)
-    push!(cutVariables, η)
-    #append!(cutVariables, γ)
-    append!(cutVariables, w)
-    append!(cutVariables, u)
-
-    # ADD BINARY EXPANSION CONSTRAINT
-    ####################################################################
-    binary_constraint = JuMP.@constraint(
-        model,
-        state_comp == SDDP.bincontract([γ[k] for k = 1:K], epsilon)
-    )
-    push!(cutConstraints, binary_constraint)
-
-    # ADD KKT CONSTRAINT
-    ####################################################################
-    relatedCoefficients = Vector{Float64}(undef, K)
+    ############################################################################
+    # STORE THE RELATED CUT COEFFICIENTS π
+    ############################################################################
+    related_coefficients = Vector{Float64}(undef, K)
 
     for (i, (name, value)) in enumerate(coefficients)
         if binary_state[name].x_name == state_name
             index = binary_state[name].k
-            relatedCoefficients[index] = coefficients[name]
+            related_coefficients[index] = coefficients[name]
         end
     end
-    append!(allCoefficients, relatedCoefficients)
+    append!(all_coefficients, related_coefficients)
 
-    kkt_constraints = JuMP.@constraint(
+    ############################################################################
+    # ADD REQUIRED VARIABLES (CPC-CONSTRAINTS 4, 5)
+    ############################################################################
+    """
+    Note that we use gamma instead of lambda here to avoid misconstructions
+    compared to the binary approximation in the backward pass.
+    """
+    γ = JuMP.@variable(model, [k in 1:K], lower_bound=0, upper_bound=1, base_name = "γ_" * string(state_index) * "_it" * string(iteration))
+    ν = JuMP.@variable(model, [k in 1:K], lower_bound=0, base_name = "ν_" * string(state_index) * "_it" * string(iteration))
+    μ = JuMP.@variable(model, [k in 1:K], lower_bound=0, base_name = "μ_" * string(state_index) * "_it" * string(iteration))
+    η = JuMP.@variable(model, base_name = "η_" * string(state_index) * "_it" * string(iteration))
+
+    # Store those variables in the storing vectors
+    append!(all_lambda, γ)
+    append!(all_mu, μ)
+    push!(all_eta, η)
+
+    # Store those variables as cut_variables for the existing cut
+    append!(cut_variables, γ)
+    append!(cut_variables, ν)
+    append!(cut_variables, μ)
+    push!(cut_variables, η)
+
+    ############################################################################
+    # ADD BINARY EXPANSION CONSTRAINT (CPC-CONSTRAINT 3)
+    ############################################################################
+    binary_constraint = JuMP.@constraint(
+        model,
+        state_comp == SDDP.bincontract([γ[k] for k in 1:K], beta)
+    )
+    push!(cut_constraints, binary_constraint)
+
+    ############################################################################
+    # ADD DUAL FEASIBILITY CONSTRAINTS (CPC-CONSTRAINT 2)
+    ############################################################################
+    primal_feas_constraints = JuMP.@constraint(
         model,
         [k=1:K],
-        -relatedCoefficients[k] - ν[k] + μ[k] + 2^(k-1) * epsilon * η == 0
+        -related_coefficients[k] - ν[k] + μ[k] + 2^(k-1) * beta * η == 0
     )
-    append!(cutConstraints, kkt_constraints)
+    append!(cut_constraints, primal_feas_constraints)
 
-    # ADD BIG M CONSTRAINTS
-    ####################################################################
-    #bigM = 2 * sigma * Umax
+    ############################################################################
+    # ADD COMPLEMENTARITY CONSTRAINTS
+    ############################################################################
+    add_complementarity_constraints!(
+        model,
+        node,
+        ########################################################################
+        state_index,
+        ########################################################################
+        cut_variables,
+        cut_constraints,
+        sigma,
+        iteration,
+        beta,
+        ########################################################################
+        related_coefficients,
+        ########################################################################
+        γ,
+        μ,
+        ν,
+        ########################################################################
+        K,
+        ########################################################################
+        infiltrate_state,
+        ########################################################################
+        cut_projection_regime
+    )
 
-    # new method for Big-M, since earlier method was probably not correct
-    bigM = 0
-    for k in 1:K
-        candidate = Umax * (sigma + abs(relatedCoefficients[k]) / (2^(k-1) * epsilon))
-        if bigM < candidate
-            bigM = candidate
-        end
-    end
-    # bigM = sigma
+    ############################################################################
+    # INCREASE K_tilde
+    ############################################################################
+    K_tilde += K
 
-    @infiltrate infiltrate_state in [:bellman]
+    return K_tilde
 
+end
+
+"""
+Function representing complementarity constraints using projection_regime KKT.
+"""
+function add_complementarity_constraints!(
+    model::JuMP.Model,
+    node::SDDP.Node,
+    ########################################################################
+    state_index::Int64,
+    ########################################################################
+    cut_variables::Vector{JuMP.VariableRef},
+    cut_constraints::Vector{JuMP.ConstraintRef},
+    sigma::Union{Nothing,Float64},
+    iteration::Int64,
+    beta::Float64,
+    ########################################################################
+    related_coefficients::Vector{Float64},
+    ########################################################################
+    γ::Vector{JuMP.VariableRef},
+    μ::Vector{JuMP.VariableRef},
+    ν::Vector{JuMP.VariableRef},
+    ########################################################################
+    K::Int64,
+    ########################################################################
+    infiltrate_state::Symbol,
+    ########################################################################
+    cut_projection_regime::DynamicSDDiP.KKT,
+)
+
+    @infiltrate infiltrate_state in [:bellman, :all]
+
+    ############################################################################
+    # ADD COMPLEMENTARITY CONSTRAINTS
+    ############################################################################
+    complementarity_constraint_1 = JuMP.@constraint(
+        model,
+        [k=1:K],
+        ν[k] * γ[k] == 0
+    )
+    append!(cut_constraints, complementarity_constraint_1)
+
+    complementarity_constraint_2 = JuMP.@constraint(
+        model,
+        [k=1:K],
+        μ[k] * (γ[k]-1) == 0
+    )
+    append!(cut_constraints, complementarity_constraint_2)
+
+    return
+
+end
+
+
+"""
+Function representing complementarity constraints using projection_regime BigM.
+"""
+function add_complementarity_constraints!(
+    model::JuMP.Model,
+    node::SDDP.Node,
+    ########################################################################
+    state_index::Int64,
+    ########################################################################
+    cut_variables::Vector{JuMP.VariableRef},
+    cut_constraints::Vector{JuMP.ConstraintRef},
+    sigma::Union{Nothing,Float64},
+    iteration::Int64,
+    beta::Float64,
+    ########################################################################
+    related_coefficients::Vector{Float64},
+    ########################################################################
+    γ::Vector{JuMP.VariableRef},
+    μ::Vector{JuMP.VariableRef},
+    ν::Vector{JuMP.VariableRef},
+    ########################################################################
+    K::Int64,
+    ########################################################################
+    infiltrate_state::Symbol,
+    ########################################################################
+    cut_projection_regime::DynamicSDDiP.BigM,
+)
+
+    @infiltrate infiltrate_state in [:bellman, :all]
+
+    ############################################################################
+    # ADD ADDITIONAL BINARY VARIABLES
+    ############################################################################
+    w = JuMP.@variable(model, [k in 1:K], binary=true, base_name = "w_" * string(state_index) * "_it" * string(iteration))
+    u = JuMP.@variable(model, [k in 1:K], binary=true, base_name = "u_" * string(state_index) * "_it" * string(iteration))
+    append!(cut_variables, w)
+    append!(cut_variables, u)
+
+    ############################################################################
+    # DETERMINE BIG-M PARAMETER
+    ############################################################################
+    # TODO: Could be further improved later on
+    bigM = get_bigM(node, sigma, beta, related_coefficients, K)
+
+    ############################################################################
+    # ADD BIG-M CONSTRAINTS
+    ############################################################################
     bigM_11_constraints = JuMP.@constraint(
         model,
         [k=1:K],
         γ[k] <= w[k]
     )
-    append!(cutConstraints, bigM_11_constraints)
+    append!(cut_constraints, bigM_11_constraints)
 
     bigM_12_constraints = JuMP.@constraint(
         model,
         [k=1:K],
         ν[k] <= bigM * (1-w[k])
     )
-    append!(cutConstraints, bigM_12_constraints)
+    append!(cut_constraints, bigM_12_constraints)
 
     bigM_21_constraints = JuMP.@constraint(
         model,
         [k=1:K],
         1 - γ[k] <= u[k]
     )
-    append!(cutConstraints, bigM_21_constraints)
+    append!(cut_constraints, bigM_21_constraints)
 
     bigM_22_constraints = JuMP.@constraint(
         model,
         [k=1:K],
         μ[k] <= bigM * (1-u[k])
     )
-    append!(cutConstraints, bigM_22_constraints)
+    append!(cut_constraints, bigM_22_constraints)
 
-    duals_so_far += K
-
-    return duals_so_far
+    return
 
 end
 
 
 """
-Simple cut selection feature.
+Determine a reasonable bigM value based on the maximum upper bound of all state
+components, sigma and beta. This could be improved later.
 """
-# Internal function: update the Level-One datastructures inside `bellman_function`.
-function _cut_selection_update(
+function get_bigM(node::SDDP.Node, sigma::Union{Nothing,Float64}, beta::Float64, related_coefficients::Vector{Float64}, K::Int64)
+
+    ############################################################################
+    # DETERMINE U_MAX
+    ############################################################################
+    U_max = 0
+    for (i, (name, state)) in enumerate(node.states)
+        variable_info = node.ext[:state_info_storage][name].out
+
+        upper_bound = -Inf
+        if variable_info.binary
+            upper_bound = 1
+        elseif variable_info.has_ub
+            upper_bound = variable_info.upper_bound
+        end
+
+        if upper_bound > U_max
+            U_max = upper_bound
+        end
+
+    end
+
+    ############################################################################
+    # DETERMINE BIG-M
+    ############################################################################
+    bigM = 0
+    if isnothing(sigma)
+        # no regularization is used, so bigM is just bounded by an arbitrary value
+        bigM = 1e4
+    else
+        for k in 1:K
+            candidate = U_max * (sigma + abs(related_coefficients[k]) / (2^(k-1) * beta))
+            if bigM < candidate
+                bigM = candidate
+            end
+        end
+        # bigM = sigma
+    end
+
+    return bigM
+end
+
+
+"""
+Function representing complementarity constraints using projection_regime KKT.
+"""
+function add_complementarity_constraints!(
+    model::JuMP.Model,
     node::SDDP.Node,
-    V::NCNBD.NonConvexApproximation,
-    V_lin::NCNBD.NonConvexApproximation,
-    cut::NCNBD.NonlinearCut,
-    anchor_state::Dict{Symbol,Float64},
-    trial_state::Dict{Symbol,Float64},
-    applied_solvers::NCNBD.AppliedSolvers,
+    ########################################################################
+    state_index::Int64,
+    ########################################################################
+    cut_variables::Vector{JuMP.VariableRef},
+    cut_constraints::Vector{JuMP.ConstraintRef},
+    sigma::Union{Nothing,Float64},
+    iteration::Int64,
+    beta::Float64,
+    ########################################################################
+    related_coefficients::Vector{Float64},
+    ########################################################################
+    γ::Vector{JuMP.VariableRef},
+    μ::Vector{JuMP.VariableRef},
+    ν::Vector{JuMP.VariableRef},
+    ########################################################################
+    K::Int64,
+    ########################################################################
     infiltrate_state::Symbol,
+    ########################################################################
+    cut_projection_regime::DynamicSDDiP.SOS1,
 )
-    # if cut.obj_y !== nothing || cut.belief_y !== nothing
-    #     # Skip cut selection if belief or objective states present.
-    #     push!(V.cut_oracle.cuts, cut)
-    #     return
-    # end
 
-    # GET MODEL INFORMATION
+    @infiltrate infiltrate_state in [:bellman, :all]
+
     ############################################################################
-    model = JuMP.owner_model(V.theta)
-    model_lin = JuMP.owner_model(V_lin.theta)
-    is_minimization = JuMP.objective_sense(model) == MOI.MIN_SENSE
-    oracle = V.cut_oracle
-    oracle_lin = V_lin.cut_oracle
-
-    # GET TRIAL STATE AND BINARY STATE
+    # AUXILIARY VARIABLE
     ############################################################################
-    sampled_state_anchor = NCNBD.SampledState(anchor_state, cut, _eval_height(node, cut, anchor_state, applied_solvers))
-    sampled_state_trial = NCNBD.SampledState(trial_state, cut, _eval_height(node, cut, trial_state, applied_solvers))
+    # First represent γ[k]-1 as a new variable
+    ρ = JuMP.@variable(model, [k in 1:K], lower_bound=0, upper_bound=1, base_name = "ρ_" * string(state_index) * "_it" * string(iteration))
+    append!(cut_variables, ρ)
 
-    # NOTE: By considering both type of states, we have way more states than
-    # cuts, so we may not eliminiate that many cuts.
-    # On the other hand, only considering the trial points is not sufficient,
-    # because it may lead to creating the same cuts over and over again if the
-    # binary approximation is not refined.
+    ρ_constraint = JuMP.@constraint(model, [k in 1:K], ρ[k] == 1 - γ[k])
+    append!(cut_constraints, ρ_constraint)
 
-    # LOOP THROUGH PREVIOUSLY VISITED STATES (ANCHOR OR TRIAL STATES)
     ############################################################################
-    # Loop through previously sampled states and compare the height of the most recent cut
-    # against the current best. If this new cut is an improvement, store this one instead.
-    for old_state in oracle.states
-        height = _eval_height(node, cut, old_state.state, applied_solvers)
-        if SDDP._dominates(height, old_state.best_objective, is_minimization)
-            old_state.dominating_cut.non_dominated_count -= 1
-            cut.non_dominated_count += 1
-            old_state.dominating_cut = cut
-            old_state.best_objective = height
-        end
-    end
-    push!(oracle.states, sampled_state_anchor)
-    push!(oracle.states, sampled_state_trial)
-    push!(oracle_lin.states, sampled_state_anchor)
-    push!(oracle_lin.states, sampled_state_trial)
-
-    # LOOP THROUGH PREVIOUSLY VISITED CUTS
+    # ADD SOS1 CONSTRAINTS
     ############################################################################
-    # Now loop through previously discovered cuts and compare their height at
-    # `sampled_state`. If a cut is an improvement, add it to a queue to be added.
-    for old_cut in oracle.cuts
-        if !isempty(old_cut.cutConstraints)
-            # We only care about cuts not currently in the model.
-            continue
-        end
-
-        # For anchor state (is this required? the cuts should be tight here and
-        # we also do not have a stochastic program)
-        height = _eval_height(node, old_cut, anchor_state, applied_solvers)
-        if SDDP._dominates(height, sampled_state_anchor.best_objective, is_minimization)
-            sampled_state_anchor.dominating_cut.non_dominated_count -= 1
-            old_cut.non_dominated_count += 1
-            sampled_state_anchor.dominating_cut = old_cut
-            sampled_state_anchor.best_objective = height
-            add_cut_constraints_to_models(node, V, V_lin, old_cut, infiltrate_state)
-        end
-
-        # For trial state
-        height = _eval_height(node, old_cut, trial_state, applied_solvers)
-        if SDDP._dominates(height, sampled_state_trial.best_objective, is_minimization)
-            sampled_state_trial.dominating_cut.non_dominated_count -= 1
-            old_cut.non_dominated_count += 1
-            sampled_state_trial.dominating_cut = old_cut
-            sampled_state_trial.best_objective = height
-            add_cut_constraints_to_models(node, V, V_lin, old_cut, infiltrate_state)
-        end
-    end
-    push!(oracle.cuts, cut)
-    push!(oracle_lin.cuts, cut)
-
-    # DETERMINE CUTS TO BE DELETED
-    ############################################################################
-    #NOTE: The cuts to be deleted should be the same for V and V_lin,
-    #so in principle, it should not be required to determine this in two loops
-
-    for cut in V.cut_oracle.cuts
-        if cut.non_dominated_count < 1
-            if !isempty(cut.cutConstraints)
-                push!(oracle.cuts_to_be_deleted, cut)
-            end
-        end
+    for k in 1:K
+        SOS1_constraint_1 = JuMP.@constraint(model, [γ[k], ν[k]] in JuMP.SOS1())
+        SOS1_constraint_2 = JuMP.@constraint(model, [μ[k], ρ[k]] in JuMP.SOS1())
+        push!(cut_constraints, SOS1_constraint_1)
+        push!(cut_constraints, SOS1_constraint_2)
     end
 
-    for cut in V_lin.cut_oracle.cuts
-        if cut.non_dominated_count < 1
-            if !isempty(cut.cutConstraints_lin)
-                push!(oracle_lin.cuts_to_be_deleted, cut)
-            end
-        end
-    end
+    return
 
-    # DELETE CUTS FOR V AND V_LIN
+end
+
+
+"""
+Defining the constraints and variables corresponding to representing
+the cut projection closure if StrongDuality is exploited.
+"""
+function represent_cut_projection_closure!(
+    model::JuMP.Model,
+    node::SDDP.Node,
+    ########################################################
+    state_comp::JuMP.VariableRef,
+    state_name::Symbol,
+    state_index::Int64,
+    ########################################################
+    coefficients::Dict{Symbol,Float64},
+    binary_state::Dict{Symbol,BinaryState},
+    sigma::Union{Nothing,Float64},
+    cut_variables::Vector{JuMP.VariableRef},
+    cut_constraints::Vector{JuMP.ConstraintRef},
+    iteration::Int64,
+    beta::Float64,
+    ########################################################
+    all_coefficients::Vector{Float64},
+    all_lambda::Vector{JuMP.VariableRef},
+    all_eta::Vector{JuMP.VariableRef},
+    all_mu::Vector{JuMP.VariableRef},
+    ########################################################
+    K::Int64,
+    K_tilde::Int64,
+    ########################################################
+    infiltrate_state::Symbol,
+    ########################################################
+    cut_projection_regime::DynamicSDDiP.StrongDuality
+    )
+
     ############################################################################
-    if length(oracle.cuts_to_be_deleted) >= oracle.deletion_minimum
-        for cut in oracle.cuts_to_be_deleted
-            for variable_ref in cut.cutVariables
-                JuMP.delete(model, variable_ref)
-            end
-            for constraint_ref in cut.cutConstraints
-                JuMP.delete(model, constraint_ref)
-            end
-            cut.cutVariables = JuMP.VariableRef[]
-            cut.cutConstraints = JuMP.ConstraintRef[]
-
-            #cut.non_dominated_count = 0
-        end
-    end
-    empty!(oracle.cuts_to_be_deleted)
-
-    if length(oracle_lin.cuts_to_be_deleted) >= oracle_lin.deletion_minimum
-        for cut in oracle_lin.cuts_to_be_deleted
-            for variable_ref in cut.cutVariables_lin
-                JuMP.delete(model_lin, variable_ref)
-            end
-            for constraint_ref in cut.cutConstraints_lin
-                JuMP.delete(model_lin, constraint_ref)
-            end
-            cut.cutVariables_lin = JuMP.VariableRef[]
-            cut.cutConstraints_lin = JuMP.ConstraintRef[]
-
-            cut.non_dominated_count = 0
-        end
-    end
-    empty!(oracle_lin.cuts_to_be_deleted)
-
-    # DETERMINE NUMBER OF CUTS FOR LOGGING
+    # STORE THE RELATED CUT COEFFICIENTS π
     ############################################################################
-    node.ext[:total_cuts] = size(V_lin.cut_oracle.cuts, 1)
-    counter = 0
-    for cut in V_lin.cut_oracle.cuts
-        if !isempty(cut.cutConstraints_lin)
-            counter += 1
+    related_coefficients = Vector{Float64}(undef, K)
+
+    for (i, (name, value)) in enumerate(coefficients)
+        if binary_state[name].x_name == state_name
+            index = binary_state[name].k
+            related_coefficients[index] = coefficients[name]
         end
     end
-    node.ext[:active_cuts] = counter
+    append!(all_coefficients, related_coefficients)
+
+    ############################################################################
+    # ADD REQUIRED VARIABLES (CPC-CONSTRAINTS 4, 5)
+    ############################################################################
+    μ = JuMP.@variable(model, [k in 1:K], lower_bound=0, base_name = "μ_" * string(state_index) * "_it" * string(iteration))
+    η = JuMP.@variable(model, base_name = "η_" * string(state_index) * "_it" * string(iteration))
+
+    # Store those variables in the storing vectors
+    append!(all_mu, μ)
+    push!(all_eta, η)
+
+    # Store those variables as cut_variables for the existing cut
+    append!(cut_variables, μ)
+    push!(cut_variables, η)
+
+    ############################################################################
+    # ADD DUAL FEASIBILITY CONSTRAINTS (CPC-CONSTRAINT 2d)
+    ############################################################################
+    primal_feas_constraints = JuMP.@constraint(
+        model,
+        [k=1:K],
+        μ[k] + 2^(k-1) * beta * η >= related_coefficients[k]
+    )
+    append!(cut_constraints, primal_feas_constraints)
+
+    ############################################################################
+    # INCREASE K_tilde
+    ############################################################################
+    K_tilde += K
+
+    return K_tilde
+
+end
+
+
+################################################################################
+# AUXILIARY FUNCTIONS
+################################################################################
+
+function set_up_dict_for_duals(
+    bin_states::Dict{Symbol,BinaryState},
+    trial_points::Dict{Symbol,Float64},
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation
+    )
+
+    return Dict(key => 0.0 for key in keys(bin_states))
+end
+
+function set_up_dict_for_duals(
+    bin_states::Dict{Symbol,BinaryState},
+    trial_points::Dict{Symbol,Float64},
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation
+    )
+
+    return Dict(key => 0.0 for key in keys(trial_points))
+end
+
+function validity_checks!(
+    cut::DynamicSDDiP.NonlinearCut,
+    V::DynamicSDDiP.CutApproximation,
+    K_tilde::Int64,
+    all_lambda::Vector{JuMP.VariableRef},
+    all_mu::Vector{JuMP.VariableRef},
+    all_eta::Vector{JuMP.VariableRef},
+    all_coefficients::Vector{Float64},
+    number_of_states::Int64,
+    cut_projection_regime::Union{DynamicSDDiP.SOS1,DynamicSDDiP.BigM,DynamicSDDiP.KKT},
+    )
+
+    @assert (K_tilde == size(collect(values(cut.coefficients)), 1)
+                    == size(all_coefficients, 1)
+                    == size(all_mu, 1)
+                    == size(all_lambda, 1)
+                    )
+    @assert (number_of_states == size(all_eta, 1)
+                              == length(V.states)
+                              )
+
+    return
+end
+
+function validity_checks!(
+    cut::DynamicSDDiP.NonlinearCut,
+    V::DynamicSDDiP.CutApproximation,
+    K_tilde::Int64,
+    all_lambda::Vector{JuMP.VariableRef},
+    all_mu::Vector{JuMP.VariableRef},
+    all_eta::Vector{JuMP.VariableRef},
+    all_coefficients::Vector{Float64},
+    number_of_states::Int64,
+    cut_projection_regime::DynamicSDDiP.StrongDuality,
+    )
+
+    @assert (K_tilde == size(collect(values(cut.coefficients)), 1)
+                    == size(all_coefficients, 1)
+                    == size(all_mu, 1)
+                    )
+
+    @assert (number_of_states == size(all_eta, 1)
+                              == length(V.states)
+                              )
+
+    return
+end
+
+function get_cut_expression(
+    model::JuMP.Model,
+    node::SDDP.Node,
+    V::DynamicSDDiP.CutApproximation,
+    all_lambda::Vector{JuMP.VariableRef},
+    all_mu::Vector{JuMP.VariableRef},
+    all_eta::Vector{JuMP.VariableRef},
+    all_coefficients::Vector{Float64},
+    number_of_states::Int64,
+    number_of_duals::Int64,
+    cut_projection_regime::Union{DynamicSDDiP.SOS1,DynamicSDDiP.BigM,DynamicSDDiP.KKT},
+    )
+
+    expr = JuMP.@expression(
+        model,
+        V.theta - sum(all_coefficients[j] * all_lambda[j]  for j in 1:number_of_duals)
+    )
+
+    return expr
+end
+
+function get_cut_expression(
+    model::JuMP.Model,
+    node::SDDP.Node,
+    V::DynamicSDDiP.CutApproximation,
+    all_lambda::Vector{JuMP.VariableRef},
+    all_mu::Vector{JuMP.VariableRef},
+    all_eta::Vector{JuMP.VariableRef},
+    all_coefficients::Vector{Float64},
+    number_of_states::Int64,
+    number_of_duals::Int64,
+    cut_projection_regime::DynamicSDDiP.StrongDuality,
+    )
+
+    expr = JuMP.@expression(
+        model,
+        V.theta - sum(all_mu[j]  for j in 1:size(all_mu, 1))
+        - sum(x * all_eta[i]  for (i, (_,x)) in enumerate(V.states))
+    )
+
+    return expr
+end
+
+function add_strong_duality_cut!(
+    model::JuMP.Model,
+    node::SDDP.Node,
+    cut::DynamicSDDiP.NonlinearCut,
+    V::DynamicSDDiP.CutApproximation,
+    all_lambda::Vector{JuMP.VariableRef},
+    all_mu::Vector{JuMP.VariableRef},
+    all_eta::Vector{JuMP.VariableRef},
+    all_coefficients::Vector{Float64},
+    number_of_states::Int64,
+    number_of_duals::Int64,
+    cut_projection_regime::DynamicSDDiP.SOS1,
+    )
+
+    strong_duality_expr = JuMP.@expression(
+        model,
+        sum(all_coefficients[j] * all_lambda[j]  for j in 1:number_of_duals)
+        - sum(all_mu[j]  for j in 1:number_of_duals)
+        - sum(x * all_eta[i]  for (i, (_, x)) in enumerate(V.states))
+    )
+
+    constraint_ref = if JuMP.objective_sense(model) == MOI.MIN_SENSE
+        @constraint(model, strong_duality_expr >= 0)
+    else
+        @constraint(model, strong_duality_expr <= 0)
+    end
+    push!(cut.cut_constraints, constraint_ref)
+
+    return
+end
+
+function add_strong_duality_cut!(
+    model::JuMP.Model,
+    node::SDDP.Node,
+    cut::DynamicSDDiP.NonlinearCut,
+    V::DynamicSDDiP.CutApproximation,
+    all_lambda::Vector{JuMP.VariableRef},
+    all_mu::Vector{JuMP.VariableRef},
+    all_eta::Vector{JuMP.VariableRef},
+    all_coefficients::Vector{Float64},
+    number_of_states::Int64,
+    number_of_duals::Int64,
+    cut_projection_regime::Union{DynamicSDDiP.BigM,DynamicSDDiP.KKT,DynamicSDDiP.StrongDuality},
+    )
+
+    return
+end
+
+################################################################################
+
+"""
+Adding one more cut based on dual information if NoStateApproximation is used.
+"""
+# Add the cut to the model and the convex approximation.
+function _add_cut(
+    node::SDDP.Node,
+    V::DynamicSDDiP.CutApproximation,
+    θᵏ::Float64, # epigraph variable theta
+    πᵏ::Dict{Symbol,Float64}, # dual multipliers (cut coefficients)
+    λᵏ::Dict{Symbol,BinaryState}, # binary states (anchor point in binary space for cut using BinaryApproximation)
+    xᵏ_b::Dict{Symbol,Float64}, # anchor point for cut using BinaryApproximation
+    xᵏ::Dict{Symbol,Float64}, # trial point (anchor point for cut without BinaryApproximation), outgoing_state
+    # obj_y::Union{Nothing,NTuple{N,Float64}},
+    # belief_y::Union{Nothing,Dict{T,Float64}},
+    sigma::Union{Nothing,Float64},
+    iteration::Int64,
+    infiltrate_state::Symbol,
+    algo_params::DynamicSDDiP.AlgoParams,
+    applied_solvers::DynamicSDDiP.AppliedSolvers,
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation,
+) where {N,T}
+
+    ############################################################################
+    # CORRECT THE INTERCEPT (WE USE A DIFFERENT CUT FORMULA)
+    ############################################################################
+    for (key, x) in xᵏ
+        θᵏ -= πᵏ[key] * x
+    end
+    @infiltrate infiltrate_state in [:bellman, :all]
+
+    if isnothing(sigma)
+        sigma_use = nothing
+    else
+        sigma_use = copy(sigma)
+    end
+
+    ############################################################################
+    # CONSTRUCT NONLINEAR CUT STRUCT
+    ############################################################################
+    cut = DynamicSDDiP.LinearCut(
+            θᵏ,
+            πᵏ,
+            xᵏ,
+            sigma_use,
+            JuMP.ConstraintRef,
+            # obj_y,
+            # belief_y,
+            1,
+            iteration
+            )
+
+    ############################################################################
+    # ADD CUT TO SUBPROBLEM (we are already at the previous stage)
+    ############################################################################
+    add_cut_constraints_to_models(node, V, cut, algo_params, infiltrate_state)
+
+    ############################################################################
+    # UPDATE CUT SELECTION
+    ############################################################################
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "cut_selection" begin
+        DynamicSDDiP._cut_selection_update(node, V, cut, xᵏ_b, xᵏ,
+            applied_solvers, algo_params, infiltrate_state,
+            algo_params.cut_selection_regime)
+    end
 
     return
 end
 
 
 """
-Evaluating the cuts at a specific point.
+Adding the new cut to the subproblem in case of a LinearCut.
 """
-# Internal function: calculate the height of `cut` evaluated at `state`.
-function _eval_height(node::SDDP.Node, cut::NCNBD.NonlinearCut, states::Dict{Symbol,Float64}, applied_solvers::NCNBD.AppliedSolvers)
+function add_cut_constraints_to_models(
+    node::SDDP.Node,
+    V::DynamicSDDiP.CutApproximation,
+    cut::DynamicSDDiP.LinearCut,
+    algo_params::DynamicSDDiP.AlgoParams,
+    infiltrate_state::Symbol,
+    )
 
-    # Create a new JuMP model to evaluate the height of a non-convex cut
-    model = JuMP.Model()
-    JuMP.set_optimizer(model, optimizer_with_attributes(GAMS.Optimizer, "Solver"=>applied_solvers.LP, "optcr"=>0.0))
+    ############################################################################
+    # SOME INITIALIZATIONS
+    ############################################################################
+    model = JuMP.owner_model(V.theta)
+    @assert model == node.subproblem
 
-    # Storages for coefficients and binary states
-    binary_state_storage = JuMP.VariableRef[]
-    allCoefficients = Float64[]
-    binary_variables_so_far = 0
+    @infiltrate infiltrate_state in [:bellman, :all]
 
-    for (i, (state_name, value)) in enumerate(states)
-        # Get actual state from state_name
-        state_comp = node.ext[:lin_states][state_name]
+    ############################################################################
+    # ADD THE LINEAR CUT CONSTRAINT
+    ############################################################################
+    expr = @expression(
+        model,
+        V.theta - sum(cut.coefficients[i] * x for (i, x) in V.states)
+    )
 
-        if state_comp.info.out.binary
-            # BINARY CASE
-            ####################################################################
-            # introduce one binary variable to the model
-            binary_var = JuMP.@variable(model)
-            push!(binary_state_storage, binary_var)
-            binary_variables_so_far += 1
-
-            # introduce binary expansion constraint to the model
-            binary_constraint = JuMP.@constraint(model, binary_var == value)
-            #TODO: Alternatively, we can just fix this variable
-
-            # determine the correct cut coefficient
-            relatedCoefficient = 0.0
-            for (bin_name, value) in cut.coefficients
-                if cut.binary_state[bin_name].x_name == state_name
-                    relatedCoefficient = cut.coefficients[bin_name]
-                end
-            end
-            push!(allCoefficients, relatedCoefficient)
-
-        else
-            if !isfinite(state_comp.info.out.upper_bound) || !state_comp.info.out.has_ub
-            error("When using SDDiP, state variables require an upper bound.")
-            end
-
-            # INTEGER OR CONTINUOUS CASE
-            ####################################################################
-            # Get K and epsilon
-            if state_comp.info.out.integer
-                K = SDDP._bitsrequired(state_comp.info.out.upper_bound)
-                epsilon = 1
-            else
-                epsilon = cut.binary_precision[state_name]
-                K = SDDP._bitsrequired(round(Int, state_comp.info.out.upper_bound / epsilon))
-            end
-
-            # introduce binary variables to the model
-            binary_var = JuMP.@variable(model, [k in 1:K], lower_bound=0, upper_bound=1)
-            append!(binary_state_storage, binary_var)
-            binary_variables_so_far += K
-
-            # introduce binary expansion constraint to the model
-            binary_constraint = JuMP.@constraint(model, SDDP.bincontract([binary_var[k] for k=1:K], epsilon) == value)
-
-            # determine the correct cut coefficient
-            relatedCoefficients = Vector{Float64}(undef, K)
-            for (bin_name, value) in cut.coefficients
-                if cut.binary_state[bin_name].x_name == state_name
-                    index = cut.binary_state[bin_name].k
-                    relatedCoefficients[index] = cut.coefficients[bin_name]
-                end
-            end
-            append!(allCoefficients, relatedCoefficients)
-
-        end
+    cut.constraint_ref = if JuMP.objective_sense(model) == MOI.MIN_SENSE
+        @constraint(model, expr >= cut.intercept)
+    else
+        @constraint(model, expr <= cut.intercept)
     end
 
-    @assert(size(allCoefficients, 1) == size(binary_state_storage, 1)
-                == binary_variables_so_far
-                == size(collect(values(cut.coefficients)),1)
-                )
-
-    # ADD OBJECTIVE TO THE MODEL
-    ####################################################################
-    objective_sense_stage = JuMP.objective_sense(node.ext[:linSubproblem])
-    eval_sense = (
-        objective_sense_stage == JuMP.MOI.MIN_SENSE ? JuMP.MOI.MAX_SENSE : JuMP.MOI.MIN_SENSE
-    )
-
-    JuMP.@objective(
-        model, eval_sense,
-        cut.intercept + sum(allCoefficients[j] * binary_state_storage[j] for j=1:binary_variables_so_far)
-    )
-
-    # SOLVE MODEL AND RETURN SOLUTION
-    ####################################################################
-    JuMP.optimize!(model)
-    height = JuMP.objective_value(model)
-    return height
-
+    return
 
 end
