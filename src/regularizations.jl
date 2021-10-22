@@ -6,11 +6,13 @@
 
 
 """
-Modifying the forward pass problem to include a regularization term.
+Modifying the forward pass problem to include a regularization term
+if regularization is used.
 """
-function regularize_subproblem!(node::SDDP.Node, subproblem::JuMP.Model, sigma::Float64)
+function regularize_subproblem!(node::SDDP.Node, node_index::Int64,
+    subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.Regularization)
 
-    #NOTE: The copy constraint is not modeled explicitly here. Instead,
+    # Note that the copy constraint is not modeled explicitly here. Instead,
     # the state variable is unfixed and takes the role of z in our paper.
     # It is then subtracted from the fixed value to obtain the so called slack.
 
@@ -22,13 +24,14 @@ function regularize_subproblem!(node::SDDP.Node, subproblem::JuMP.Model, sigma::
 
     number_of_states = 0
 
-    # UNFIX THE STATE VARIABLES
+    # UNFIX THE STATE VARIABLES (RELAXATION)
     ############################################################################
     for (i, (name, state_comp)) in enumerate(node.states)
         reg_data[:fixed_state_value][name] = JuMP.fix_value(state_comp.in)
         push!(reg_data[:slacks], reg_data[:fixed_state_value][name] - state_comp.in)
         JuMP.unfix(state_comp.in)
-        follow_state_unfixing!(state_comp)
+        variable_info = node.ext[:state_info_storage][name].in
+        follow_state_unfixing!(state_comp, variable_info)
         number_of_states = i
     end
 
@@ -50,7 +53,7 @@ function regularize_subproblem!(node::SDDP.Node, subproblem::JuMP.Model, sigma::
     fact = (JuMP.objective_sense(subproblem) == JuMP.MOI.MIN_SENSE ? 1 : -1)
 
     # New objective
-    new_obj = old_obj + fact * sigma * v
+    new_obj = old_obj + fact * regularization_regime.sigma[node_index] * v
     JuMP.set_objective_function(subproblem, new_obj)
 
     # Variables
@@ -66,13 +69,23 @@ function regularize_subproblem!(node::SDDP.Node, subproblem::JuMP.Model, sigma::
     const_norm = JuMP.@constraint(subproblem, v >= sum(alpha[i] for i in 1:number_of_states))
     push!(reg_data[:reg_constraints], const_norm)
 
+    return
 end
 
 """
-Modifying the forward pass problem to remove the regularization term
-and regain the original model.
+Trivial modification of the forward pass problem if no regularization is used.
 """
-function deregularize_subproblem!(node::SDDP.Node, subproblem::JuMP.Model)
+function regularize_subproblem!(node::SDDP.Node, node_index::Int64,
+    subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.NoRegularization)
+    return
+end
+
+
+"""
+Modifying the forward pass problem to remove the regularization term
+and regain the original model if regularization is used.
+"""
+function deregularize_subproblem!(node::SDDP.Node, subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.Regularization)
 
     reg_data = node.ext[:regularization_data]
 
@@ -97,13 +110,21 @@ function deregularize_subproblem!(node::SDDP.Node, subproblem::JuMP.Model)
 
     delete!(node.ext, :regularization_data)
 
+    return
+end
+
+"""
+Trivial modification of the forward pass problem if no regularization is used.
+"""
+function deregularize_subproblem!(node::SDDP.Node, subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.NoRegularization)
+    return
 end
 
 
 """
-Introducing a regularizing term to the backward pass problem in binary space.
+Regularizing the backward pass problem in binary space if regularization is used.
 """
-function regularize_backward!(node::SDDP.Node, subproblem::JuMP.Model, sigma::Float64)
+function regularize_binary!(node::SDDP.Node, node_index::Int64, subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.Regularization)
 
     bw_data = node.ext[:backward_data]
     binary_states = bw_data[:bin_states]
@@ -116,17 +137,24 @@ function regularize_backward!(node::SDDP.Node, subproblem::JuMP.Model, sigma::Fl
     reg_data[:reg_variables] = JuMP.VariableRef[]
     reg_data[:reg_constraints] = JuMP.ConstraintRef[]
 
+    ############################################################################
     # DETERMINE SIGMA TO BE USED IN BINARY SPACE
     ############################################################################
-    Umax = 0
+    U_max = 0
     for (i, (name, state_comp)) in enumerate(node.states)
-        if state_comp.info.out.upper_bound > Umax
-            Umax = state_comp.info.out.upper_bound
+
+        # TODO: is .out correct here?
+        variable_info = node.ext[:state_info_storage][name].out
+
+        if variable_info.upper_bound > U_max
+            U_max = variable_info.upper_bound
         end
     end
-    # Here, not sigma, but a different regularization parameter is used
-    sigma_bin = sigma * Umax
 
+    # Here, not sigma, but a different regularization parameter is used
+    sigma_bin = regularization_regime.sigma[node_index] * U_max
+
+    ############################################################################
     # UNFIX THE STATE VARIABLES
     ############################################################################
     for (i, (name, state_comp)) in enumerate(binary_states)
@@ -136,10 +164,12 @@ function regularize_backward!(node::SDDP.Node, subproblem::JuMP.Model, sigma::Fl
         follow_state_unfixing_binary!(state_comp)
     end
 
+    ############################################################################
     # STORE ORIGINAL OBJECTIVE FUNCTION
     ############################################################################
     old_obj = reg_data[:old_objective] = JuMP.objective_function(subproblem)
 
+    ############################################################################
     # DEFINE NEW VARIABLES, CONSTRAINTS AND OBJECTIVE
     ############################################################################
     # These variables and constraints are used to define the norm of the slack as a MILP
@@ -170,17 +200,29 @@ function regularize_backward!(node::SDDP.Node, subproblem::JuMP.Model, sigma::Fl
     const_norm = JuMP.@constraint(subproblem, v >= sum(alpha[i] for i in 1:number_of_states))
     push!(reg_data[:reg_constraints], const_norm)
 
+    return
+end
+
+"""
+Trivial regularization of the backward pass problem in binary space
+if no regularization is used.
+"""
+function regularize_binary!(node::SDDP.Node, node_index::Int64, subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.NoRegularization)
+
+    return
 end
 
 
 """
-Regaining the unregularized problem in binary space.
+Regaining the unregularized problem in binary space if regularization
+was used.
 """
-function deregularize_backward!(node::SDDP.Node, subproblem::JuMP.Model)
+function deregularize_binary!(node::SDDP.Node, subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.Regularization)
 
     reg_data = node.ext[:regularization_data]
     bw_data = node.ext[:backward_data]
 
+    ############################################################################
     # FIX THE STATE VARIABLES
     ############################################################################
     for (i, (name, state_comp)) in enumerate(bw_data[:bin_states])
@@ -188,10 +230,12 @@ function deregularize_backward!(node::SDDP.Node, subproblem::JuMP.Model)
         JuMP.fix(state_comp, reg_data[:fixed_state_value][name], force=true)
     end
 
+    ############################################################################
     # REPLACE THE NEW BY THE OLD OBJECTIVE
     ############################################################################
     JuMP.set_objective_function(subproblem, reg_data[:old_objective])
 
+    ############################################################################
     # DELETE ALL REGULARIZATION-BASED VARIABLES AND CONSTRAINTS
     ############################################################################
     delete(subproblem, reg_data[:reg_variables])
@@ -202,81 +246,15 @@ function deregularize_backward!(node::SDDP.Node, subproblem::JuMP.Model)
 
     delete!(node.ext, :regularization_data)
 
+    return
 end
 
 
 """
-Check if an increase of the number of binary variables is required.
+Trivial regaining of the unregularized problem in binary space if no regularization
+was used.
 """
-function binary_refinement_check(
-    model::SDDP.PolicyGraph{T},
-    previous_solution::Union{Vector{Dict{Symbol,Float64}},Nothing},
-    sampled_states::Vector{Dict{Symbol,Float64}},
-    solution_check::Bool,
-    ) where {T}
+function deregularize_binary!(node::SDDP.Node, subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.NoRegularization)
 
-    # Check if feasible solution has changed since last iteration
-    # If not, then the cut was not tight enough, so binary approximation should be refined
-    for i in 1:size(previous_solution,1)
-        for (name, state_comp) in model.nodes[i].states
-            current_sol = sampled_states[i][name]
-            previous_sol = previous_solution[i][name]
-            if ! isapprox(current_sol, previous_sol)
-                solution_check = false
-            end
-        end
-    end
-
-    return solution_check
-
-end
-
-
-"""
-Executing a binary refinement: Increasing the number of binary variables to
-approximate the states
-"""
-function binary_refinement(
-    model::SDDP.PolicyGraph{T},
-    algo_params::NCNBD.AlgoParams,
-    binary_refinement::Symbol,
-    ) where {T}
-
-    all_refined = Int[]
-
-    # Consider stage 2 here (should be the same for all following stages)
-    # Precision is only used (and increased) for continuous variables
-    for (name, state_comp) in model.nodes[2].states
-        if !state_comp.info.in.binary && !state_comp.info.in.integer
-            current_prec = algo_params.binary_precision[name]
-            ub = state_comp.info.in.upper_bound
-            K = SDDP._bitsrequired(round(Int, ub / current_prec))
-            new_prec = ub / sum(2^(k-1) for k in 1:K+1)
-
-            # Only apply refinement if int64 is appropriate to represent this number
-            if ub / new_prec > 2^63 - 1
-                push!(all_refined, 0)
-            else
-                push!(all_refined, 1)
-                algo_params.binary_precision[name] = new_prec
-            end
-
-        else
-            push!(all_refined, 2)
-        end
-    end
-
-    # Check refinement status
-    if 0 in all_refined
-        if 1 in all_refined
-            binary_refinement = :partial
-        else
-            binary_refinement = :impossible
-        end
-    else
-        binary_refinement = :all
-    end
-
-    return binary_refinement
-
+    return
 end

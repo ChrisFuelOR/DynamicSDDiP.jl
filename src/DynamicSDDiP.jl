@@ -8,16 +8,12 @@ module DynamicSDDiP
 
 #import JuMP
 import SDDP
-import Delaunay
 import Gurobi
-import PiecewiseLinearOpt
 import Revise
 import TimerOutputs
 import GAMS
 #import SCIP
 import MathOptInterface
-import Distances
-import LinearAlgebra
 using Printf
 using Dates
 
@@ -28,16 +24,25 @@ using Infiltrator
 
 # Write your package code here.
 include("state.jl")
-include("JuMP.jl")
 include("typedefs.jl")
+include("JuMP.jl")
+
 include("logging.jl")
+
 include("stopping.jl")
 include("objective.jl")
 include("bellman.jl")
+include("cutSelection.jl")
+include("solverHandling.jl")
+include("binarization.jl")
+include("binaryRefinement.jl")
+include("regularizations.jl")
+include("sigmaTest.jl")
 
-include("solveStarter.jl")
-include("algorithm.jl")
-include("problemModifications.jl")
+include("algorithmMain.jl")
+include("forwardPass.jl")
+include("backwardPass.jl")
+include("duals.jl")
 include("lagrange.jl")
 
 end
