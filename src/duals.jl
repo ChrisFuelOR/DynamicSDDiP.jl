@@ -268,7 +268,7 @@ function get_dual_solution(
         @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
     catch e
-        SDDP.write_subproblem_to_file(node, "subproblem.mof.json", throw_error = false)
+        #SDDP.write_subproblem_to_file(node, "subproblem.mof.json", throw_error = false)
         rethrow(e)
     end
 
