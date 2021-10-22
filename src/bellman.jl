@@ -439,10 +439,10 @@ function add_cut_constraints_to_models(
         # DETERMINE K (number of [0,1] variables required) AND BETA
         ####################################################################
         if variable_info.binary
-            beta = 1
+            beta = 1.0
             K = 1
         elseif variable_info.integer
-            beta = 1
+            beta = 1.0
             K = SDDP._bitsrequired(variable_info.upper_bound)
         else
             beta = cut.binary_precision[state_name]

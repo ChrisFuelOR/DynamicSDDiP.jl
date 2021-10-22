@@ -361,7 +361,7 @@ function _eval_height(node::SDDP.Node, cut::DynamicSDDiP.NonlinearCut,
                     related_coefficient = cut.coefficients[bin_name]
                 end
             end
-            push!(all_coefficients, related_cefficient)
+            push!(all_coefficients, related_coefficient)
 
         else
             ####################################################################

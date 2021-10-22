@@ -69,11 +69,11 @@ function solve(
         # initialized as empty. Then, for each state take a default precision.
         for (name, state_comp) in model.nodes[1].states
             if JuMP.is_binary(state_comp.out) || JuMP.is_integer(state_comp.out)
-                regime.binary_precision[name] = 1
+                regime.binary_precision[name] = 1.0
             else
                 ub = JuMP.upper_bound(state_comp.out)
-                lb = 0 # all states are assumed to satisfy non-negativity constraints
-                regime.binary_precision[name] = (ub-lb)/7
+                lb = 0.0 # all states are assumed to satisfy non-negativity constraints
+                regime.binary_precision[name] = (ub-lb)/7.0
             end
         end
     end

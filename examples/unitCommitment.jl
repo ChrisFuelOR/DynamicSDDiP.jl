@@ -14,6 +14,30 @@ using GAMS
 using Infiltrator
 
 
+struct Generator
+    comm_ini::Int
+    gen_ini::Float64
+    pmax::Float64
+    pmin::Float64
+    fuel_cost::Float64
+    om_cost::Float64
+    su_cost::Float64
+    sd_cost::Float64
+    ramp_up::Float64
+    ramp_dw::Float64
+end
+
+struct Storage
+    level_max::Float64
+    level_ini::Float64
+    level_end::Float64
+    gen_max::Float64
+    pump_max::Float64
+    gen_eff::Float64
+    pump_eff::Float64
+end
+
+
 function model_config()
 
     # Stopping rules to be used
@@ -123,29 +147,6 @@ end
 
 function model_definition()
 
-    struct Generator
-        comm_ini::Int
-        gen_ini::Float64
-        pmax::Float64
-        pmin::Float64
-        fuel_cost::Float64
-        om_cost::Float64
-        su_cost::Float64
-        sd_cost::Float64
-        ramp_up::Float64
-        ramp_dw::Float64
-    end
-
-    struct Storage
-        level_max::Float64
-        level_ini::Float64
-        level_end::Float64
-        gen_max::Float64
-        pump_max::Float64
-        gen_eff::Float64
-        pump_eff::Float64
-    end
-
     generators = [
         Generator(0, 0.0, 1.18, 0.32, 48.9, 0.0, 182.35, 18.0, 0.42, 0.33),
         Generator(1, 1.06, 1.19, 0.37, 52.1, 0.0, 177.68, 17.0, 0.31, 0.36),
@@ -169,7 +170,6 @@ function model_definition()
 
     inflow = [0.2 0.3 0.4; 0.1 0.05 0.1]
 
-
     number_of_generators = 5
     number_of_storages = 2
     number_of_stages = 2
@@ -187,7 +187,7 @@ function model_definition()
         # State variables
         JuMP.@variable(
             subproblem,
-            0.0 <= commit[i = 1:num_of_generators] <= 1.0,
+            0.0 <= commit[i = 1:number_of_generators] <= 1.0,
             SDDP.State,
             Bin,
             initial_value = generators[i].comm_ini
@@ -195,79 +195,78 @@ function model_definition()
 
         JuMP.@variable(
             subproblem,
-            0.0 <= gen[i = 1:num_of_generators] <= generators[i].pmax,
+            0.0 <= gen[i = 1:number_of_generators] <= generators[i].pmax,
             SDDP.State,
             initial_value = generators[i].gen_ini
         )
 
         # start-up variables
-       JuMP.@variable(subproblem, up[i=1:num_of_generators], Bin)
-       JuMP.@variable(subproblem, down[i=1:num_of_generators], Bin)
+       JuMP.@variable(subproblem, up[i=1:number_of_generators], Bin)
+       JuMP.@variable(subproblem, down[i=1:number_of_generators], Bin)
 
        # demand slack
        JuMP.@variable(subproblem, demand_slack >= 0.0)
        JuMP.@variable(subproblem, neg_demand_slack >= 0.0)
 
        # cost variables
-       JuMP.@variable(subproblem, startup_costs[i=1:num_of_generators] >= 0.0)
-       JuMP.@variable(subproblem, shutdown_costs[i=1:num_of_generators] >= 0.0)
-       JuMP.@variable(subproblem, fuel_costs[i=1:num_of_generators] >= 0.0)
-       JuMP.@variable(subproblem, om_costs[i=1:num_of_generators] >= 0.0)
+       JuMP.@variable(subproblem, startup_costs[i=1:number_of_generators] >= 0.0)
+       JuMP.@variable(subproblem, shutdown_costs[i=1:number_of_generators] >= 0.0)
+       JuMP.@variable(subproblem, fuel_costs[i=1:number_of_generators] >= 0.0)
+       JuMP.@variable(subproblem, om_costs[i=1:number_of_generators] >= 0.0)
 
        # generation bounds
-       JuMP.@constraint(subproblem, genmin[i=1:num_of_generators], gen[i].out >= commit[i].out * generators[i].pmin)
-       JuMP.@constraint(subproblem, genmax[i=1:num_of_generators], gen[i].out <= commit[i].out * generators[i].pmax)
+       JuMP.@constraint(subproblem, genmin[i=1:number_of_generators], gen[i].out >= commit[i].out * generators[i].pmin)
+       JuMP.@constraint(subproblem, genmax[i=1:number_of_generators], gen[i].out <= commit[i].out * generators[i].pmax)
 
        # ramping
        # we do not need a case distinction as we defined initial_values
-       JuMP.@constraint(subproblem, rampup[i=1:num_of_generators], gen[i].out - gen[i].in <= generators[i].ramp_up * commit[i].in + generators[i].pmin * (1-commit[i].in))
-       JuMP.@constraint(subproblem, rampdown[i=1:num_of_generators], gen[i].in - gen[i].out <= generators[i].ramp_dw * commit[i].out + generators[i].pmin * (1-commit[i].out))
+       JuMP.@constraint(subproblem, rampup[i=1:number_of_generators], gen[i].out - gen[i].in <= generators[i].ramp_up * commit[i].in + generators[i].pmin * (1-commit[i].in))
+       JuMP.@constraint(subproblem, rampdown[i=1:number_of_generators], gen[i].in - gen[i].out <= generators[i].ramp_dw * commit[i].out + generators[i].pmin * (1-commit[i].out))
 
        # start-up and shut-down
        # we do not need a case distinction as we defined initial_values
-       JuMP.@constraint(subproblem, startup[i=1:num_of_generators], up[i] >= commit[i].out - commit[i].in)
-       JuMP.@constraint(subproblem, shutdown[i=1:num_of_generators], down[i] >= commit[i].in - commit[i].out)
+       JuMP.@constraint(subproblem, startup[i=1:number_of_generators], up[i] >= commit[i].out - commit[i].in)
+       JuMP.@constraint(subproblem, shutdown[i=1:number_of_generators], down[i] >= commit[i].in - commit[i].out)
 
        # additional storage state
         JuMP.@variable(
             subproblem,
-            0.0 <= storage_level[j = 1:num_of_storages] <= storages[j].level_max,
+            0.0 <= storage_level[j = 1:number_of_storages] <= storages[j].level_max,
             SDDP.State,
             initial_value = storages[j].level_ini,
-            epsilon=binaryPrecision
         )
 
         # additional storage generation
         JuMP.@variable(
             subproblem,
-            0.0 <= storage_gen[j = 1:num_of_storages] <= storages[j].gen_max,
+            0.0 <= storage_gen[j = 1:number_of_storages] <= storages[j].gen_max,
         )
 
         # additional storage pumping
         JuMP.@variable(
             subproblem,
-            0.0 <= storage_pump[j = 1:num_of_storages] <= storages[j].pump_max,
+            0.0 <= storage_pump[j = 1:number_of_storages] <= storages[j].pump_max,
         )
 
         # additional storage level balance
         JuMP.@constraint(
             subproblem,
-            level_balance[j=1:num_of_storages], storage_level[j].out == storage_level[j].in + storage_pump[j] * storages[j].pump_eff - storage_gen[j] / storages[j].gen_eff + inflow[j,stage]
+            level_balance[j=1:number_of_storages], storage_level[j].out == storage_level[j].in + storage_pump[j] * storages[j].pump_eff - storage_gen[j] / storages[j].gen_eff + inflow[j,t]
         )
 
         # additional storage end level
-        if stage == num_of_stages
-            JuMP.@constraint(subproblem, storage_end[j=1:num_of_storages], storage_level[j].out >= storages[j].level_end)
+        if t == number_of_stages
+            JuMP.@constraint(subproblem, storage_end[j=1:number_of_storages], storage_level[j].out >= storages[j].level_end)
         end
 
         # load balance
-        JuMP.@constraint(subproblem, load, sum(gen[i].out for i in 1:num_of_generators) + demand_slack - neg_demand_slack + sum(storage_gen[j] - storage_pump[j] for j in 1:num_of_storages) == demand[stage] )
+        JuMP.@constraint(subproblem, load, sum(gen[i].out for i in 1:number_of_generators) + demand_slack - neg_demand_slack + sum(storage_gen[j] - storage_pump[j] for j in 1:number_of_storages) == demand[t] )
 
         # costs
-        JuMP.@constraint(subproblem, startupcost[i=1:num_of_generators], num_of_stages/24 * generators[i].su_cost * up[i] == startup_costs[i])
-        JuMP.@constraint(subproblem, shutdowncost[i=1:num_of_generators], generators[i].sd_cost * down[i] == shutdown_costs[i])
-        JuMP.@constraint(subproblem, fuelcost[i=1:num_of_generators], generators[i].fuel_cost * gen[i].out == fuel_costs[i])
-        JuMP.@constraint(subproblem, omcost[i=1:num_of_generators], generators[i].om_cost * gen[i].out == om_costs[i])
+        JuMP.@constraint(subproblem, startupcost[i=1:number_of_generators], number_of_stages/24 * generators[i].su_cost * up[i] == startup_costs[i])
+        JuMP.@constraint(subproblem, shutdowncost[i=1:number_of_generators], generators[i].sd_cost * down[i] == shutdown_costs[i])
+        JuMP.@constraint(subproblem, fuelcost[i=1:number_of_generators], generators[i].fuel_cost * gen[i].out == fuel_costs[i])
+        JuMP.@constraint(subproblem, omcost[i=1:number_of_generators], generators[i].om_cost * gen[i].out == om_costs[i])
 
         # define stage objective
         su_costs = subproblem[:startup_costs]
@@ -277,9 +276,8 @@ function model_definition()
         demand_slack = subproblem[:demand_slack]
         neg_demand_slack = subproblem[:neg_demand_slack]
         SDDP.@stageobjective(subproblem,
-                        sum(su_costs[i] + sd_costs[i] + f_costs[i] + om_costs[i] for i in 1:num_of_generators)
+                        sum(su_costs[i] + sd_costs[i] + f_costs[i] + om_costs[i] for i in 1:number_of_generators)
                         + demand_slack * demand_penalty + neg_demand_slack * demand_penalty)
-        end
 
     end
 
