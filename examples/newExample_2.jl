@@ -21,7 +21,7 @@ function model_config()
 
     # Duality / Cut computation configuration
     dual_initialization_regime = DynamicSDDiP.ZeroDuals()
-    dual_solution_regime = DynamicSDDiP.LevelBundle()
+    dual_solution_regime = DynamicSDDiP.Kelley()
     dual_bound_regime = DynamicSDDiP.BothBounds()
     dual_status_regime = DynamicSDDiP.Rigorous()
     dual_choice_regime = DynamicSDDiP.MagnantiWongChoice()
@@ -46,12 +46,13 @@ function model_config()
 
     # Regularization configuration
     regularization_regime = DynamicSDDiP.Regularization(sigma = [0.0, 1.0], sigma_factor = 5.0)
+    # regularization_regime = DynamicSDDiP.NoRegularization()
 
     # Cut selection configuration
     cut_selection_regime = DynamicSDDiP.NoCutSelection()
 
     # File for logging
-    log_file = "C:/Users/cg4102/Documents/julia_logs/newExample_1.log"
+    log_file = "C:/Users/cg4102/Documents/julia_logs/newExample_2.log"
 
     # Suppress solver output
     silent = true
@@ -135,30 +136,33 @@ function model_definition()
         # DEFINE STAGE-t MODEL
         ########################################################################
         # State variables
-        JuMP.@variable(subproblem, 0.0 <= b <= 2.0, SDDP.State, initial_value = 0)
+        JuMP.@variable(subproblem, 0.0 <= x <= 1.0, SDDP.State, initial_value = 0)
 
         if t == 1
 
             # Constraints
-            b = subproblem[:b]
-            JuMP.@constraint(subproblem, b.out == 1.2 + b.in)
+            x = subproblem[:x]
+            JuMP.@variable(subproblem, v)
+            JuMP.@constraint(subproblem, v >= 0.7 - 6/5*x.out)
+            JuMP.@constraint(subproblem, v >= -1.1 + 2.4*x.out)
 
             # Stage objective
-            SDDP.@stageobjective(subproblem, 1)
+            SDDP.@stageobjective(subproblem, v)
 
         else
             # Local variables
-            JuMP.@variable(subproblem, 0.0 <= x[i=1:4])
-            JuMP.set_integer(x[1])
-            JuMP.set_integer(x[2])
+            JuMP.@variable(subproblem, 0.0 <= y[i=1:2])
+            JuMP.set_integer(y[1])
+            JuMP.set_upper_bound(y[1], 2)
+            JuMP.set_upper_bound(y[2], 3)
 
             # Constraints
-            b = subproblem[:b]
-            JuMP.@constraint(subproblem, b.out == 0)
-            JuMP.@constraint(subproblem, con, 1.25*x[1] - x[2] + 0.5*x[3] + 1/3*x[4] == b.in)
+            x = subproblem[:x]
+            JuMP.@constraint(subproblem, x.out == 0)
+            JuMP.@constraint(subproblem, con, 2*y[1] + y[2] >= 3*x.in)
 
             # Stage objective
-            SDDP.@stageobjective(subproblem, x[1] - 0.75*x[2] + 0.75*x[3] + 2.5*x[4])
+            SDDP.@stageobjective(subproblem, y[1] + y[2])
 
         end
 
