@@ -32,16 +32,15 @@ function _cut_selection_update(
     ############################################################################
     # ADD CUTS AND STATES TO THE ORACLE
     ############################################################################
-    oracle = V.cut_oracle
+    sampled_state_anchor = DynamicSDDiP.SampledState(anchor_state, cut, NaN)
+    sampled_state_anchor.best_objective = _eval_height(node, cut, sampled_state_anchor, applied_solvers, algo_params))
+    sampled_state_trial = DynamicSDDiP.SampledState(anchor_state, cut, NaN)
+    sampled_state_trial.best_objective = _eval_height(node, cut, sampled_state_trial, applied_solvers, algo_params))
 
-    sampled_state_anchor = DynamicSDDiP.SampledState(anchor_state, cut, _eval_height(node, cut,
-    anchor_state, applied_solvers, algo_params))
-    sampled_state_trial = DynamicSDDiP.SampledState(trial_state, cut, _eval_height(node, cut, trial_state, applied_solvers, algo_params))
+    push!(V.sampled_states, sampled_state_anchor)
+    push!(V.sampled_states, sampled_state_trial)
 
-    push!(oracle.states, sampled_state_anchor)
-    push!(oracle.states, sampled_state_trial)
-
-    push!(oracle.cuts, cut)
+    push!(V.cuts, cut)
 
     ############################################################################
     # DETERMINE NUMBER OF CUTS FOR LOGGING
@@ -55,7 +54,6 @@ end
 """
 Simple cut selection feature for nonlinear cuts.
 """
-# Internal function: update the Level-One datastructures inside `bellman_function`.
 function _cut_selection_update(
     node::SDDP.Node,
     V::DynamicSDDiP.CutApproximation,
@@ -73,7 +71,6 @@ function _cut_selection_update(
     ############################################################################
     model = JuMP.owner_model(V.theta)
     is_minimization = JuMP.objective_sense(model) == MOI.MIN_SENSE
-    oracle = V.cut_oracle
 
     ############################################################################
     # GET TRIAL STATE AND ANCHOR STATE
@@ -86,8 +83,10 @@ function _cut_selection_update(
     is not refined. Only considering the anchor points is also not sufficient,
     since we are actually interested in good approximations in the trial points.
     """
-    sampled_state_anchor = DynamicSDDiP.SampledState(anchor_state, cut, _eval_height(node, cut, anchor_state, applied_solvers, algo_params))
-    sampled_state_trial = DynamicSDDiP.SampledState(trial_state, cut, _eval_height(node, cut, trial_state, applied_solvers, algo_params))
+    sampled_state_anchor = DynamicSDDiP.SampledState(anchor_state, cut, NaN)
+    sampled_state_anchor.best_objective = _eval_height(node, cut, sampled_state_anchor, applied_solvers, algo_params)
+    sampled_state_trial = DynamicSDDiP.SampledState(anchor_state, cut, NaN)
+    sampled_state_trial.best_objective = _eval_height(node, cut, sampled_state_trial, applied_solvers, algo_params)
 
     ############################################################################
     # LOOP THROUGH PREVIOUSLY VISITED STATES (ANCHOR OR TRIAL STATES)
@@ -97,8 +96,8 @@ function _cut_selection_update(
     most recent cut with the current best.
     If the new cut yields an improvement, store this one instead.
     """
-    for old_state in oracle.states
-        height = _eval_height(node, cut, old_state.state, applied_solvers, algo_params)
+    for old_state in V.sampled_states
+        height = _eval_height(node, cut, old_state, applied_solvers, algo_params)
         if SDDP._dominates(height, old_state.best_objective, is_minimization)
             old_state.dominating_cut.non_dominated_count -= 1
             cut.non_dominated_count += 1
@@ -106,8 +105,8 @@ function _cut_selection_update(
             old_state.best_objective = height
         end
     end
-    push!(oracle.states, sampled_state_anchor)
-    push!(oracle.states, sampled_state_trial)
+    push!(V.sampled_states, sampled_state_anchor)
+    push!(V.sampled_states, sampled_state_trial)
 
     ############################################################################
     # LOOP THROUGH PREVIOUSLY VISITED CUTS
@@ -116,7 +115,7 @@ function _cut_selection_update(
     Now we loop through previously discovered cuts and compare their height
     at the existing states. If a cut is an improvement, add it to a queue to be added.
     """
-    for old_cut in oracle.cuts
+    for old_cut in V.cuts
         if !isempty(old_cut.cut_constraints)
             # We only care about cuts not currently in the model.
             continue
@@ -124,34 +123,34 @@ function _cut_selection_update(
 
         # For anchor state (is this required? the cuts should be tight here and
         # we also do not have a stochastic program)
-        height = _eval_height(node, old_cut, anchor_state, applied_solvers, algo_params)
+        height = _eval_height(node, old_cut, sampled_state_anchor, applied_solvers, algo_params)
         if SDDP._dominates(height, sampled_state_anchor.best_objective, is_minimization)
             sampled_state_anchor.dominating_cut.non_dominated_count -= 1
             old_cut.non_dominated_count += 1
             sampled_state_anchor.dominating_cut = old_cut
             sampled_state_anchor.best_objective = height
-            add_cut_constraints_to_models(node, V, old_cut, algo_params, infiltrate_state)
+            _add_cut_constraints_to_models(node, V, old_cut, algo_params, infiltrate_state)
         end
 
         # For trial state
-        height = _eval_height(node, old_cut, trial_state, applied_solvers, algo_params)
+        height = _eval_height(node, old_cut, sampled_state_trial, applied_solvers, algo_params)
         if SDDP._dominates(height, sampled_state_trial.best_objective, is_minimization)
             sampled_state_trial.dominating_cut.non_dominated_count -= 1
             old_cut.non_dominated_count += 1
             sampled_state_trial.dominating_cut = old_cut
             sampled_state_trial.best_objective = height
-            add_cut_constraints_to_models(node, V, old_cut, algo_params, infiltrate_state)
+            _add_cut_constraints_to_models(node, V, old_cut, algo_params, infiltrate_state)
         end
     end
-    push!(oracle.cuts, cut)
+    push!(V.cuts, cut)
 
     ############################################################################
     # DETERMINE CUTS TO BE DELETED
     ############################################################################
-    for cut in V.cut_oracle.cuts
+    for cut in V.cuts
         if cut.non_dominated_count < 1
             if !isempty(cut.cut_constraints)
-                push!(oracle.cuts_to_be_deleted, cut)
+                push!(V.cuts_to_be_deleted, cut)
             end
         end
     end
@@ -159,8 +158,8 @@ function _cut_selection_update(
     ############################################################################
     # DELETE CUTS
     ############################################################################
-    if length(oracle.cuts_to_be_deleted) >= oracle.deletion_minimum
-        for cut in oracle.cuts_to_be_deleted
+    if length(V.cuts_to_be_deleted) >= V.deletion_minimum
+        for cut in V.cuts_to_be_deleted
             for variable_ref in cut.cut_variables
                 JuMP.delete(model, variable_ref)
             end
@@ -173,7 +172,7 @@ function _cut_selection_update(
             cut.non_dominated_count = 0
         end
     end
-    empty!(oracle.cuts_to_be_deleted)
+    empty!(V.cuts_to_be_deleted)
 
     ############################################################################
     # DETERMINE NUMBER OF CUTS FOR LOGGING
@@ -205,12 +204,12 @@ function _cut_selection_update(
     ############################################################################
     model = JuMP.owner_model(V.theta)
     is_minimization = JuMP.objective_sense(model) == MOI.MIN_SENSE
-    oracle = V.cut_oracle
 
     ############################################################################
     # GET TRIAL STATE
     ############################################################################
-    sampled_state = DynamicSDDiP.SampledState(trial_state, cut, _eval_height(node, cut, trial_state, applied_solvers, algo_params))
+    sampled_state_trial = DynamicSDDiP.SampledState(trial_state, cut, NaN)
+    sampled_state_trial.best_objective = _eval_height(node, cut, sampled_state_trial, applied_solvers, algo_params)
 
     ############################################################################
     # LOOP THROUGH PREVIOUSLY VISITED STATES (ANCHOR OR TRIAL STATES)
@@ -220,8 +219,8 @@ function _cut_selection_update(
     most recent cut with the current best.
     If the new cut yields an improvement, store this one instead.
     """
-    for old_state in oracle.states
-        height = _eval_height(node, cut, old_state.state, applied_solvers, algo_params)
+    for old_state in V.sampled_states
+        height = _eval_height(node, cut, old_state, applied_solvers, algo_params)
         if SDDP._dominates(height, old_state.best_objective, is_minimization)
             old_state.dominating_cut.non_dominated_count -= 1
             cut.non_dominated_count += 1
@@ -229,7 +228,7 @@ function _cut_selection_update(
             old_state.best_objective = height
         end
     end
-    push!(oracle.states, sampled_state)
+    push!(V.sampled_states, sampled_state_trial)
 
     ############################################################################
     # LOOP THROUGH PREVIOUSLY VISITED CUTS
@@ -238,31 +237,31 @@ function _cut_selection_update(
     Now we loop through previously discovered cuts and compare their height
     at the existing states. If a cut is an improvement, add it to a queue to be added.
     """
-    for old_cut in oracle.cuts
+    for old_cut in V.cuts
         if !isempty(old_cut.cut_constraints)
             # We only care about cuts not currently in the model.
             continue
         end
 
         # For trial state
-        height = _eval_height(node, old_cut, trial_state, applied_solvers, algo_params)
+        height = _eval_height(node, old_cut, sampled_state_trial, applied_solvers, algo_params)
         if SDDP._dominates(height, sampled_state_trial.best_objective, is_minimization)
             sampled_state_trial.dominating_cut.non_dominated_count -= 1
             old_cut.non_dominated_count += 1
             sampled_state_trial.dominating_cut = old_cut
             sampled_state_trial.best_objective = height
-            add_cut_constraints_to_models(node, V, old_cut, algo_params, infiltrate_state)
+            _add_cut_constraints_to_models(node, V, old_cut, algo_params, infiltrate_state)
         end
     end
-    push!(oracle.cuts, cut)
+    push!(V.cuts, cut)
 
     ############################################################################
     # DETERMINE CUTS TO BE DELETED
     ############################################################################
-    for cut in V.cut_oracle.cuts
+    for cut in V.cuts
         if cut.non_dominated_count < 1
             if cut.cut_constraint !== nothing
-                push!(oracle.cuts_to_be_deleted, cut)
+                push!(V.cuts_to_be_deleted, cut)
             end
         end
     end
@@ -270,14 +269,14 @@ function _cut_selection_update(
     ############################################################################
     # DELETE CUTS
     ############################################################################
-    if length(oracle.cuts_to_be_deleted) >= oracle.deletion_minimum
-        for cut in oracle.cuts_to_be_deleted
+    if length(V.cuts_to_be_deleted) >= V.deletion_minimum
+        for cut in V.cuts_to_be_deleted
             JuMP.delete(model, cut.cut_constraint)
             cut.cut_constraint = nothing
             cut.non_dominated_count = 0
         end
     end
-    empty!(oracle.cuts_to_be_deleted)
+    empty!(V.cuts_to_be_deleted)
 
     ############################################################################
     # DETERMINE NUMBER OF CUTS FOR LOGGING
@@ -288,10 +287,10 @@ end
 
 
 function count_cuts(node::SDDP.Node, V::DynamicSDDiP.CutApproximation)
-    node.ext[:total_cuts] = size(V.cut_oracle.cuts, 1)
+    node.ext[:total_cuts] = size(V.cuts, 1)
     counter = 0
 
-    for cut in V.cut_oracle.cuts
+    for cut in V.cuts
         counter = count_cut(cut, counter)
     end
     node.ext[:active_cuts] = counter
@@ -324,7 +323,7 @@ Evaluating some nonlinear cut at a specific point.
 """
 # Internal function: calculate the height of `cut` evaluated at `state`.
 function _eval_height(node::SDDP.Node, cut::DynamicSDDiP.NonlinearCut,
-    states::Dict{Symbol,Float64}, applied_solvers::DynamicSDDiP.AppliedSolvers,
+    sampled_state::DynamicSDDiP.SampledState, applied_solvers::DynamicSDDiP.AppliedSolvers,
     algo_params::DynamicSDDiP.AlgoParams)
 
     ############################################################################
@@ -339,7 +338,7 @@ function _eval_height(node::SDDP.Node, cut::DynamicSDDiP.NonlinearCut,
     all_coefficients = Float64[]
     binary_variables_so_far = 0
 
-    for (i, (state_name, value)) in enumerate(states)
+    for (i, (state_name, value)) in enumerate(sampled_state.state)
         variable_info = node.ext[:state_info_storage][state_name].out
 
         if variable_info.binary
@@ -437,13 +436,13 @@ Evaluating some linear cut at a specific point.
 """
 # Internal function: calculate the height of `cut` evaluated at `state`.
 function _eval_height(node::SDDP.Node, cut::DynamicSDDiP.LinearCut,
-    states::Dict{Symbol,Float64}, applied_solvers::DynamicSDDiP.AppliedSolvers,
+    sampled_state::DynamicSDDiP.SampledState, applied_solvers::DynamicSDDiP.AppliedSolvers,
     algo_params::DynamicSDDiP.AlgoParams)
 
     # Start with intercept and increase by evaluating the states
     height = cut.intercept
     for (key, value) in cut.coefficients
-        height += value * states[key]
+        height += value * sampled_state.state[key]
     end
     return height
 

@@ -133,10 +133,10 @@ function solve(
             node.bellman_function.cut_type = algo_params.cut_type
 
             if algo_params.cut_selection_regime == DynamicSDDiP.CutSelection
-                node.bellman_function.global_theta.cut_oracle.deletion_minimum =
+                node.bellman_function.global_theta.deletion_minimum =
                     algo_params.cut_selection_regime.cut_deletion_minimum
                 for oracle in node.bellman_function.local_thetas
-                    oracle.cut_oracle.deletion_minimum = algo_params.cut_selection_regime.cut_deletion_minimum
+                    oracle.deletion_minimum = algo_params.cut_selection_regime.cut_deletion_minimum
                 end
             end
         end

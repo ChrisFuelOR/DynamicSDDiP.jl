@@ -5,7 +5,7 @@
 # > "refine_bellman_function"
 # > "_add_average_cut"
 # > "_add_cut"
-# > "add_cut_constraints_to_models"
+# > "_add_cut_constraints_to_models"
 # and structs
 # > "SampledState",
 # > "LevelOneOracle",
@@ -30,16 +30,8 @@ mutable struct SampledState
     state::Dict{Symbol,Float64}
     dominating_cut::DynamicSDDiP.Cut
     best_objective::Float64
-end
-
-mutable struct LevelOneOracle
-    cuts::Vector{DynamicSDDiP.Cut}
-    states::Vector{DynamicSDDiP.SampledState}
-    cuts_to_be_deleted::Vector{DynamicSDDiP.Cut}
-    deletion_minimum::Int
-    function LevelOneOracle(deletion_minimum)
-        return new(DynamicSDDiP.Cut[], SDDP.SampledState[], DynamicSDDiP.Cut[], deletion_minimum)
-    end
+    #obj_y::Union{Nothing,NTuple{N,Float64} where {N}}
+    #belief_y::Union{Nothing,Dict{T,Float64} where {T}}
 end
 
 mutable struct CutApproximation
@@ -47,7 +39,12 @@ mutable struct CutApproximation
     states::Dict{Symbol,JuMP.VariableRef}
     # objective_states::Union{Nothing,NTuple{N,JuMP.VariableRef} where {N}}
     # belief_states::Union{Nothing,Dict{T,JuMP.VariableRef} where {T}}
-    cut_oracle::LevelOneOracle
+    # Storage for cut selection
+    cuts::Vector{DynamicSDDiP.Cut}
+    states::Vector{DynamicSDDiP.SampledState}
+    cuts_to_be_deleted::Vector{DynamicSDDiP.Cut}
+    deletion_minimum::Int
+
     function CutApproximation(
         theta::JuMP.VariableRef,
         states::Dict{Symbol,JuMP.VariableRef},
@@ -60,12 +57,15 @@ mutable struct CutApproximation
             states,
             # objective_states,
             # belief_states,
-            LevelOneOracle(deletion_minimum),
+            DynamicSDDiP.Cut[],
+            DynamicSDDiP.SampledState[],
+            DynamicSDDiP.Cut[],
+            deletion_minimum
         )
     end
 end
 
-mutable struct BellmanFunction <: SDDP.AbstractBellmanFunction
+mutable struct BellmanFunction
     global_theta::CutApproximation
     local_thetas::Vector{CutApproximation}
     cut_type::SDDP.CutType
@@ -357,7 +357,7 @@ function _add_cut(
     ############################################################################
     # ADD CUT PROJECTION TO SUBPROBLEM (we are already at the previous stage)
     ############################################################################
-    add_cut_constraints_to_models(node, V, cut, algo_params, infiltrate_state)
+    _add_cut_constraints_to_models(node, V, cut, algo_params, infiltrate_state)
 
     ############################################################################
     # UPDATE CUT SELECTION
@@ -375,7 +375,7 @@ end
 """
 Adding the new cut to the subproblem in case of a NonlinearCut.
 """
-function add_cut_constraints_to_models(
+function _add_cut_constraints_to_models(
     node::SDDP.Node,
     V::DynamicSDDiP.CutApproximation,
     cut::DynamicSDDiP.NonlinearCut,
@@ -1178,7 +1178,7 @@ function _add_cut(
     ############################################################################
     # ADD CUT TO SUBPROBLEM (we are already at the previous stage)
     ############################################################################
-    add_cut_constraints_to_models(node, V, cut, algo_params, infiltrate_state)
+    _add_cut_constraints_to_models(node, V, cut, algo_params, infiltrate_state)
 
     ############################################################################
     # UPDATE CUT SELECTION
@@ -1196,7 +1196,7 @@ end
 """
 Adding the new cut to the subproblem in case of a LinearCut.
 """
-function add_cut_constraints_to_models(
+function _add_cut_constraints_to_models(
     node::SDDP.Node,
     V::DynamicSDDiP.CutApproximation,
     cut::DynamicSDDiP.LinearCut,
