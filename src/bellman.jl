@@ -41,7 +41,7 @@ mutable struct CutApproximation
     # belief_states::Union{Nothing,Dict{T,JuMP.VariableRef} where {T}}
     # Storage for cut selection
     cuts::Vector{DynamicSDDiP.Cut}
-    states::Vector{DynamicSDDiP.SampledState}
+    sampled_states::Vector{DynamicSDDiP.SampledState}
     cuts_to_be_deleted::Vector{DynamicSDDiP.Cut}
     deletion_minimum::Int
 
@@ -504,9 +504,9 @@ function _add_cut_constraints_to_models(
         algo_params.state_approximation_regime.cut_projection_regime)
 
     constraint_ref = if JuMP.objective_sense(model) == MOI.MIN_SENSE
-        @constraint(model, expr >= cut.intercept)
+        JuMP.@constraint(model, expr >= cut.intercept)
     else
-        @constraint(model, expr <= cut.intercept)
+        JuMP.@constraint(model, expr <= cut.intercept)
     end
     push!(cut.cut_constraints, constraint_ref)
 
@@ -1096,9 +1096,9 @@ function add_strong_duality_cut!(
     )
 
     constraint_ref = if JuMP.objective_sense(model) == MOI.MIN_SENSE
-        @constraint(model, strong_duality_expr >= 0)
+        JuMP.@constraint(model, strong_duality_expr >= 0)
     else
-        @constraint(model, strong_duality_expr <= 0)
+        JuMP.@constraint(model, strong_duality_expr <= 0)
     end
     push!(cut.cut_constraints, constraint_ref)
 
@@ -1215,15 +1215,15 @@ function _add_cut_constraints_to_models(
     ############################################################################
     # ADD THE LINEAR CUT CONSTRAINT
     ############################################################################
-    expr = @expression(
+    expr = JuMP.@expression(
         model,
         V.theta - sum(cut.coefficients[i] * x for (i, x) in V.states)
     )
 
     cut.constraint_ref = if JuMP.objective_sense(model) == MOI.MIN_SENSE
-        @constraint(model, expr >= cut.intercept)
+        JuMP.@constraint(model, expr >= cut.intercept)
     else
-        @constraint(model, expr <= cut.intercept)
+        JuMP.@constraint(model, expr <= cut.intercept)
     end
 
     return

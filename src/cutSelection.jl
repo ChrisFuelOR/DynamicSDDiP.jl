@@ -33,9 +33,9 @@ function _cut_selection_update(
     # ADD CUTS AND STATES TO THE ORACLE
     ############################################################################
     sampled_state_anchor = DynamicSDDiP.SampledState(anchor_state, cut, NaN)
-    sampled_state_anchor.best_objective = _eval_height(node, cut, sampled_state_anchor, applied_solvers, algo_params))
+    sampled_state_anchor.best_objective = _eval_height(node, cut, sampled_state_anchor, applied_solvers, algo_params)
     sampled_state_trial = DynamicSDDiP.SampledState(anchor_state, cut, NaN)
-    sampled_state_trial.best_objective = _eval_height(node, cut, sampled_state_trial, applied_solvers, algo_params))
+    sampled_state_trial.best_objective = _eval_height(node, cut, sampled_state_trial, applied_solvers, algo_params)
 
     push!(V.sampled_states, sampled_state_anchor)
     push!(V.sampled_states, sampled_state_trial)

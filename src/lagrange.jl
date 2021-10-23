@@ -50,7 +50,7 @@ Lagrangian dual
 function _solve_Lagrangian_relaxation!(
     node::SDDP.Node,
     π_k::Vector{Float64},
-    h_expr::Vector{GenericAffExpr{Float64,VariableRef}},
+    h_expr::Vector{JuMP.GenericAffExpr{Float64,JuMP.VariableRef}},
     h_k::Vector{Float64},
     update_subgradients::Bool = true,
 )
@@ -58,7 +58,7 @@ function _solve_Lagrangian_relaxation!(
 
     # Set the Lagrangian relaxation of the objective in the primal model
     old_obj = JuMP.objective_function(model)
-    JuMP.set_objective_function(model, @expression(model, old_obj - π_k' * h_expr))
+    JuMP.set_objective_function(model, JuMP.@expression(model, old_obj - π_k' * h_expr))
 
     # Optimization
     JuMP.optimize!(model)
@@ -109,7 +109,7 @@ function solve_lagrangian_dual(
     # The best estimate for the dual objective value (ignoring optimization sense)
     L_star = -Inf
     # The expression for ̄x-z (former slacks)
-    h_expr = Vector{AffExpr}(undef, number_of_states)
+    h_expr = Vector{JuMP.AffExpr}(undef, number_of_states)
     # The current value of ̄x-z (former subgradients)
     h_k = zeros(number_of_states)
 
@@ -146,16 +146,16 @@ function solve_lagrangian_dual(
     # Create the objective
     # Note that it is always formulated as a maximization problem, but that
     # s modifies the sense appropriately
-    @variable(approx_model, t)
+    JuMP.@variable(approx_model, t)
     set_objective_bound!(approx_model, s, bound_results.obj_bound)
-    @objective(approx_model, Max, t)
+    JuMP.@objective(approx_model, Max, t)
 
     # Create the dual variables
     # Note that the real dual multipliers are split up into two non-negative
     # variables here, which is required for the Magnanti Wong part later
-    @variable(approx_model, π⁺[1:number_of_states] >= 0)
-    @variable(approx_model, π⁻[1:number_of_states] >= 0)
-    @expression(approx_model, π, π⁺ .- π⁻) # not required to be a constraint
+    JuMP.@variable(approx_model, π⁺[1:number_of_states] >= 0)
+    JuMP.@variable(approx_model, π⁻[1:number_of_states] >= 0)
+    JuMP.@expression(approx_model, π, π⁺ .- π⁻) # not required to be a constraint
     set_multiplier_bounds!(approx_model, number_of_states, bound_results.dual_bound)
 
     ############################################################################
@@ -271,7 +271,7 @@ end
 function relax_copy_constraints!(
     node::SDDP.Node,
     x_in_value::Vector{Float64},
-    h_expr::Vector{GenericAffExpr{Float64,VariableRef}},
+    h_expr::Vector{JuMP.GenericAffExpr{Float64,JuMP.VariableRef}},
     state_approximation_regime::DynamicSDDiP.BinaryApproximation
     )
 
@@ -279,7 +279,7 @@ function relax_copy_constraints!(
         # Store original value of ̄x, which z was fixed to
         x_in_value[i] = JuMP.fix_value(state)
         # Store expression for slack
-        h_expr[i] = @expression(node.subproblem, state - x_in_value[i])
+        h_expr[i] = JuMP.@expression(node.subproblem, state - x_in_value[i])
         # Relax copy constraint (i.e. z does not have to take the value of ̄x anymore)
         JuMP.unfix(state)
 
@@ -296,7 +296,7 @@ end
 function relax_copy_constraints!(
     node::SDDP.Node,
     x_in_value::Vector{Float64},
-    h_expr::Vector{GenericAffExpr{Float64,VariableRef}},
+    h_expr::Vector{JuMP.GenericAffExpr{Float64,JuMP.VariableRef}},
     state_approximation_regime::DynamicSDDiP.NoStateApproximation
     )
 
@@ -304,7 +304,7 @@ function relax_copy_constraints!(
         # Store original value of ̄x, which z was fixed to
         x_in_value[i] = JuMP.fix_value(state.in)
         # Store expression for slack
-        h_expr[i] = @expression(node.subproblem, state.in - x_in_value[i])
+        h_expr[i] = JuMP.@expression(node.subproblem, state.in - x_in_value[i])
         # Relax copy constraint (i.e. z does not have to take the value of ̄x anymore)
         JuMP.unfix(state.in)
 
@@ -380,7 +380,7 @@ function magnanti_wong!(
     π_k::Vector{Float64},
     π_star::Vector{Float64},
     t_k::Float64,
-    h_expr::Vector{GenericAffExpr{Float64,VariableRef}},
+    h_expr::Vector{JuMP.GenericAffExpr{Float64,JuMP.VariableRef}},
     h_k::Vector{Float64},
     s::Int,
     L_star::Float64,
@@ -397,7 +397,7 @@ function magnanti_wong!(
     π = approx_model[:π]
 
     # Reset objective
-    @objective(approx_model, Min, sum(π⁺) + sum(π⁻))
+    JuMP.@objective(approx_model, Min, sum(π⁺) + sum(π⁻))
     JuMP.set_lower_bound(t, t_k)
 
     # The worst-case scenario in this for-loop is that we run through the
@@ -429,7 +429,7 @@ function magnanti_wong!(
     π_k::Vector{Float64},
     π_star::Vector{Float64},
     t_k::Float64,
-    h_expr::Vector{GenericAffExpr{Float64,VariableRef}},
+    h_expr::Vector{JuMP.GenericAffExpr{Float64,JuMP.VariableRef}},
     h_k::Vector{Float64},
     s::Int,
     L_star::Float64,
@@ -477,7 +477,7 @@ function solve_lagrangian_dual(
     # The best estimate for the dual objective value (ignoring optimization sense)
     L_star = -Inf
     # The expression for ̄x-z (former slacks)
-    h_expr = Vector{AffExpr}(undef, number_of_states)
+    h_expr = Vector{JuMP.AffExpr}(undef, number_of_states)
     # The current value of ̄x-z (former subgradients)
     h_k = zeros(number_of_states)
 
@@ -517,16 +517,16 @@ function solve_lagrangian_dual(
     # Create the objective
     # Note that it is always formulated as a maximization problem, but that
     # s modifies the sense appropriately
-    @variable(approx_model, t)
+    JuMP.@variable(approx_model, t)
     set_objective_bound!(approx_model, s, bound_results.obj_bound)
-    @objective(approx_model, Max, t)
+    JuMP.@objective(approx_model, Max, t)
 
     # Create the dual variables
     # Note that the real dual multipliers are split up into two non-negative
     # variables here, which is required for the Magnanti Wong part later
-    @variable(approx_model, π⁺[1:number_of_states] >= 0)
-    @variable(approx_model, π⁻[1:number_of_states] >= 0)
-    @expression(approx_model, π, π⁺ .- π⁻) # not required to be a constraint
+    JuMP.@variable(approx_model, π⁺[1:number_of_states] >= 0)
+    JuMP.@variable(approx_model, π⁻[1:number_of_states] >= 0)
+    JuMP.@expression(approx_model, π, π⁺ .- π⁻) # not required to be a constraint
     set_multiplier_bounds!(approx_model, number_of_states, bound_results.dual_bound)
 
     ############################################################################
@@ -740,7 +740,7 @@ function _getStrengtheningInformation(
     # The current value of ̄x-z (former subgradients)
     h_k = zeros(number_of_states)
     # The expression for ̄x-z (former slacks)
-    h_expr = Vector{AffExpr}(undef, number_of_states)
+    h_expr = Vector{JuMP.AffExpr}(undef, number_of_states)
 
     # Set solver for inner problem
     #---------------------------------------------------------------------------

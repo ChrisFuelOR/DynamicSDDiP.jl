@@ -63,7 +63,7 @@ end
 """
 Function to set up the storage in VariableInfo.
 """
-function get_variable_info(state::VariableRef)
+function get_variable_info(state::JuMP.VariableRef)
 
     variable_info = DynamicSDDiP.VariableInfo()
 

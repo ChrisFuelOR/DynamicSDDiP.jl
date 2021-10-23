@@ -6,7 +6,7 @@
 
 module DynamicSDDiP
 
-#import JuMP
+using JuMP
 import SDDP
 import Gurobi
 import Revise
@@ -17,15 +17,15 @@ import MathOptInterface
 using Printf
 using Dates
 
-import Reexport
-Reexport.@reexport using JuMP
+#import Reexport
+#Reexport.@reexport using JuMP
 
 using Infiltrator
 
 # Write your package code here.
 include("state.jl")
 include("typedefs.jl")
-include("JuMP.jl")
+#include("JuMP.jl")
 
 include("logging.jl")
 

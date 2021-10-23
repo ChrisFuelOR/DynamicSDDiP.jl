@@ -374,11 +374,11 @@ function solve_first_stage_problem(
     ############################################################################
     problem_size = Dict{Symbol,Int64}()
     problem_size[:total_var] = size(JuMP.all_variables(subproblem),1)
-    problem_size[:bin_var] = JuMP.num_constraints(subproblem, VariableRef, MOI.ZeroOne)
-    problem_size[:int_var] = JuMP.num_constraints(subproblem, VariableRef, MOI.Integer)
-    problem_size[:total_con] = JuMP.num_constraints(subproblem, GenericAffExpr{Float64,VariableRef}, MOI.LessThan{Float64})
-                                + JuMP.num_constraints(subproblem, GenericAffExpr{Float64,VariableRef}, MOI.GreaterThan{Float64})
-                                + JuMP.num_constraints(subproblem, GenericAffExpr{Float64,VariableRef}, MOI.EqualTo{Float64})
+    problem_size[:bin_var] = JuMP.num_constraints(subproblem, JuMP.VariableRef, MOI.ZeroOne)
+    problem_size[:int_var] = JuMP.num_constraints(subproblem, JuMP.VariableRef, MOI.Integer)
+    problem_size[:total_con] = JuMP.num_constraints(subproblem, JuMP.GenericAffExpr{Float64,JuMP.VariableRef}, MOI.LessThan{Float64})
+                                + JuMP.num_constraints(subproblem, JuMP.GenericAffExpr{Float64,JuMP.VariableRef}, MOI.GreaterThan{Float64})
+                                + JuMP.num_constraints(subproblem, JuMP.GenericAffExpr{Float64,JuMP.VariableRef}, MOI.EqualTo{Float64})
 
     return (
         state = state,

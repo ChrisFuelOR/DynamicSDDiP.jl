@@ -27,7 +27,7 @@ function set_objective(subproblem::JuMP.Model)
         JuMP.set_objective(
             subproblem,
             JuMP.objective_sense(subproblem),
-            @expression(
+            JuMP.@expression(
                 subproblem,
                 node.stage_objective +
                 # objective_state_component +
