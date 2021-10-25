@@ -484,7 +484,7 @@ function iteration(
     binary_refinement = :none
 
     TimerOutputs.@timeit DynamicSDDiP_TIMER "bin_refinement" begin
-        if !isnothing(previous_solution) && bound_check
+        if !isnothing(previous_solution)
                 solution_check = DynamicSDDiP.binary_refinement_check(
                     model,
                     previous_solution,
@@ -493,13 +493,15 @@ function iteration(
                     algo_params.state_approximation_regime
                 )
 
+                @infiltrate
+
                 if solution_check || bound_check
                     binary_refinement = DynamicSDDiP.binary_refinement(
                         model,
                         algo_params.state_approximation_regime.binary_precision,
                         binary_refinement
                     )
-                end        
+                end
         end
     end
     # bound_check = true
