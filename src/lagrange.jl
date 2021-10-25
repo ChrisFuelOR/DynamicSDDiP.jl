@@ -126,7 +126,9 @@ function solve_lagrangian_dual(
     ############################################################################
     # RELAXING THE COPY CONSTRAINTS
     ############################################################################
-    relax_copy_constraints!(node, x_in_value, h_expr, algo_params.state_approximation_regime)
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "relax_copy" begin
+        relax_copy_constraints!(node, x_in_value, h_expr, algo_params.state_approximation_regime)
+    end
     node.ext[:backward_data][:old_rhs] = x_in_value
 
     ############################################################################
@@ -138,25 +140,27 @@ function solve_lagrangian_dual(
     ############################################################################
     # SET-UP THE APPROXIMATING CUTTING-PLANE MODEL
     ############################################################################
-    # Approximation of Lagrangian dual by cutting planes
-    # Optimizer is re-set anyway
-    approx_model = JuMP.Model(GAMS.Optimizer)
-    set_solver!(approx_model, algo_params, applied_solvers, :kelley)
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "init_approx_model" begin
+        # Approximation of Lagrangian dual by cutting planes
+        # Optimizer is re-set anyway
+        approx_model = JuMP.Model(GAMS.Optimizer)
+        set_solver!(approx_model, algo_params, applied_solvers, :kelley)
 
-    # Create the objective
-    # Note that it is always formulated as a maximization problem, but that
-    # s modifies the sense appropriately
-    JuMP.@variable(approx_model, t)
-    set_objective_bound!(approx_model, s, bound_results.obj_bound)
-    JuMP.@objective(approx_model, Max, t)
+        # Create the objective
+        # Note that it is always formulated as a maximization problem, but that
+        # s modifies the sense appropriately
+        JuMP.@variable(approx_model, t)
+        set_objective_bound!(approx_model, s, bound_results.obj_bound)
+        JuMP.@objective(approx_model, Max, t)
 
-    # Create the dual variables
-    # Note that the real dual multipliers are split up into two non-negative
-    # variables here, which is required for the Magnanti Wong part later
-    JuMP.@variable(approx_model, π⁺[1:number_of_states] >= 0)
-    JuMP.@variable(approx_model, π⁻[1:number_of_states] >= 0)
-    JuMP.@expression(approx_model, π, π⁺ .- π⁻) # not required to be a constraint
-    set_multiplier_bounds!(approx_model, number_of_states, bound_results.dual_bound)
+        # Create the dual variables
+        # Note that the real dual multipliers are split up into two non-negative
+        # variables here, which is required for the Magnanti Wong part later
+        JuMP.@variable(approx_model, π⁺[1:number_of_states] >= 0)
+        JuMP.@variable(approx_model, π⁻[1:number_of_states] >= 0)
+        JuMP.@expression(approx_model, π, π⁺ .- π⁻) # not required to be a constraint
+        set_multiplier_bounds!(approx_model, number_of_states, bound_results.dual_bound)
+    end
 
     ############################################################################
     # CUTTING-PLANE METHOD
@@ -175,7 +179,7 @@ function solve_lagrangian_dual(
         # SOLVE LAGRANGIAN RELAXATION FOR GIVEN DUAL_VARS
         ########################################################################
         # Evaluate the inner problem and determine a subgradient
-        TimerOutputs.@timeit DynamicSDDiP_TIMER "Lagrange_inner" begin
+        TimerOutputs.@timeit DynamicSDDiP_TIMER "inner_sol" begin
             L_k = _solve_Lagrangian_relaxation!(node, π_k, h_expr, h_k, true)
         end
 
@@ -192,13 +196,15 @@ function solve_lagrangian_dual(
         ########################################################################
         # ADD CUTTING PLANE
         ########################################################################
-        JuMP.@constraint(approx_model, t <= s * (L_k + h_k' * (π .- π_k)))
+        TimerOutputs.@timeit DynamicSDDiP_TIMER "add_cut" begin
+            JuMP.@constraint(approx_model, t <= s * (L_k + h_k' * (π .- π_k)))
+        end
 
         ########################################################################
         # SOLVE APPROXIMATION MODEL
         ########################################################################
         # Get a bound from the approximate model
-        TimerOutputs.@timeit DynamicSDDiP_TIMER "Lagrange_outer" begin
+        TimerOutputs.@timeit DynamicSDDiP_TIMER "outer_sol" begin
             JuMP.optimize!(approx_model)
         end
         @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
@@ -218,37 +224,43 @@ function solve_lagrangian_dual(
     ############################################################################
     # CONVERGENCE ANALYSIS
     ############################################################################
-    if isapprox(L_star, t_k, atol = atol, rtol = rtol)
-        # CONVERGENCE ACHIEVED
-        if isapprox(L_star, s * primal_obj, atol = atol, rtol = rtol)
-            # CONVERGENCE TO TRUE OPTIMUM (APPROXIMATELY)
-            lag_status = :opt
-        else
-            # CONVERGENCE TO A SMALLER VALUE THAN THE PRIMAL OBJECTIVE
-            # sometimes this occurs due to numerical issues
-            # still leads to a valid cut
-            lag_status = :conv
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "convergence_check" begin
+        if isapprox(L_star, t_k, atol = atol, rtol = rtol)
+            # CONVERGENCE ACHIEVED
+            if isapprox(L_star, s * primal_obj, atol = atol, rtol = rtol)
+                # CONVERGENCE TO TRUE OPTIMUM (APPROXIMATELY)
+                lag_status = :opt
+            else
+                # CONVERGENCE TO A SMALLER VALUE THAN THE PRIMAL OBJECTIVE
+                # sometimes this occurs due to numerical issues
+                # still leads to a valid cut
+                lag_status = :conv
+            end
+        elseif all(h_k .== 0)
+            # NO OPTIMALITY ACHIEVED, BUT STILL ALL SUBGRADIENTS ARE ZERO
+            # may occur due to numerical issues
+            lag_status = :sub
+        elseif iter == iteration_limit
+            # TERMINATION DUE TO ITERATION LIMIT
+            # stil leads to a valid cut
+            lag_status = :iter
         end
-    elseif all(h_k .== 0)
-        # NO OPTIMALITY ACHIEVED, BUT STILL ALL SUBGRADIENTS ARE ZERO
-        # may occur due to numerical issues
-        lag_status = :sub
-    elseif iter == iteration_limit
-        # TERMINATION DUE TO ITERATION LIMIT
-        # stil leads to a valid cut
-        lag_status = :iter
     end
 
     ############################################################################
     # APPLY MAGNANTI AND WONG APPROACH IF INTENDED
     ############################################################################
-    magnanti_wong!(node, approx_model, π_k, π_star, t_k, h_expr, h_k, s, L_star,
-        iteration_limit, atol, rtol, algo_params.duality_regime.dual_choice_regime, iter)
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "magnanti_wong" begin
+        magnanti_wong!(node, approx_model, π_k, π_star, t_k, h_expr, h_k, s, L_star,
+            iteration_limit, atol, rtol, algo_params.duality_regime.dual_choice_regime, iter)
+    end
 
     ############################################################################
     # RESTORE THE COPY CONSTRAINT x.in = value(x.in) (̄x = z)
     ############################################################################
-    restore_copy_constraints!(node, x_in_value, algo_params.state_approximation_regime)
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "restore_copy" begin
+        restore_copy_constraints!(node, x_in_value, algo_params.state_approximation_regime)
+    end
 
     ############################################################################
     # RESET SOLVER
