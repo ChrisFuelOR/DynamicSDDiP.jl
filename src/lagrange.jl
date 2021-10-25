@@ -140,7 +140,7 @@ function solve_lagrangian_dual(
     ############################################################################
     # Approximation of Lagrangian dual by cutting planes
     # Optimizer is re-set anyway
-    approx_model = JuMP.Model(Gurobi.Optimizer)
+    approx_model = JuMP.Model(GAMS.Optimizer)
     set_solver!(approx_model, algo_params, applied_solvers, :kelley)
 
     # Create the objective
@@ -512,7 +512,7 @@ function solve_lagrangian_dual(
     ############################################################################
     # Approximation of Lagrangian dual by cutting planes
     # Optimizer is re-set anyway
-    approx_model = JuMP.Model(Gurobi.Optimizer)
+    approx_model = JuMP.Model(GAMS.Optimizer)
 
     # Create the objective
     # Note that it is always formulated as a maximization problem, but that
