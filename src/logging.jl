@@ -186,7 +186,7 @@ function print_parameters(io, algo_params::DynamicSDDiP.AlgoParams, applied_solv
     println(io, Printf.@sprintf("MILP solver: %15s", applied_solvers.MILP))
     println(io, Printf.@sprintf("MIQCP solver: %15s", applied_solvers.MIQCP))
     println(io, Printf.@sprintf("MINLP solver: %15s", applied_solvers.MINLP))
-    println(io, Printf.@sprintf("(NLP solver: %15s", applied_solvers.NLP))
+    println(io, Printf.@sprintf("NLP solver: %15s", applied_solvers.NLP))
     println(io, Printf.@sprintf("Lagrange solver: %15s", applied_solvers.Lagrange))
 
     println(io, "----------------------------------------------------------------------------------------------------------------------------------------")
