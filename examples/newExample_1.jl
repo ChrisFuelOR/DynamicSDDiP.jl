@@ -48,7 +48,7 @@ function model_config()
     regularization_regime = DynamicSDDiP.Regularization(sigma = [0.0, 1.0], sigma_factor = 5.0)
 
     # Cut selection configuration
-    cut_selection_regime = DynamicSDDiP.NoCutSelection()
+    cut_selection_regime = DynamicSDDiP.CutSelection()
 
     # File for logging
     log_file = "C:/Users/cg4102/Documents/julia_logs/newExample_1.log"

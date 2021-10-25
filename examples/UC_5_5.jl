@@ -70,13 +70,13 @@ function model_config()
                                     cut_projection_regime = cut_projection_regime)
 
     # Regularization configuration
-    regularization_regime = DynamicSDDiP.Regularization(sigma = [0.0, 1000.0], sigma_factor = 2.0)
+    regularization_regime = DynamicSDDiP.Regularization(sigma = [0.0, 1000.0, 1000.0, 1000.0, 1000.0], sigma_factor = 2.0)
 
     # Cut selection configuration
     cut_selection_regime = DynamicSDDiP.CutSelection()
 
     # File for logging
-    log_file = "C:/Users/cg4102/Documents/julia_logs/UC_2_10.log"
+    log_file = "C:/Users/cg4102/Documents/julia_logs/UC_5_5.log"
 
     # Suppress solver output
     silent = true
@@ -148,20 +148,15 @@ end
 function model_definition()
 
     generators = [
-        Generator(0, 0.0, 2.0, 0.4, 18.0, 2.0, 42.6, 42.6, 0.4, 0.4),
-        Generator(0, 0.0, 3.2, 0.64, 15.0, 4.0, 50.6, 50.6, 0.64, 0.64),
-        Generator(0, 0.0, 1.5, 0.3, 17.0, 2.0, 57.1, 57.1, 0.3, 0.3),
-        Generator(1, 4.0, 5.0, 1.04, 13.2, 4.0, 47.1, 47.1, 1.04, 1.04),
-        Generator(1, 2.8, 2.8, 0.56, 14.3, 4.0, 56.9, 56.9, 0.56, 0.56),
-        Generator(0, 0.0, 0.8, 0.16, 40.2, 4.0, 141.5, 141.5, 0.3, 0.3),
-        Generator(1, 1.2, 1.2, 0.24, 17.1, 2.0, 113.5, 113.5, 0.24, 0.24),
-        Generator(1, 1.1, 1.1, 0.22, 17.3, 2.0, 42.6, 42.6, 0.22, 0.22),
-        Generator(0, 0.0, 0.8, 0.16, 59.4, 4.0, 50.6, 50.6, 0.16, 0.16),
-        Generator(0, 0.0, 0.6, 0.12, 19.5, 2.0, 57.1, 57.1, 0.12, 0.12),
+        Generator(1, 1.06, 1.19, 0.37, 52.0, 0.0, 177.68, 17.0, 0.31, 0.36),
+        Generator(0, 0.0, 1.13, 0.48, 54.0, 0.0, 171.60, 17.0, 0.28, 0.27),
+        Generator(0, 0.0, 1.02, 0.47, 49.4, 0.0, 168.04, 17.0, 0.22, 0.275),
+        Generator(1, 2.2, 2.82, 0.85, 61.6, 0.0, 486.81, 49.0, 0.9, 0.79),
+        Generator(0, 0.0, 3.23, 0.84, 54.9, 0.0, 503.34, 50.0, 1.01, 1.00),
     ]
 
     demand_penalty = 5e2
-    demand = [8.83 9.15]
+    demand = [4.27 4.01 3.69 3.66 3.72]
 
     storages = [
         Storage(1.2, 0.5, 0.7, 0.45, 0.4, 0.9, 0.85),
@@ -172,7 +167,7 @@ function model_definition()
 
     number_of_generators = size(generators,1)
     number_of_storages = 0
-    number_of_stages = 2
+    number_of_stages = 5
 
     model = SDDP.LinearPolicyGraph(
         stages = number_of_stages,

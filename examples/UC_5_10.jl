@@ -41,7 +41,7 @@ end
 function model_config()
 
     # Stopping rules to be used
-    stopping_rules = [DynamicSDDiP.DeterministicStopping(atol=5e-4,rtol=5e-4)]
+    stopping_rules = [DynamicSDDiP.DeterministicStopping(atol=5e-4,rtol=5e-4), SDDP.TimeLimit(7200)]
     # iteration limit 50? time limit 36000?
 
     # Duality / Cut computation configuration
@@ -49,7 +49,7 @@ function model_config()
     dual_solution_regime = DynamicSDDiP.Kelley()
     dual_bound_regime = DynamicSDDiP.BothBounds()
     dual_status_regime = DynamicSDDiP.Rigorous()
-    dual_choice_regime = DynamicSDDiP.StandardChoice()
+    dual_choice_regime = DynamicSDDiP.MagnantiWongChoice()
     duality_regime = DynamicSDDiP.LagrangianDuality(
         atol = 1e-8,
         rtol = 1e-8,
@@ -73,7 +73,7 @@ function model_config()
     regularization_regime = DynamicSDDiP.Regularization(sigma = [0.0, 1000.0, 1000.0, 1000.0, 1000.0], sigma_factor = 2.0)
 
     # Cut selection configuration
-    cut_selection_regime = DynamicSDDiP.NoCutSelection()
+    cut_selection_regime = DynamicSDDiP.CutSelection()
 
     # File for logging
     log_file = "C:/Users/cg4102/Documents/julia_logs/UC_5_10.log"

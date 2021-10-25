@@ -177,7 +177,7 @@ function _cut_selection_update(
     ############################################################################
     # DETERMINE NUMBER OF CUTS FOR LOGGING
     ############################################################################
-    counts_cuts(node, V)
+    count_cuts(node, V)
 
     return
 end

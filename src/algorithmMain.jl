@@ -169,8 +169,9 @@ function solve(
     if algo_params.print_level > 0
         print_helper(print_footer, log_file_handle, results)
         if algo_params.print_level > 1
-            print_helper(TimerOutputs.print_timer, log_file_handle, DynamicSDDiP_TIMER)
-            print_helper(println, log_file_handle)
+            # print_helper(TimerOutputs.print_timer, log_file_handle, DynamicSDDiP_TIMER)
+            TimerOutputs.print_timer(log_file_handle, DynamicSDDiP_TIMER, allocations=false)
+            TimerOutputs.print_timer(stdout, DynamicSDDiP_TIMER, allocations=false)
         end
     end
     close(log_file_handle)
