@@ -70,13 +70,13 @@ function model_config()
                                     cut_projection_regime = cut_projection_regime)
 
     # Regularization configuration
-    regularization_regime = DynamicSDDiP.Regularization(sigma = [0.0, 1000.0], sigma_factor = 2.0)
+    regularization_regime = DynamicSDDiP.Regularization(sigma = [0.0, 1000.0, 1000.0], sigma_factor = 2.0)
 
     # Cut selection configuration
     cut_selection_regime = DynamicSDDiP.NoCutSelection()
 
     # File for logging
-    log_file = "C:/Users/cg4102/Documents/julia_logs/UC_2_5.log"
+    log_file = "C:/Users/cg4102/Documents/julia_logs/UC_3_5.log"
 
     # Suppress solver output
     silent = true
@@ -156,7 +156,7 @@ function model_definition()
     ]
 
     demand_penalty = 5e2
-    demand = [8.0 8.5]
+    demand = [8.0 8.5 10.1]
 
     storages = [
         Storage(1.2, 0.5, 0.7, 0.45, 0.4, 0.9, 0.85),
