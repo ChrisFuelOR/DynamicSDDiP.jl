@@ -41,7 +41,7 @@ end
 function model_config()
 
     # Stopping rules to be used
-    stopping_rules = [DynamicSDDiP.DeterministicStopping()]
+    stopping_rules = [DynamicSDDiP.DeterministicStopping(atol=5e-4,rtol=5e-4)]
     # iteration limit 50? time limit 36000?
 
     # Duality / Cut computation configuration
@@ -51,8 +51,8 @@ function model_config()
     dual_status_regime = DynamicSDDiP.Rigorous()
     dual_choice_regime = DynamicSDDiP.MagnantiWongChoice()
     duality_regime = DynamicSDDiP.LagrangianDuality(
-        atol = 5e-4,
-        rtol = 5e-4,
+        atol = 1e-8,
+        rtol = 1e-8,
         iteration_limit = 1000,
         dual_initialization_regime = dual_initialization_regime,
         dual_bound_regime = dual_bound_regime,
