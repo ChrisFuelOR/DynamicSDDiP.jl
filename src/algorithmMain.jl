@@ -273,8 +273,6 @@ function master_loop(parallel_scheme::SDDP.Serial, model::SDDP.PolicyGraph{T},
         log_iteration(algo_params, options.log_file_handle, options.log)
 
         # initialize parameters
-        previous_solution = result.current_sol
-        previous_bound = result.lower_bound
         sigma_increased = false
         bound_check = true
 
@@ -375,6 +373,9 @@ function convergence_handler(
                 bound_check = false
         else
             sigma_increased = false
+            # Update of previous_solution and previous_bound
+            previous_solution = result.current_sol
+            previous_bound = result.lower_bound
         end
 
     end
@@ -431,6 +432,10 @@ function convergence_handler(result::DynamicSDDiP.IterationResult,
         ########################################################################
         if result.upper_bound - result.lower_bound < - 1e-8 # NOTE
             error("LB < UB for DynamicSDDiP. Terminating.")
+        else
+            # Update previous_solution and previous_bound
+            previous_solution = result.current_sol
+            previous_bound = result.lower_bound
         end
 
     end
