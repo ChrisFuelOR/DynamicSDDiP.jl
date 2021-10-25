@@ -167,7 +167,7 @@ function model_definition()
 
     number_of_generators = size(generators,1)
     number_of_storages = 0
-    number_of_stages = 2
+    number_of_stages = 3
 
     model = SDDP.LinearPolicyGraph(
         stages = number_of_stages,
