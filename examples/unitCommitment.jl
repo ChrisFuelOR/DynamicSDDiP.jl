@@ -170,8 +170,8 @@ function model_definition()
 
     inflow = [0.2 0.3 0.4; 0.1 0.05 0.1]
 
-    number_of_generators = 1
-    number_of_storages = 0
+    number_of_generators = 3
+    number_of_storages = 2
     number_of_stages = 2
 
     model = SDDP.LinearPolicyGraph(
