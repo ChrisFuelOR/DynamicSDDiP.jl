@@ -8,7 +8,7 @@ module DynamicSDDiP
 
 using JuMP
 import SDDP
-import Gurobi
+#import Gurobi
 import Revise
 import TimerOutputs
 import GAMS
