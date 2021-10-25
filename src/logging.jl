@@ -122,9 +122,9 @@ function print_parameters(io, algo_params::DynamicSDDiP.AlgoParams, applied_solv
                 println(io, Printf.@sprintf("opt_rtol: %1.4e", rule.rtol))
                 println(io, Printf.@sprintf("opt_atol: %1.4e", rule.atol))
             elseif isa(rule, SDDP.IterationLimit)
-                println(io, Printf.@sprintf("iteration_limit: %5d", rule.iteration_limit))
-            elseif isa(rule,  SDDP.TimeLimit)
-                println(io, Printf.@sprintf("time_limit (sec): %6d", rule.time_limit))
+                println(io, Printf.@sprintf("iteration_limit: %5d", rule.limit))
+            elseif isa(rule, SDDP.TimeLimit)
+                println(io, Printf.@sprintf("time_limit (sec): %6d", rule.limit))
             end
         end
     end
