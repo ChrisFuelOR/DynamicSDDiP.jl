@@ -498,8 +498,6 @@ function iteration(
                     algo_params.state_approximation_regime
                 )
 
-                @infiltrate
-
                 if solution_check || bound_check
                     binary_refinement = DynamicSDDiP.binary_refinement(
                         model,
