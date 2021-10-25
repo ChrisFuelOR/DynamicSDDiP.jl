@@ -12,12 +12,10 @@ function binary_refinement_check(
     model::SDDP.PolicyGraph{T},
     previous_solution::Union{Vector{Dict{Symbol,Float64}},Nothing},
     sampled_states::Vector{Dict{Symbol,Float64}},
-    refinement_check::Bool,
+    solution_check::Bool,
     #bound_check::Bool,
     state_approximation_regime::DynamicSDDiP.BinaryApproximation,
     ) where {T}
-
-    solution_check = true
 
     # Check if feasible solution has changed since last iteration
     # If not, then the cut was not tight enough, so binary approximation should be refined
@@ -31,14 +29,7 @@ function binary_refinement_check(
         end
     end
 
-    #if solution_check && bound_check
-    #    # Binary precision should be increased
-    #    refinement_check = true
-    #end
-
-    refinement_check = solution_check
-
-    return refinement_check
+    return solution_check
 end
 
 """

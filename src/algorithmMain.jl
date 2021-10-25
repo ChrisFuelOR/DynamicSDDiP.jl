@@ -480,25 +480,26 @@ function iteration(
     ############################################################################
     # If the forward pass solution and the lower bound did not change during
     # the last iteration, then increase the binary precision (for all stages)
-    refinement_check = false
+    solution_check = true
     binary_refinement = :none
 
     TimerOutputs.@timeit DynamicSDDiP_TIMER "bin_refinement" begin
         if !isnothing(previous_solution) && bound_check
-                refinement_check = DynamicSDDiP.binary_refinement_check(
+                solution_check = DynamicSDDiP.binary_refinement_check(
                     model,
                     previous_solution,
                     forward_trajectory.sampled_states,
-                    refinement_check,
+                    solution_check,
                     algo_params.state_approximation_regime
                 )
-        end
-        if refinement_check
-            binary_refinement = DynamicSDDiP.binary_refinement(
-                model,
-                algo_params.state_approximation_regime.binary_precision,
-                binary_refinement
-            )
+
+                if solution_check || bound_check
+                    binary_refinement = DynamicSDDiP.binary_refinement(
+                        model,
+                        algo_params.state_approximation_regime.binary_precision,
+                        binary_refinement
+                    )
+                end        
         end
     end
     # bound_check = true

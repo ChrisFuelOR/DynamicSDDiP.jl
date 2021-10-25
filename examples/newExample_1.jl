@@ -8,7 +8,7 @@ using JuMP
 using SDDP
 using DynamicSDDiP
 using Revise
-using Gurobi
+#using Gurobi
 using GAMS
 #using SCIP
 using Infiltrator
