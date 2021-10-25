@@ -51,8 +51,8 @@ function model_config()
     dual_status_regime = DynamicSDDiP.Rigorous()
     dual_choice_regime = DynamicSDDiP.MagnantiWongChoice()
     duality_regime = DynamicSDDiP.LagrangianDuality(
-        atol = 1e-8,
-        rtol = 1e-8,
+        atol = 1e-4,
+        rtol = 1e-4,
         iteration_limit = 1000,
         dual_initialization_regime = dual_initialization_regime,
         dual_bound_regime = dual_bound_regime,
@@ -76,7 +76,7 @@ function model_config()
     cut_selection_regime = DynamicSDDiP.NoCutSelection()
 
     # File for logging
-    log_file = "C:/Users/cg4102/Documents/julia_logs/UC_5_10.log"
+    log_file = "C:/Users/cg4102/Documents/julia_logs/UC_10_10.log"
 
     # Suppress solver output
     silent = true
