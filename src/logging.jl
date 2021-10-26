@@ -106,7 +106,8 @@ function print_parameters(io, algo_params::DynamicSDDiP.AlgoParams, applied_solv
 
     # Printint the file name
     print(io, "calling ")
-    print(io, @__DIR__)
+    println(io, @__DIR__)
+    println(io, Base.source_path())
     println(io)
     println(io)
 

@@ -110,6 +110,7 @@ ValueBound means that the optimal value of the Lagrangian dual is bounded from
     the beginning using the optimal value of the primal problem (as in the
     SDDP package). However, the dual multipliers are not bounded.
     This may result in infinitely steep cuts.
+    Still, this has resulted in relatively good cuts in the NCNBD case.
 NormBound means that the dual multipliers in the Lagrangian dual are bounded
     in their norm. This makes most sense when using a regularization and choosing
     a dual bound related to the regularization parameter sigma.

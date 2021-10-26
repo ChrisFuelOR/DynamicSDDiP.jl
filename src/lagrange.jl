@@ -172,7 +172,7 @@ function solve_lagrangian_dual(
     t_k = 0 # why zero?
     #-inf is not possible, since then the while loop would not start at all
 
-    while iter <= iteration_limit && !isapprox(L_star, t_k, atol = atol, rtol = rtol)
+    while iter < iteration_limit && !isapprox(L_star, t_k, atol = atol, rtol = rtol)
         iter += 1
 
         ########################################################################
@@ -554,7 +554,7 @@ function solve_lagrangian_dual(
     # set up optimal value of approx_model (former f_approx)
     t_k = 0
 
-    while iter <= iteration_limit && !isapprox(L_star, t_k, atol = atol, rtol = rtol)
+    while iter < iteration_limit && !isapprox(L_star, t_k, atol = atol, rtol = rtol)
         iter += 1
 
         ########################################################################
