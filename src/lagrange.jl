@@ -565,6 +565,7 @@ function solve_lagrangian_dual(
             L_k = _solve_Lagrangian_relaxation!(node, π_k, h_expr, h_k, true)
         end
         @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
+        #@infiltrate
 
         ########################################################################
         # UPDATE BEST FOUND SOLUTION SO FAR
@@ -677,6 +678,8 @@ function solve_lagrangian_dual(
 
         @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
         π_k .= JuMP.value.(π)
+        #@infiltrate
+        print(L_k, ", ", t_k, ", ", level)
 
         ########################################################################
         if L_star > t_k + atol/10.0

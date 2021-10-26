@@ -51,8 +51,8 @@ function model_config()
     dual_status_regime = DynamicSDDiP.Lax()
     dual_choice_regime = DynamicSDDiP.StandardChoice()
     duality_regime = DynamicSDDiP.LagrangianDuality(
-        atol = 1e-8,
-        rtol = 1e-8,
+        atol = 1e-4,
+        rtol = 1e-4,
         iteration_limit = 1000,
         dual_initialization_regime = dual_initialization_regime,
         dual_bound_regime = dual_bound_regime,
