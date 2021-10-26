@@ -47,7 +47,7 @@ function model_config()
     # Duality / Cut computation configuration
     dual_initialization_regime = DynamicSDDiP.ZeroDuals()
     dual_solution_regime = DynamicSDDiP.Kelley()
-    dual_bound_regime = DynamicSDDiP.BothBounds()
+    dual_bound_regime = DynamicSDDiP.ValueBound()
     dual_status_regime = DynamicSDDiP.Rigorous()
     dual_choice_regime = DynamicSDDiP.StandardChoice()
     duality_regime = DynamicSDDiP.LagrangianDuality(
