@@ -114,7 +114,6 @@ function backward_pass(
             )
         end
 
-        @infiltrate
         push!(cuts[node_index], new_cuts)
         # NOTE: This has to be adapted for stochastic case
         push!(model.ext[:lag_iterations], sum(items.lag_iterations))
@@ -356,13 +355,16 @@ function solve_first_stage_problem(
     # Parameterize the model. First, fix the value of the incoming state
     # variables. Then parameterize the model depending on `noise`. Finally,
     # set the objective.
+    @infiltrate
     set_incoming_state!(node, state)
     parameterize(node, noise)
+    @infiltrate
 
     ############################################################################
     # SOLUTION
     ############################################################################
     JuMP.optimize!(subproblem)
+    @infiltrate
 
     # Maybe attempt numerical recovery as in SDDP
 

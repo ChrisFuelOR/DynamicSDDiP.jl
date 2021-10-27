@@ -530,13 +530,10 @@ function iteration(
     ############################################################################
     # CALCULATE LOWER BOUND
     ############################################################################
-    @infiltrate
     TimerOutputs.@timeit DynamicSDDiP_TIMER "calculate_bound" begin
         first_stage_results = calculate_bound(model)
     end
     bound = first_stage_results.bound
-
-    @infiltrate
 
     ############################################################################
     # CHECK IF BEST KNOWN SOLUTION HAS BEEN IMPROVED
