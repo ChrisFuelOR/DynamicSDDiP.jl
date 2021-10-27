@@ -160,12 +160,11 @@ function _cut_selection_update(
     ############################################################################
     if length(V.cuts_to_be_deleted) >= V.deletion_minimum
         for cut in V.cuts_to_be_deleted
-            for variable_ref in cut.cut_variables
-                @infiltrate
-                JuMP.delete(model, variable_ref)
-            end
             for constraint_ref in cut.cut_constraints
                 JuMP.delete(model, constraint_ref)
+            end
+            for variable_ref in cut.cut_variables
+                JuMP.delete(model, variable_ref)
             end
             cut.cut_variables = JuMP.VariableRef[]
             cut.cut_constraints = JuMP.ConstraintRef[]
