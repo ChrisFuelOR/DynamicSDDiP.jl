@@ -62,7 +62,7 @@ function model_config()
     )
 
     # State approximation and cut projection configuration
-    cut_projection_regime = DynamicSDDiP.SOS1()
+    cut_projection_regime = DynamicSDDiP.KKT()
     binary_precision = Dict{Symbol, Float64}()
 
     state_approximation_regime = DynamicSDDiP.BinaryApproximation(

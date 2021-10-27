@@ -62,7 +62,7 @@ function model_config()
     )
 
     # State approximation and cut projection configuration
-    cut_projection_regime = DynamicSDDiP.SOS1()
+    cut_projection_regime = DynamicSDDiP.KKT()
     binary_precision = Dict{Symbol, Float64}()
 
     state_approximation_regime = DynamicSDDiP.BinaryApproximation(
@@ -79,7 +79,7 @@ function model_config()
     log_file = "C:/Users/cg4102/Documents/julia_logs/UC_3_10.log"
 
     # Suppress solver output
-    silent = false
+    silent = true
 
     # Infiltration for debugging
     infiltrate_state = :none
