@@ -59,6 +59,14 @@ function set_solver!(
             "optcr"=>0.0,
             "numericalemphasis"=>numerical_focus)
             )
+    elseif solver == "Gurobi" && isa(cut_projection_regime, DynamicSDDiP.StrongDuality)
+        set_optimizer(subproblem, optimizer_with_attributes(
+            GAMS.Optimizer,
+            "Solver"=>solver,
+            "optcr"=>0.0,
+            "NumericFocus"=>numerical_focus,
+            "nonConvex"=>2)
+            )
     elseif solver == "Gurobi"
         set_optimizer(subproblem, optimizer_with_attributes(
             GAMS.Optimizer,
@@ -67,11 +75,11 @@ function set_solver!(
             "NumericFocus"=>numerical_focus)
             )
     else
-        set_optimizer(subproblem, optimizer_with_attributes(
-            GAMS.Optimizer,
-            "Solver"=>solver,
-            "optcr"=>0.0)
-            )
+    set_optimizer(subproblem, optimizer_with_attributes(
+        GAMS.Optimizer,
+        "Solver"=>solver,
+        "optcr"=>0.0)
+        )
 
         if numerical_focus == 1
             @warn("Numerical focus only works with Gurobi or CPLEX.")
