@@ -222,6 +222,7 @@ function get_dual_solution(
         JuMP.optimize!(subproblem)
     end
 
+    @infiltrate
     # Maybe attempt numerical recovery as in SDDP
     primal_obj = JuMP.objective_value(subproblem)
     @assert JuMP.termination_status(subproblem) == MOI.OPTIMAL
