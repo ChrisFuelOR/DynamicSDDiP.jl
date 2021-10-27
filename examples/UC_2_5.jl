@@ -79,7 +79,7 @@ function model_config()
     log_file = "C:/Users/cg4102/Documents/julia_logs/UC_2_5.log"
 
     # Suppress solver output
-    silent = true
+    silent = false
 
     # Infiltration for debugging
     infiltrate_state = :none
