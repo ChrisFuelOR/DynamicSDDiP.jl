@@ -114,6 +114,7 @@ function backward_pass(
             )
         end
 
+        @infiltrate
         push!(cuts[node_index], new_cuts)
         # NOTE: This has to be adapted for stochastic case
         push!(model.ext[:lag_iterations], sum(items.lag_iterations))

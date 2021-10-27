@@ -359,8 +359,6 @@ function _add_cut(
     ############################################################################
     _add_cut_constraints_to_models(node, V, cut, algo_params, infiltrate_state)
 
-    @infiltrate
-
     ############################################################################
     # UPDATE CUT SELECTION
     ############################################################################
@@ -369,8 +367,6 @@ function _add_cut(
             applied_solvers, algo_params, infiltrate_state,
             algo_params.cut_selection_regime)
     end
-
-    @infiltrate
 
     return
 end

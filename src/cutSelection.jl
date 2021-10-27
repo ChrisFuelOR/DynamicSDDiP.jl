@@ -144,7 +144,6 @@ function _cut_selection_update(
 
     end
     push!(V.cuts, cut)
-    @infiltrate
 
     ############################################################################
     # DETERMINE CUTS TO BE DELETED
@@ -156,7 +155,6 @@ function _cut_selection_update(
             end
         end
     end
-    @infiltrate
 
     ############################################################################
     # DELETE CUTS
@@ -176,7 +174,6 @@ function _cut_selection_update(
         end
     end
     empty!(V.cuts_to_be_deleted)
-    @infiltrate
 
     ############################################################################
     # DETERMINE NUMBER OF CUTS FOR LOGGING
