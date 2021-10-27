@@ -23,7 +23,7 @@ function set_solver!(
         if isa(cut_projection_regime, DynamicSDDiP.KKT)
             solver = applied_solvers.MINLP
         elseif isa(cut_projection_regime, DynamicSDDiP.StrongDuality)
-            solver = applide_solvers.MINLP
+            solver = applied_solvers.MINLP
             #solver = applied_solvers.MIQCP
         else
             solver = applied_solvers.MILP
