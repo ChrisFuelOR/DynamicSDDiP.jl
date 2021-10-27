@@ -355,16 +355,13 @@ function solve_first_stage_problem(
     # Parameterize the model. First, fix the value of the incoming state
     # variables. Then parameterize the model depending on `noise`. Finally,
     # set the objective.
-    @infiltrate
     set_incoming_state!(node, state)
     parameterize(node, noise)
-    @infiltrate
 
     ############################################################################
     # SOLUTION
     ############################################################################
     JuMP.optimize!(subproblem)
-    @infiltrate
 
     # Maybe attempt numerical recovery as in SDDP
 
