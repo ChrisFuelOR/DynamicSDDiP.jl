@@ -23,7 +23,8 @@ function set_solver!(
         if isa(cut_projection_regime, DynamicSDDiP.KKT)
             solver = applied_solvers.MINLP
         elseif isa(cut_projection_regime, DynamicSDDiP.StrongDuality)
-            solver = applied_solvers.MIQCP
+            solver = applide_solvers.MINLP
+            #solver = applied_solvers.MIQCP
         else
             solver = applied_solvers.MILP
         end
@@ -58,14 +59,6 @@ function set_solver!(
             "Solver"=>solver,
             "optcr"=>0.0,
             "numericalemphasis"=>numerical_focus)
-            )
-    elseif solver == "Gurobi" && isa(cut_projection_regime, DynamicSDDiP.StrongDuality)
-        set_optimizer(subproblem, optimizer_with_attributes(
-            GAMS.Optimizer,
-            "Solver"=>solver,
-            "optcr"=>0.0,
-            "NumericFocus"=>numerical_focus,
-            "nonConvex"=>2)
             )
     elseif solver == "Gurobi"
         set_optimizer(subproblem, optimizer_with_attributes(
