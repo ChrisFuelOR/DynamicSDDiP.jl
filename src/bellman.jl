@@ -370,6 +370,8 @@ function _add_cut(
             algo_params.cut_selection_regime)
     end
 
+    @infiltrate
+
     return
 end
 

@@ -141,8 +141,10 @@ function _cut_selection_update(
             sampled_state_trial.best_objective = height
             _add_cut_constraints_to_models(node, V, old_cut, algo_params, infiltrate_state)
         end
+
     end
     push!(V.cuts, cut)
+    @infiltrate
 
     ############################################################################
     # DETERMINE CUTS TO BE DELETED
@@ -154,6 +156,7 @@ function _cut_selection_update(
             end
         end
     end
+    @infiltrate
 
     ############################################################################
     # DELETE CUTS
@@ -173,6 +176,7 @@ function _cut_selection_update(
         end
     end
     empty!(V.cuts_to_be_deleted)
+    @infiltrate
 
     ############################################################################
     # DETERMINE NUMBER OF CUTS FOR LOGGING
