@@ -101,7 +101,7 @@ function model_config()
         LP = "Gurobi",
         MILP = "Gurobi",
         MIQCP = "Gurobi",
-        MINLP = "SCIP",
+        MINLP = "BARON",
         NLP = "Gurobi",
         Lagrange = "Gurobi",
     )
