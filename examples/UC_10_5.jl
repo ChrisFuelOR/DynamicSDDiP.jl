@@ -47,9 +47,9 @@ function model_config()
     # Duality / Cut computation configuration
     dual_initialization_regime = DynamicSDDiP.ZeroDuals()
     dual_solution_regime = DynamicSDDiP.Kelley()
-    dual_bound_regime = DynamicSDDiP.BothBounds()
+    dual_bound_regime = DynamicSDDiP.ValueBound()
     dual_status_regime = DynamicSDDiP.Lax()
-    dual_choice_regime = DynamicSDDiP.MagnantiWongChoice()
+    dual_choice_regime = DynamicSDDiP.StandardChoice()
     duality_regime = DynamicSDDiP.LagrangianDuality(
         atol = 1e-4,
         rtol = 1e-4,
@@ -62,7 +62,7 @@ function model_config()
     )
 
     # State approximation and cut projection configuration
-    cut_projection_regime = DynamicSDDiP.StrongDuality()
+    cut_projection_regime = DynamicSDDiP.BigM()
     binary_precision = Dict{Symbol, Float64}()
 
     state_approximation_regime = DynamicSDDiP.BinaryApproximation(
