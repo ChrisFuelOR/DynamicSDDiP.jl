@@ -676,10 +676,20 @@ function solve_lagrangian_dual(
             JuMP.optimize!(approx_model)
         end
 
-        @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
+        """ This is removed, as sometimes the QCP is solved to optimality, but
+        Gurobi is not able to get an optimality certificate
+        (QCP status(13): Unable to satisfy optimality tolerances;
+        a sub-optimal solution is available), even though other solvers prove
+        that the solution is indeed optimal.
+        Even if the solution is suboptimal, this should not be a problem, as long
+        as it is feasible. Therefore, I think the algorithm should not
+        stop here.
+        """
+        #@assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
+
         π_k .= JuMP.value.(π)
         #@infiltrate
-        print(L_k, ", ", t_k, ", ", level)
+        #print(L_k, ", ", t_k, ", ", level)
 
         ########################################################################
         if L_star > t_k + atol/10.0
