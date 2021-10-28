@@ -679,7 +679,7 @@ function solve_lagrangian_dual(
         @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
         π_k .= JuMP.value.(π)
         #@infiltrate
-        print(L_k, ", ", t_k, ", ", level)
+        #print(L_k, ", ", t_k, ", ", level)
 
         ########################################################################
         if L_star > t_k + atol/10.0
