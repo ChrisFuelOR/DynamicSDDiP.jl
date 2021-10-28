@@ -513,9 +513,9 @@ function _add_cut_constraints_to_models(
     ############################################################################
     # ADD SOS1 STRONG DUALITY CONSTRAINT
     ############################################################################
-    add_strong_duality_cut!(model, node, cut, V, all_lambda, all_mu, all_eta,
-        all_coefficients, number_of_states, number_of_duals,
-        algo_params.state_approximation_regime.cut_projection_regime)
+    #add_strong_duality_cut!(model, node, cut, V, all_lambda, all_mu, all_eta,
+    #    all_coefficients, number_of_states, number_of_duals,
+    #    algo_params.state_approximation_regime.cut_projection_regime)
 
     return
 
