@@ -1095,6 +1095,8 @@ function add_strong_duality_cut!(
         - sum(node.ext[:state_info_storage][sym].out.upper_bound * all_eta[i]  for (i, (sym, x)) in enumerate(V.states))
     )
 
+    @infiltrate
+
     constraint_ref = if JuMP.objective_sense(model) == MOI.MIN_SENSE
         JuMP.@constraint(model, strong_duality_expr >= 0)
     else
