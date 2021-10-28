@@ -513,9 +513,9 @@ function _add_cut_constraints_to_models(
     ############################################################################
     # ADD SOS1 STRONG DUALITY CONSTRAINT
     ############################################################################
-    #add_strong_duality_cut!(model, node, cut, V, all_lambda, all_mu, all_eta,
-    #    all_coefficients, number_of_states, number_of_duals,
-    #    algo_params.state_approximation_regime.cut_projection_regime)
+    add_strong_duality_cut!(model, node, cut, V, all_lambda, all_mu, all_eta,
+        all_coefficients, number_of_states, number_of_duals,
+        algo_params.state_approximation_regime.cut_projection_regime)
 
     return
 
@@ -1092,7 +1092,7 @@ function add_strong_duality_cut!(
         model,
         sum(all_coefficients[j] * all_lambda[j]  for j in 1:number_of_duals)
         - sum(all_mu[j]  for j in 1:number_of_duals)
-        - sum(node.ext[:state_info_storage][sym].out.upper_bound * all_eta[i]  for (i, (sym, x)) in enumerate(V.states))
+        - sum(node.ext[:state_info_storage][sym].out.lower_bound * all_eta[i]  for (i, (sym, x)) in enumerate(V.states))
     )
 
     constraint_ref = if JuMP.objective_sense(model) == MOI.MIN_SENSE
