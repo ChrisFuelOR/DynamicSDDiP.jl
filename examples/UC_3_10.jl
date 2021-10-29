@@ -46,10 +46,10 @@ function model_config()
 
     # Duality / Cut computation configuration
     dual_initialization_regime = DynamicSDDiP.ZeroDuals()
-    dual_solution_regime = DynamicSDDiP.LevelBundle()
-    dual_bound_regime = DynamicSDDiP.ValueBound()
+    dual_solution_regime = DynamicSDDiP.Kelley()
+    dual_bound_regime = DynamicSDDiP.BothBounds()
     dual_status_regime = DynamicSDDiP.Lax()
-    dual_choice_regime = DynamicSDDiP.StandardChoice()
+    dual_choice_regime = DynamicSDDiP.MagnantiWongChoice()
     duality_regime = DynamicSDDiP.LagrangianDuality(
         atol = 1e-4,
         rtol = 1e-4,
@@ -79,7 +79,7 @@ function model_config()
     log_file = "C:/Users/cg4102/Documents/julia_logs/UC_3_10.log"
 
     # Suppress solver output
-    silent = false
+    silent = true
 
     # Infiltration for debugging
     infiltrate_state = :none
