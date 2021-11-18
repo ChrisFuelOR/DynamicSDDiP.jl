@@ -412,6 +412,7 @@ function _add_cut_constraints_to_models(
     all_lambda = JuMP.VariableRef[]
     all_eta = JuMP.VariableRef[]
     all_mu = JuMP.VariableRef[]
+    eta_bounds = Float64[]
     K_tilde = 0
 
     ############################################################################
@@ -474,6 +475,7 @@ function _add_cut_constraints_to_models(
                     all_lambda,
                     all_eta,
                     all_mu,
+                    eta_bounds,
                     ########################################################
                     K,
                     K_tilde,
@@ -490,7 +492,7 @@ function _add_cut_constraints_to_models(
     ############################################################################
     # MAKE SOME VALIDITY CHECKS
     ############################################################################
-    validity_checks!(cut, V, K_tilde, all_lambda, all_mu, all_eta,
+    validity_checks!(cut, V, K_tilde, all_lambda, all_mu, all_eta, eta_bounds,
         all_coefficients, number_of_states,
         algo_params.state_approximation_regime.cut_projection_regime)
 
@@ -499,8 +501,8 @@ function _add_cut_constraints_to_models(
     ############################################################################
     # ADD THE ORIGINAL CUT CONSTRAINT AS WELL
     ############################################################################
-    expr = get_cut_expression(model, node, V, all_lambda, all_mu, all_eta,
-        all_coefficients, number_of_states, number_of_duals,
+    expr = get_cut_expression(model, node, V, cut, all_lambda, all_mu, all_eta,
+        eta_bounds, all_coefficients, number_of_states, number_of_duals,
         algo_params.state_approximation_regime.cut_projection_regime)
 
     constraint_ref = if JuMP.objective_sense(model) == MOI.MIN_SENSE
@@ -546,6 +548,7 @@ function represent_cut_projection_closure!(
     all_lambda::Vector{JuMP.VariableRef},
     all_eta::Vector{JuMP.VariableRef},
     all_mu::Vector{JuMP.VariableRef},
+    eta_bounds::Vector{Float64},
     ########################################################
     K::Int64,
     K_tilde::Int64,
@@ -637,6 +640,11 @@ function represent_cut_projection_closure!(
         ########################################################################
         cut_projection_regime
     )
+
+    ############################################################################
+    # ADD TRIVIAL BOUND FOR ETA
+    ############################################################################
+    push!(eta_bounds, Inf)
 
     ############################################################################
     # INCREASE K_tilde
@@ -883,7 +891,8 @@ end
 
 """
 Defining the constraints and variables corresponding to representing
-the cut projection closure if StrongDuality is exploited.
+the cut projection closure if StrongDuality is exploited
+(either directly or by relaxing the bilinear terms with a McCormick envelope).
 """
 function represent_cut_projection_closure!(
     model::JuMP.Model,
@@ -905,13 +914,14 @@ function represent_cut_projection_closure!(
     all_lambda::Vector{JuMP.VariableRef},
     all_eta::Vector{JuMP.VariableRef},
     all_mu::Vector{JuMP.VariableRef},
+    eta_bounds::Vector{Float64},
     ########################################################
     K::Int64,
     K_tilde::Int64,
     ########################################################
     infiltrate_state::Symbol,
     ########################################################
-    cut_projection_regime::DynamicSDDiP.StrongDuality
+    cut_projection_regime::Union{DynamicSDDiP.StrongDuality,DynamicSDDiP.McCormick}
     )
 
     ############################################################################
@@ -944,12 +954,18 @@ function represent_cut_projection_closure!(
     ############################################################################
     # ADD DUAL FEASIBILITY CONSTRAINTS (CPC-CONSTRAINT 2d)
     ############################################################################
-    primal_feas_constraints = JuMP.@constraint(
+    dual_feas_constraints = JuMP.@constraint(
         model,
         [k=1:K],
         μ[k] + 2^(k-1) * beta * η >= related_coefficients[k]
     )
-    append!(cut_constraints, primal_feas_constraints)
+    append!(cut_constraints, dual_feas_constraints)
+
+    ############################################################################
+    # GET ETA BOUND
+    ############################################################################
+    eta_bound = get_eta_bound(node, beta, related_coefficients, K)
+    push!(eta_bounds, eta_bound)
 
     ############################################################################
     # INCREASE K_tilde
@@ -958,6 +974,22 @@ function represent_cut_projection_closure!(
 
     return K_tilde
 
+end
+
+"""
+Determine a reasonable bound for eta. This could be improved later.
+"""
+function get_eta_bound(node::SDDP.Node, beta::Float64, related_coefficients::Vector{Float64}, K::Int64)
+
+    eta_bound = 0
+    for k in 1:K
+        candidate = abs(related_coefficients[k]) / (2^(k-1) * beta)
+        if eta_bound < candidate
+            eta_bound = candidate
+        end
+    end
+
+    return eta_bound
 end
 
 
@@ -990,6 +1022,7 @@ function validity_checks!(
     all_lambda::Vector{JuMP.VariableRef},
     all_mu::Vector{JuMP.VariableRef},
     all_eta::Vector{JuMP.VariableRef},
+    eta_bounds::Vector{Float64},
     all_coefficients::Vector{Float64},
     number_of_states::Int64,
     cut_projection_regime::Union{DynamicSDDiP.SOS1,DynamicSDDiP.BigM,DynamicSDDiP.KKT},
@@ -1001,6 +1034,7 @@ function validity_checks!(
                     == size(all_lambda, 1)
                     )
     @assert (number_of_states == size(all_eta, 1)
+                              == size(eta_bounds, 1)
                               == length(V.states)
                               )
 
@@ -1014,9 +1048,10 @@ function validity_checks!(
     all_lambda::Vector{JuMP.VariableRef},
     all_mu::Vector{JuMP.VariableRef},
     all_eta::Vector{JuMP.VariableRef},
+    eta_bounds::Vector{Float64},
     all_coefficients::Vector{Float64},
     number_of_states::Int64,
-    cut_projection_regime::DynamicSDDiP.StrongDuality,
+    cut_projection_regime::Union{DynamicSDDiP.StrongDuality,DynamicSDDiP.McCormick}
     )
 
     @assert (K_tilde == size(collect(values(cut.coefficients)), 1)
@@ -1025,6 +1060,7 @@ function validity_checks!(
                     )
 
     @assert (number_of_states == size(all_eta, 1)
+                              == size(eta_bounds, 1)
                               == length(V.states)
                               )
 
@@ -1035,9 +1071,11 @@ function get_cut_expression(
     model::JuMP.Model,
     node::SDDP.Node,
     V::DynamicSDDiP.CutApproximation,
+    cut::DynamicSDDiP.NonlinearCut,
     all_lambda::Vector{JuMP.VariableRef},
     all_mu::Vector{JuMP.VariableRef},
     all_eta::Vector{JuMP.VariableRef},
+    eta_bounds::Vector{Float64},
     all_coefficients::Vector{Float64},
     number_of_states::Int64,
     number_of_duals::Int64,
@@ -1056,9 +1094,11 @@ function get_cut_expression(
     model::JuMP.Model,
     node::SDDP.Node,
     V::DynamicSDDiP.CutApproximation,
+    cut::DynamicSDDiP.NonlinearCut,
     all_lambda::Vector{JuMP.VariableRef},
     all_mu::Vector{JuMP.VariableRef},
     all_eta::Vector{JuMP.VariableRef},
+    eta_bounds::Vector{Float64},
     all_coefficients::Vector{Float64},
     number_of_states::Int64,
     number_of_duals::Int64,
@@ -1069,6 +1109,63 @@ function get_cut_expression(
         model,
         V.theta - sum(all_mu[j]  for j in 1:size(all_mu, 1))
         - sum(x * all_eta[i]  for (i, (_,x)) in enumerate(V.states))
+    )
+
+    return expr
+end
+
+function get_cut_expression(
+    model::JuMP.Model,
+    node::SDDP.Node,
+    V::DynamicSDDiP.CutApproximation,
+    cut::DynamicSDDiP.NonlinearCut,
+    all_lambda::Vector{JuMP.VariableRef},
+    all_mu::Vector{JuMP.VariableRef},
+    all_eta::Vector{JuMP.VariableRef},
+    eta_bounds::Vector{Float64},
+    all_coefficients::Vector{Float64},
+    number_of_states::Int64,
+    number_of_duals::Int64,
+    cut_projection_regime::DynamicSDDiP.McCormick,
+    )
+
+    ############################################################################
+    # INTRODUCE AUXILIARY VARIABLES FOR THE MCCORMICK ENVELOPE
+    ############################################################################
+    w = JuMP.@variable(model, [i in 1:number_of_states], base_name = "w_it" * string(iteration))
+    append!(cut.cut_variables, w)
+
+    ############################################################################
+    # ITERATE OVER STATES AND ADD MCCORMICK CONSTRAINTS
+    ############################################################################
+    for (i, (state_name,x)) in enumerate(V.states)
+        # Get bound info on state variables
+        #-----------------------------------------------------------------------
+        variable_info = node.ext[:state_info_storage][state_name].out
+        x_ub = variable_info.upper_bound
+        x_lb = variable_info.lower_bound
+
+        # Get bound info on eta
+        #-----------------------------------------------------------------------
+        eta_lb = eta_bounds[i]
+        eta_ub = eta_bounds[i]
+
+        # Introduce constraints (we only need the lower envelope)
+        #-----------------------------------------------------------------------
+        lower_env_1 = JuMP.@constraint(model, w[i] >= x_lb * all_eta[i] + x * eta_lb - x_lb * eta_lb)
+        lower_env_2 = JuMP.@constraint(model, w[i] >= x_ub * all_eta[i] + x * eta_ub - x_ub * eta_ub)
+        push!(cut.cut_constraints, lower_env_1)
+        push!(cut.cut_constraints, lower_env_2)
+
+    end
+
+    ############################################################################
+    # INTRODUCE EXPR USING AUXILIARY VARIABLES
+    ############################################################################
+    expr = JuMP.@expression(
+        model,
+        V.theta - sum(all_mu[j]  for j in 1:size(all_mu, 1))
+        - sum(w[i]  for i in 1:number_of_states)
     )
 
     return expr
@@ -1116,7 +1213,7 @@ function add_strong_duality_cut!(
     all_coefficients::Vector{Float64},
     number_of_states::Int64,
     number_of_duals::Int64,
-    cut_projection_regime::Union{DynamicSDDiP.BigM,DynamicSDDiP.KKT,DynamicSDDiP.StrongDuality},
+    cut_projection_regime::Union{DynamicSDDiP.BigM,DynamicSDDiP.KKT,DynamicSDDiP.StrongDuality,DynamicSDDiP.McCormick},
     )
 
     return

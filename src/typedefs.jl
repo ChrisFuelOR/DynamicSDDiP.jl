@@ -186,6 +186,7 @@ mutable struct BigM <: AbstractCutProjectionRegime end
 mutable struct SOS1 <: AbstractCutProjectionRegime end
 mutable struct KKT <: AbstractCutProjectionRegime end
 mutable struct StrongDuality <: AbstractCutProjectionRegime end
+mutable struct McCormick <: AbstractCutProjectionRegime end
 
 ################################################################################
 # BINARY APPROXIMATION

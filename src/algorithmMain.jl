@@ -532,6 +532,7 @@ function iteration(
         first_stage_results = calculate_bound(model)
     end
     bound = first_stage_results.bound
+    @infiltrate
 
     ############################################################################
     # CHECK IF BEST KNOWN SOLUTION HAS BEEN IMPROVED
