@@ -354,7 +354,8 @@ function get_dual_bounds(
 
     return (
         obj_bound = primal_obj,
-        dual_bound = get_norm_bound(node, node_index, algo_params)
+        #dual_bound = get_norm_bound(node, node_index, algo_params)
+        dual_bound = algo_params.regularization_regime.sigma[node_index]
     )
 
 end

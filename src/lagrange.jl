@@ -367,12 +367,16 @@ function set_objective_bound!(approx_model::JuMP.Model, s::Int, obj_bound::Float
     return
 end
 
-function set_multiplier_bounds!(approx_model::JuMP.Model, number_of_states::Int, dual_bound::Float64)
+function set_multiplier_bounds!(approx_model::JuMP.Model, number_of_states::Int, dual_bound::Float64, algo_params::DynamicSDDiP.AlgoParams)
 
     π⁺ = approx_model[:π⁺]
     π⁻ = approx_model[:π⁻]
 
+    beta = algo_params.state_approximation_regime.binary_precision
+
     for i in 1:number_of_states
+        # dual_bound = sigma
+        bound = dual_bound * 2^(i-1) * beta
         JuMP.set_upper_bound(π⁺[i], dual_bound)
         JuMP.set_upper_bound(π⁻[i], dual_bound)
     end
@@ -542,7 +546,7 @@ function solve_lagrangian_dual(
         JuMP.@variable(approx_model, π⁺[1:number_of_states] >= 0)
         JuMP.@variable(approx_model, π⁻[1:number_of_states] >= 0)
         JuMP.@expression(approx_model, π, π⁺ .- π⁻) # not required to be a constraint
-        set_multiplier_bounds!(approx_model, number_of_states, bound_results.dual_bound)
+        set_multiplier_bounds!(approx_model, number_of_states, bound_results.dual_bound, algo_params)
     end
 
     ############################################################################

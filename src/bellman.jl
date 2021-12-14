@@ -813,13 +813,7 @@ function get_bigM(node::SDDP.Node, sigma::Union{Nothing,Float64}, beta::Float64,
         # no regularization is used, so bigM is just bounded by an arbitrary value
         bigM = 1e4
     else
-        for k in 1:K
-            candidate = U_max * (sigma + abs(related_coefficients[k]) / (2^(k-1) * beta))
-            if bigM < candidate
-                bigM = candidate
-            end
-        end
-        # bigM = sigma
+        bigM = 2 * sigma * U_max        
     end
 
     return bigM
