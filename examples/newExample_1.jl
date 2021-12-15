@@ -45,7 +45,7 @@ function model_config()
                                     cut_projection_regime = cut_projection_regime)
 
     # Regularization configuration
-    regularization_regime = DynamicSDDiP.Regularization(sigma = [0.0, 1.0], sigma_factor = 5.0)
+    regularization_regime = DynamicSDDiP.Regularization(sigma = [0.0, 3.0], sigma_factor = 5.0)
 
     # Cut selection configuration
     cut_selection_regime = DynamicSDDiP.CutSelection()

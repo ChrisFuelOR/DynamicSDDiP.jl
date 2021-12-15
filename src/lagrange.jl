@@ -159,7 +159,7 @@ function solve_lagrangian_dual(
         JuMP.@variable(approx_model, π⁺[1:number_of_states] >= 0)
         JuMP.@variable(approx_model, π⁻[1:number_of_states] >= 0)
         JuMP.@expression(approx_model, π, π⁺ .- π⁻) # not required to be a constraint
-        set_multiplier_bounds!(approx_model, number_of_states, bound_results.dual_bound)
+        set_multiplier_bounds!(approx_model, number_of_states, bound_results.dual_bound, algo_params)
     end
 
     ############################################################################
@@ -372,13 +372,22 @@ function set_multiplier_bounds!(approx_model::JuMP.Model, number_of_states::Int,
     π⁺ = approx_model[:π⁺]
     π⁻ = approx_model[:π⁻]
 
-    beta = algo_params.state_approximation_regime.binary_precision
+    beta = algo_params.state_approximation_regime.binary_precision[:b]
 
     for i in 1:number_of_states
+
+        if i == 1
+            bound = dual_bound * 4 * beta
+        elseif i == 2
+            bound = dual_bound * 1 * beta
+        elseif i == 3
+            bound = dual_bound * 2 * beta
+        end
+
         # dual_bound = sigma
-        bound = dual_bound * 2^(i-1) * beta
-        JuMP.set_upper_bound(π⁺[i], dual_bound)
-        JuMP.set_upper_bound(π⁻[i], dual_bound)
+        # bound = dual_bound * 2^(i-1) * beta
+        JuMP.set_upper_bound(π⁺[i], bound)
+        JuMP.set_upper_bound(π⁻[i], bound)
     end
 end
 
