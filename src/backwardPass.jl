@@ -27,6 +27,8 @@ function backward_pass(
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     scenario_path::Vector{Tuple{T,NoiseType}},
     sampled_states::Vector{Dict{Symbol,Float64}},
+    epi_states::Vector{Float64},
+    framework_regime::DynamicSDDiP.ClassicalFramework,
     # objective_states::Vector{NTuple{N,Float64}},
     # belief_states::Vector{Tuple{Int,Dict{T,Float64}}}) where {T,NoiseType,N}
     ) where {T,NoiseType}

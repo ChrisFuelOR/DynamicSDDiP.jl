@@ -315,6 +315,23 @@ NoCutSelection means that no such procedure is used, so all cuts are used
 """
 
 ################################################################################
+# FRAMEWORK
+################################################################################
+abstract type AbstractFrameworkRegime end
+
+mutable struct ClassicalFramework <: AbstractFrameworkRegime
+
+mutable struct UnifiedFramework <: AbstractFrameworkRegime end
+
+"""
+ClassicalFramework means that cuts are derived using the classical SDDiP/SDDP
+    approach by solving relaxations of the actual stage-t subproblems.
+UnifiedFramework means that cuts are derived in the unified framework for
+    the epigraph.
+"""
+
+
+################################################################################
 # DEFINING STRUCT FOR CONFIGURATION OF ALGORITHM PARAMETERS
 ################################################################################
 """
@@ -330,6 +347,7 @@ mutable struct AlgoParams
     regularization_regime::AbstractRegularizationRegime
     duality_regime::AbstractDualityRegime
     cut_selection_regime::AbstractCutSelectionRegime
+    framework_regime::AbstractFrameworkRegime
     ############################################################################
     risk_measure::SDDP.AbstractRiskMeasure
     forward_pass::SDDP.AbstractForwardPass
@@ -354,6 +372,7 @@ mutable struct AlgoParams
         regularization_regime = Regularization(),
         duality_regime = LagrangianDuality(),
         cut_selection_regime = CutSelection(),
+        framework_regime = ClassicalFramework(),
         risk_measure = SDDP.Expectation(),
         forward_pass = SDDP.DefaultForwardPass(),
         sampling_scheme = SDDP.InSampleMonteCarlo(),
@@ -376,6 +395,7 @@ mutable struct AlgoParams
             regularization_regime,
             duality_regime,
             cut_selection_regime,
+            framework_regime,
             risk_measure,
             forward_pass,
             sampling_scheme,
@@ -555,6 +575,31 @@ struct BackwardPassItems{T,U}
             U[],
             T[],
             Float64[],
+            Float64[],
+            Float64[],
+            Dict{Symbol,Float64}[],
+            Int[],
+            Symbol[]
+        )
+    end
+end
+
+"""
+This is based on a similar struct in the SDDP package. It stores items
+corresponding to the current backward pass.
+"""
+
+struct BackwardPassItems_Aggregated
+    duals::Dict{Symbol,Float64}
+    objectives::Float64
+    belief::Float64
+    bin_state::Dict{Symbol,BinaryState}
+    lag_iterations::Int
+    lag_status::Symbol
+
+    function BackwardPassItems
+        return new(
+            Dict{Symbol,Float64}[],
             Float64[],
             Float64[],
             Dict{Symbol,Float64}[],

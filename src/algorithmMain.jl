@@ -520,8 +520,10 @@ function iteration(
             applied_solvers,
             forward_trajectory.scenario_path,
             forward_trajectory.sampled_states,
+            forward_trajectory.epi_states,
             # forward_trajectory.objective_states,
             # forward_trajectory.belief_states,
+            algo_params.framework_regime,
         )
     end
 
@@ -532,6 +534,8 @@ function iteration(
         first_stage_results = calculate_bound(model)
     end
     bound = first_stage_results.bound
+
+    @infiltrate
 
     ############################################################################
     # CHECK IF BEST KNOWN SOLUTION HAS BEEN IMPROVED

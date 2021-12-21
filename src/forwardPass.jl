@@ -34,6 +34,9 @@ function forward_pass(model::SDDP.PolicyGraph{T}, options::DynamicSDDiP.Options,
     incoming_state_value = copy(model.initial_root_state)
     # A cumulator for the stage-objectives.
     cumulative_value = 0.0
+    # Storage for the list of epi states that we got on the forward pass
+    # NOTE: Does not work for multi-cut yet (there, you would require more epi_states)
+    epi_states = Float64()[]
 
     ############################################################################
     # ACTUAL ITERATION
@@ -71,6 +74,8 @@ function forward_pass(model::SDDP.PolicyGraph{T}, options::DynamicSDDiP.Options,
         # Add the outgoing state variable to the list of states we have sampled
         # on this forward pass.
         push!(sampled_states, incoming_state_value)
+        # Add current value of epigraph variable to epi_state
+        push!(epi_states, subproblem_results.objective - subproblem_results.stage_objective)
 
     end
 
@@ -80,6 +85,7 @@ function forward_pass(model::SDDP.PolicyGraph{T}, options::DynamicSDDiP.Options,
         # objective_states = objective_states,
         # belief_states = belief_states,
         cumulative_value = cumulative_value,
+        epi_states = epi_states,
     )
 end
 
