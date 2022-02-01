@@ -319,12 +319,12 @@ NoCutSelection means that no such procedure is used, so all cuts are used
 ################################################################################
 abstract type AbstractFrameworkRegime end
 
-mutable struct ClassicalFramework <: AbstractFrameworkRegime
+mutable struct ClassicFramework <: AbstractFrameworkRegime end
 
 mutable struct UnifiedFramework <: AbstractFrameworkRegime end
 
 """
-ClassicalFramework means that cuts are derived using the classical SDDiP/SDDP
+ClassicFramework means that cuts are derived using the classic SDDiP/SDDP
     approach by solving relaxations of the actual stage-t subproblems.
 UnifiedFramework means that cuts are derived in the unified framework for
     the epigraph.
@@ -372,7 +372,7 @@ mutable struct AlgoParams
         regularization_regime = Regularization(),
         duality_regime = LagrangianDuality(),
         cut_selection_regime = CutSelection(),
-        framework_regime = ClassicalFramework(),
+        framework_regime = ClassicFramework(),
         risk_measure = SDDP.Expectation(),
         forward_pass = SDDP.DefaultForwardPass(),
         sampling_scheme = SDDP.InSampleMonteCarlo(),
@@ -510,9 +510,9 @@ mutable struct LinearCut <: Cut
     ############################################################################
     trial_state::Dict{Symbol,Float64} # same as anchor state
     ############################################################################
-    sigma::Float64
+    sigma::Union{Nothing,Float64}
     ############################################################################
-    cut_constraint::JuMP.ConstraintRef
+    cut_constraint::Union{Nothing,JuMP.ConstraintRef}
     ############################################################################
     # obj_y::Union{Nothing,NTuple{N,Float64} where {N}}
     # belief_y::Union{Nothing,Dict{T,Float64} where {T}}
@@ -575,31 +575,6 @@ struct BackwardPassItems{T,U}
             U[],
             T[],
             Float64[],
-            Float64[],
-            Float64[],
-            Dict{Symbol,Float64}[],
-            Int[],
-            Symbol[]
-        )
-    end
-end
-
-"""
-This is based on a similar struct in the SDDP package. It stores items
-corresponding to the current backward pass.
-"""
-
-struct BackwardPassItems_Aggregated
-    duals::Dict{Symbol,Float64}
-    objectives::Float64
-    belief::Float64
-    bin_state::Dict{Symbol,BinaryState}
-    lag_iterations::Int
-    lag_status::Symbol
-
-    function BackwardPassItems
-        return new(
-            Dict{Symbol,Float64}[],
             Float64[],
             Float64[],
             Dict{Symbol,Float64}[],

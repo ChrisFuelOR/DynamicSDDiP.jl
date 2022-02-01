@@ -18,6 +18,8 @@ function solve_aggregated_dual(
     applied_solvers::DynamicSDDiP.AppliedSolvers
 ) where {T}
 
+    duality_regime = algo_params.duality_regime
+
     ############################################################################
     # DO THIS FOR EACH FOLLOWING MARKOV STATE / STAGE
     ############################################################################
@@ -48,7 +50,7 @@ function solve_aggregated_dual(
         # INITIALIZE DUALS
         ########################################################################
         dual_vars = zeros(number_of_states)
-        dual_0_var = 0
+        dual_0_var = 1.0 # shouldn't be zero if we do not consider feasibility cuts
 
         ########################################################################
         # GET BOUNDS FOR LAGRANGIAN DUAL
@@ -71,6 +73,7 @@ function solve_aggregated_dual(
                     dual_vars,
                     dual_0_var,
                     bound_results,
+                    backward_sampling_scheme,
                     algo_params,
                     applied_solvers,
                     duality_regime.dual_solution_regime
@@ -80,6 +83,7 @@ function solve_aggregated_dual(
             lag_obj = results.lag_obj
             lag_iterations = results.iterations
             lag_status = results.lag_status
+            dual_0_var = results.dual_0_var
 
             ####################################################################
             # CHECK STATUS FOR ABNORMAL BEHAVIOR
@@ -101,13 +105,18 @@ function solve_aggregated_dual(
         # original formulation of the Bellman function
         store_dual_values!(child_node, dual_values, dual_vars, dual_0_var, bin_state, algo_params.state_approximation_regime)
 
+        @infiltrate
+
         # Store output in items
-        items.duals = dual_values
-        items.bin_state = subproblem_results.bin_state
-        items.lag_iterations = lag_iterations
-        items.lag_status = lag_status
-        # TODO: Where do we get bin_state from?
-        # TODO: What about lag_obj?
+        push!(items.duals, dual_values)
+        push!(items.supports, SDDP.sample_backward_noise_terms(backward_sampling_scheme, child_node)[1]) # not required in aggregated case
+        push!(items.nodes, child_node.index)
+        push!(items.probability, child.probability * 1.0) # not required in aggregated case
+        push!(items.objectives, 0.0) # not required in my case
+        push!(items.belief, 0.0) # not required in my case
+        push!(items.bin_state, bin_state)
+        push!(items.lag_iterations, lag_iterations)
+        push!(items.lag_status, lag_status)
 
         ########################################################################
         # RECHANGE STATE SPACE

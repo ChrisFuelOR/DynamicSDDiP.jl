@@ -45,7 +45,7 @@ function binary_refinement_check(
     state_approximation_regime::DynamicSDDiP.NoStateApproximation,
     ) where {T}
 
-    return refinement_check
+    return false
 end
 
 """

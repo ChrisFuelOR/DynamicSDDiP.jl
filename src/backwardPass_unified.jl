@@ -45,7 +45,7 @@ function backward_pass(
     for index in length(scenario_path):-1:1
         outgoing_state = sampled_states[index]
         epi_state = epi_states[index]
-        items = BackwardPassItems_Aggregated()
+        items = BackwardPassItems(T, SDDP.Noise)
 
         node_index, _ = scenario_path[index]
         node = model[node_index]
@@ -63,7 +63,7 @@ function backward_pass(
         ########################################################################
         # SOLVE ALL CHILDREN PROBLEMS TO GET A BOUND FOR THE LAGRANGIAN DUAL
         ########################################################################
-        primal_obj = get_primal_obj(
+        primal_obj = solve_all_children_primal(
             model,
             node,
             node_index,
@@ -91,7 +91,7 @@ function backward_pass(
             # objective_state,
             outgoing_state,
             epi_state,
-            primal_obj
+            primal_obj,
             algo_params.backward_sampling_scheme,
             scenario_path[1:index],
             algo_params,
@@ -113,6 +113,7 @@ function backward_pass(
         Maybe this should be changed later.
         """
 
+        @infiltrate
         TimerOutputs.@timeit DynamicSDDiP_TIMER "update_bellman" begin
             new_cuts = refine_bellman_function(
                 model,
@@ -137,7 +138,7 @@ function backward_pass(
         push!(model.ext[:lag_iterations], sum(items.lag_iterations))
         push!(model.ext[:lag_status], items.lag_status[1])
 
-        #TODO: Implement cut-sharing as in SDDP
+        # NOTE: Implement using cuts for similar nodes as in SDDP
 
     end
 
@@ -162,6 +163,7 @@ function solve_all_children_primal(
     algo_params::DynamicSDDiP.AlgoParams,
     applied_solvers::DynamicSDDiP.AppliedSolvers
 ) where {T}
+
     primal_obj = 0
 
     length_scenario_path = length(scenario_path)
@@ -243,7 +245,7 @@ function solve_subproblem_backward_primal(
 
     # REGULARIZE PROBLEM IF REGULARIZATION IS USED
     node.ext[:regularization_data] = Dict{Symbol,Any}()
-    regularize_binary!(node, node_index, subproblem, algo_params.regularization_regime)
+    regularize_bw!(node, node_index, subproblem, algo_params.regularization_regime, algo_params.state_approximation_regime)
 
     # RESET SOLVER (as it may have been changed in between for some reason)
     DynamicSDDiP.set_solver!(subproblem, algo_params, applied_solvers, :backward_pass)
@@ -264,7 +266,7 @@ function solve_subproblem_backward_primal(
     # REGAIN UNREGULARIZED MODEL IF REQUIRED
     ############################################################################
     # DEREGULARIZE PROBLEM IF REQUIRED
-    deregularize_binary!(node, subproblem, algo_params.regularization_regime)
+    deregularize_bw!(node, subproblem, algo_params.regularization_regime, algo_params.state_approximation_regime)
 
     @infiltrate algo_params.infiltrate_state in [:all]
 

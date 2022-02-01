@@ -73,7 +73,8 @@ function solve(
             else
                 ub = JuMP.upper_bound(state_comp.out)
                 lb = 0.0 # all states are assumed to satisfy non-negativity constraints
-                regime.binary_precision[name] = (ub-lb)/7.0
+                regime.binary_precision[name] = (ub-lb)/511.0
+                #regime.binary_precision[name] = (ub-lb)/7.0
             end
         end
     end
@@ -477,8 +478,6 @@ function iteration(
         forward_trajectory = DynamicSDDiP.forward_pass(model, options, algo_params, applied_solvers, algo_params.forward_pass)
     end
 
-    #@infiltrate
-
     ############################################################################
     # BINARY REFINEMENT
     ############################################################################
@@ -526,6 +525,8 @@ function iteration(
             algo_params.framework_regime,
         )
     end
+
+    @infiltrate
 
     ############################################################################
     # CALCULATE LOWER BOUND

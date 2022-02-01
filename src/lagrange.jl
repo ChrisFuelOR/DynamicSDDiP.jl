@@ -247,6 +247,8 @@ function solve_lagrangian_dual(
         end
     end
 
+    @infiltrate
+
     ############################################################################
     # APPLY MAGNANTI AND WONG APPROACH IF INTENDED
     ############################################################################

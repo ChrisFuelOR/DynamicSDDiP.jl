@@ -45,4 +45,8 @@ include("backwardPass.jl")
 include("duals.jl")
 include("lagrange.jl")
 
+include("backwardPass_unified.jl")
+include("duals_unified.jl")
+include("lagrange_unified.jl")
+
 end

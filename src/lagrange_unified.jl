@@ -11,6 +11,7 @@ function solve_aggregated_lagrangian(
     π_k_agg::Vector{Float64},
     π0_k::Float64,
     bound_results::NamedTuple{(:obj_bound, :dual_bound),Tuple{Float64,Float64}},
+    backward_sampling_scheme::SDDP.AbstractBackwardSamplingScheme,
     algo_params::DynamicSDDiP.AlgoParams,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     dual_solution_regime::DynamicSDDiP.Kelley
@@ -46,7 +47,7 @@ function solve_aggregated_lagrangian(
     for j in size(π_k, 2)
         π_k[:,j] = π_k_agg
     end
-    # The best estimate for π (former best_mult)
+    # The best estimatce for π (former best_mult)
     π_star = zeros(number_of_states_per_noise, number_of_noise)
 
     # Copy constraint slacks and subgradients solve_aggregated_lagrangian
@@ -65,14 +66,14 @@ function solve_aggregated_lagrangian(
     # π0_k
 
     # The best estimate for π0 (former best_mult)
-    π0_star = 0
+    π0_star = 1.0
 
     # Epi slacks and subgradients aggregated
     #---------------------------------------------------------------------------
     # The expression for ̄the epi slack
-    w_expr = JuMP.AffExpr(undef)
+    w_expr = JuMP.AffExpr()
     # The current value of the epi slack (epi subgradient)
-    w_k_agg = 0
+    w_k_agg = 0.0
 
     # Epi slacks and subgradients per noise term
     #---------------------------------------------------------------------------
@@ -98,7 +99,8 @@ function solve_aggregated_lagrangian(
     end
     node.ext[:backward_data][:old_rhs] = x_in_value
     # Set expression for w_expr
-    w_expr = JuMP.@expression(node.subproblem, JuMP.objective_function(node.subproblem) - epi_state))
+    w_expr = JuMP.@expression(node.subproblem, JuMP.objective_function(node.subproblem) - epi_state)
+    @infiltrate
 
     ############################################################################
     # SET-UP THE APPROXIMATING CUTTING-PLANE MODEL
@@ -113,7 +115,8 @@ function solve_aggregated_lagrangian(
         # Note that it is always formulated as a maximization problem, but that
         # s modifies the sense appropriately
         JuMP.@variable(approx_model, t)
-        set_objective_bound!(approx_model, s, bound_results.obj_bound)
+        set_objective_bound!(approx_model, s, 1e9)
+        #set_objective_bound!(approx_model, s, bound_results.obj_bound)
         JuMP.@objective(approx_model, Max, t)
 
         # Create the dual variables
@@ -133,8 +136,10 @@ function solve_aggregated_lagrangian(
     lag_status = :none
 
     # set up optimal value of approx_model (former f_approx)
-    t_k = 0 # why zero?
+    t_k = Inf # 0 # why zero?
     #-inf is not possible, since then the while loop would not start at all
+
+    @infiltrate
 
     while iter < iteration_limit && !isapprox(L_star, t_k, atol = atol, rtol = rtol)
         iter += 1
@@ -144,7 +149,7 @@ function solve_aggregated_lagrangian(
         ########################################################################
         # Evaluate the inner problem and determine a subgradient
         TimerOutputs.@timeit DynamicSDDiP_TIMER "inner_sol" begin
-            L_k = _solve_Lagrangian_relaxation!(
+            L_k = _solve_Lagrangian_relaxation_aggregated!(
                 node,
                 π_k,
                 π0_k,
@@ -164,14 +169,14 @@ function solve_aggregated_lagrangian(
         if s * L_k >= L_star
             L_star = s * L_k
             π_star .= π_k
-            π0_star .= π0_k
+            π0_star = π0_k
         end
 
         ########################################################################
         # ADD CUTTING PLANE
         ########################################################################
         TimerOutputs.@timeit DynamicSDDiP_TIMER "add_cut" begin
-            JuMP.@constraint(approx_model, t <= s * (L_k + sum(j in 1:number_of_noise, h_k[:,j]' * (π[:,j] .- π_k[:,j])) + w_k_agg' * (π0 - π0_k)))
+            JuMP.@constraint(approx_model, t <= s * (L_k + sum(h_k[:,j]' * (π[:,j] .- π_k[:,j]) for j in 1:number_of_noise) + w_k_agg' * (π0 - π0_k)))
         end
 
         ########################################################################
@@ -184,11 +189,19 @@ function solve_aggregated_lagrangian(
         @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
         t_k = JuMP.objective_value(approx_model)
         π_k .= JuMP.value.(π)
-        π0_k .= JuMP.value.(π0)
+
+        if JuMP.value(π0) == 0
+            π0_k = π0_k
+        else
+            π0_k = JuMP.value.(π0)
+        end
+
+        #π0_k = JuMP.value.(π0)
         @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
         #print("UB: ", f_approx, ", LB: ", f_actual)
         #println()
+        @infiltrate
 
         ########################################################################
         if L_star > t_k + atol/10.0
@@ -252,10 +265,10 @@ function solve_aggregated_lagrangian(
     ############################################################################
     # Get aggregated dual_vars value by summing up the optimal solutions for each noise
     for j in size(π_star, 2)
-        π_k_agg[j] .+= π_star[:,j]
+        π_k_agg .+= π_star[:,j]
     end
 
-    return (lag_obj = s * L_star, iterations = iter, lag_status = lag_status)
+    return (lag_obj = s * L_star, iterations = iter, lag_status = lag_status, dual_0_var = π0_k)
 
 end
 
@@ -285,7 +298,7 @@ function _solve_Lagrangian_relaxation_aggregated!(
     π0_k::Float64,
     h_expr::Vector{JuMP.GenericAffExpr{Float64,JuMP.VariableRef}},
     h_k::Array{Float64, 2},
-    w_expr::JuMP.GenericAffExpr{Float64,JuMP.VariableRef}},
+    w_expr::JuMP.GenericAffExpr{Float64,JuMP.VariableRef},
     w_k_agg::Float64,
     w_k::Vector{Float64},
     update_subgradients::Bool = true,
@@ -308,10 +321,10 @@ function _solve_Lagrangian_relaxation_aggregated!(
         parameterize(node, noise)
 
         # Set objective
-        JuMP.set_objective_function(model, JuMP.@expression(model, - π0_k * noise.probability * w_expr - π_k[:,j]' * h_expr))
+        JuMP.set_objective_function(model, JuMP.@expression(model,  π0_k * noise.probability * w_expr + π_k[:,j]' * h_expr))
 
         # Solve the single Lagrangian problem
-        L_k = += _solve_Lagrangian_relaxation_single!(
+        Lag_results = _solve_Lagrangian_relaxation_single!(
             model,
             h_expr,
             h_k[:,j],
@@ -320,14 +333,17 @@ function _solve_Lagrangian_relaxation_aggregated!(
             update_subgradients
             )
 
+        # somehow with slicing an udpate directly in _solve_Lagrangian_relaxation_single does not seem to work
+        L_k *= Lag_results.L_k_j
+        h_k[:,j] = Lag_results.h_k_j
+        w_k[j] = Lag_results.w_k_j
+
         # Update w_k_agg
         w_k_agg += noise.probability * w_k[j]
-
     end
 
     # Reset old objective
     JuMP.set_objective_function(model, old_obj)
-
     return L_k
 end
 
@@ -341,7 +357,7 @@ function _solve_Lagrangian_relaxation_single!(
     model::JuMP.Model,
     h_expr::Vector{JuMP.GenericAffExpr{Float64,JuMP.VariableRef}},
     h_k_j::Vector{Float64},
-    w_expr::JuMP.GenericAffExpr{Float64,JuMP.VariableRef}},
+    w_expr::JuMP.GenericAffExpr{Float64,JuMP.VariableRef},
     w_k_j::Float64,
     update_subgradients::Bool = true,
 )
@@ -355,11 +371,15 @@ function _solve_Lagrangian_relaxation_single!(
 
     # Update of subgradients
     if update_subgradients
-        h_k .= -JuMP.value.(h_expr)
-        w_k_j .= -JuMP.value.(w_expr)
+        h_k_j .= -JuMP.value.(h_expr)
+        w_k_j = -JuMP.value.(w_expr)
     end
 
-    return L_k_j
+    return (
+        L_k_j = L_k_j,
+        h_k_j = h_k_j,
+        w_k_j = w_k_j
+    )
 end
 
 
