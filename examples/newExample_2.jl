@@ -51,6 +51,9 @@ function model_config()
     # Cut selection configuration
     cut_selection_regime = DynamicSDDiP.NoCutSelection()
 
+    # Framework regime
+    framework_regime = DynamicSDDiP.UnifiedFramework()
+
     # File for logging
     log_file = "C:/Users/cg4102/Documents/julia_logs/newExample_2.log"
 
@@ -67,6 +70,7 @@ function model_config()
         regularization_regime = regularization_regime,
         duality_regime = duality_regime,
         cut_selection_regime = cut_selection_regime,
+        framework_regime = framework_regime,
         log_file = log_file,
         silent = silent,
         infiltrate_state = infiltrate_state,

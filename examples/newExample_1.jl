@@ -37,18 +37,22 @@ function model_config()
     )
 
     # State approximation and cut projection configuration
-    cut_projection_regime = DynamicSDDiP.SOS1()
+    cut_projection_regime = DynamicSDDiP.BigM()
     binary_precision = Dict{Symbol, Float64}()
 
     state_approximation_regime = DynamicSDDiP.BinaryApproximation(
                                     binary_precision = binary_precision,
                                     cut_projection_regime = cut_projection_regime)
+    #state_approximation_regime = DynamicSDDiP.NoStateApproximation()
 
     # Regularization configuration
     regularization_regime = DynamicSDDiP.Regularization(sigma = [0.0, 1.0], sigma_factor = 5.0)
 
     # Cut selection configuration
     cut_selection_regime = DynamicSDDiP.CutSelection()
+
+    # Framework regime
+    framework_regime = DynamicSDDiP.UnifiedFramework()
 
     # File for logging
     log_file = "C:/Users/cg4102/Documents/julia_logs/newExample_1.log"
@@ -66,6 +70,7 @@ function model_config()
         regularization_regime = regularization_regime,
         duality_regime = duality_regime,
         cut_selection_regime = cut_selection_regime,
+        framework_regime = framework_regime,
         log_file = log_file,
         silent = silent,
         infiltrate_state = infiltrate_state,
