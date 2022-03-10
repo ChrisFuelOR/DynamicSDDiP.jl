@@ -130,6 +130,7 @@ function solve_lagrangian_dual(
         relax_copy_constraints!(node, x_in_value, h_expr, algo_params.state_approximation_regime)
     end
     node.ext[:backward_data][:old_rhs] = x_in_value
+    @infiltrate
 
     ############################################################################
     # LOGGING OF LAGRANGIAN DUAL
@@ -159,7 +160,7 @@ function solve_lagrangian_dual(
         JuMP.@variable(approx_model, π⁺[1:number_of_states] >= 0)
         JuMP.@variable(approx_model, π⁻[1:number_of_states] >= 0)
         JuMP.@expression(approx_model, π, π⁺ .- π⁻) # not required to be a constraint
-        set_multiplier_bounds!(approx_model, number_of_states, bound_results.dual_bound, algo_params)
+        set_multiplier_bounds!(node, approx_model, number_of_states, bound_results.dual_bound, algo_params)
     end
 
     ############################################################################
@@ -367,28 +368,19 @@ function set_objective_bound!(approx_model::JuMP.Model, s::Int, obj_bound::Float
     return
 end
 
-function set_multiplier_bounds!(approx_model::JuMP.Model, number_of_states::Int, dual_bound::Float64, algo_params::DynamicSDDiP.AlgoParams)
+function set_multiplier_bounds!(node::SDDP.Node, approx_model::JuMP.Model, number_of_states::Int, dual_bound::Float64, algo_params::DynamicSDDiP.AlgoParams)
 
     π⁺ = approx_model[:π⁺]
     π⁻ = approx_model[:π⁻]
 
-    beta = algo_params.state_approximation_regime.binary_precision[:b]
-
-    for i in 1:number_of_states
-
-        if i == 1
-            bound = dual_bound * 4 * beta
-        elseif i == 2
-            bound = dual_bound * 1 * beta
-        elseif i == 3
-            bound = dual_bound * 2 * beta
-        end
-
-        # dual_bound = sigma
-        # bound = dual_bound * 2^(i-1) * beta
-        JuMP.set_upper_bound(π⁺[i], bound)
+    for (i, (key, value)) in enumerate(node.ext[:backward_data][:bin_states])
+    	associated_original_state = node.ext[:backward_data][:bin_x_names][key]
+    	beta = algo_params.state_approximation_regime.binary_precision[associated_original_state]
+    	associated_k = node.ext[:backward_data][:bin_k][key]
+    	bound = dual_bound * 2^(associated_k-1) * beta
+    	JuMP.set_upper_bound(π⁺[i], bound)
         JuMP.set_upper_bound(π⁻[i], bound)
-    end
+	end
 end
 
 """
