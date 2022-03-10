@@ -15,33 +15,50 @@ function set_solver!(
     algorithmic_step::Symbol,
 )
 
-    cut_projection_regime = algo_params.state_approximation_regime.cut_projection_regime
+    if isa(algo_params.state_approximation_regime, DynamicSDDiP.BinaryApproximation)
+        cut_projection_regime = algo_params.state_approximation_regime.cut_projection_regime
 
-    # CHOOSE THE CORRECT TYPE OF SOLVER AND SOLVER
-    ############################################################################
-    if algorithmic_step in [:forward_pass, :backward_pass]
-        if isa(cut_projection_regime, DynamicSDDiP.KKT)
-            solver = applied_solvers.MINLP
-        elseif isa(cut_projection_regime, DynamicSDDiP.StrongDuality)
-            solver = applied_solvers.MINLP
-            #solver = applied_solvers.MIQCP
-        else
+        # CHOOSE THE CORRECT TYPE OF SOLVER
+        ########################################################################
+        if algorithmic_step in [:forward_pass, :backward_pass]
+            if isa(cut_projection_regime, DynamicSDDiP.KKT)
+                solver = applied_solvers.MINLP
+            elseif isa(cut_projection_regime, DynamicSDDiP.StrongDuality)
+                solver = applied_solvers.MINLP
+                #solver = applied_solvers.MIQCP
+            else
+                solver = applied_solvers.MILP
+            end
+        elseif algorithmic_step in [:lagrange_relax]
+            if isa(cut_projection_regime, DynamicSDDiP.KKT)
+                solver = applied_solvers.MINLP
+            elseif isa(cut_projection_regime, DynamicSDDiP.StrongDuality)
+                solver = applied_solvers.MINLP
+                #solver = applied_solvers.MIQCP
+            else
+                solver = applied_solvers.Lagrange
+            end
+        elseif algorithmic_step in [:level_bundle]
+            solver = applied_solvers.NLP
+        elseif algorithmic_step in [:LP_relax, :kelley, :cut_selection]
+            # TODO: What about nonlinear cut projections here?
+            solver = applied_solvers.LP
+        end
+
+    elseif isa(algo_params.state_approximation_regime, DynamicSDDiP.NoStateApproximation)
+
+        # CHOOSE THE CORRECT TYPE OF SOLVER
+        ########################################################################
+        if algorithmic_step in [:forward_pass, :backward_pass]
             solver = applied_solvers.MILP
-        end
-    elseif algorithmic_step in [:lagrange_relax]
-        if isa(cut_projection_regime, DynamicSDDiP.KKT)
-            solver = applied_solvers.MINLP
-        elseif isa(cut_projection_regime, DynamicSDDiP.StrongDuality)
-            solver = applied_solvers.MINLP
-            #solver = applied_solvers.MIQCP
-        else
+        elseif algorithmic_step in [:lagrange_relax]
             solver = applied_solvers.Lagrange
+        elseif algorithmic_step in [:level_bundle]
+            solver = applied_solvers.NLP
+        elseif algorithmic_step in [:LP_relax, :kelley, :cut_selection]
+            # TODO: What about nonlinear cut projections here?
+            solver = applied_solvers.LP
         end
-    elseif algorithmic_step in [:level_bundle]
-        solver = applied_solvers.NLP
-    elseif algorithmic_step in [:LP_relax, :kelley, :cut_selection]
-        # TODO: What about nonlinear cut projections here?
-        solver = applied_solvers.LP
     end
 
     # CHECK NUMERICAL FOCUS

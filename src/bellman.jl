@@ -813,7 +813,7 @@ function get_bigM(node::SDDP.Node, sigma::Union{Nothing,Float64}, beta::Float64,
         # no regularization is used, so bigM is just bounded by an arbitrary value
         bigM = 1e4
     else
-        bigM = 2 * sigma * U_max        
+        bigM = 2 * sigma * U_max
     end
 
     return bigM
@@ -1155,14 +1155,14 @@ function _add_cut(
     end
 
     ############################################################################
-    # CONSTRUCT NONLINEAR CUT STRUCT
+    # CONSTRUCT LINEAR CUT STRUCT
     ############################################################################
     cut = DynamicSDDiP.LinearCut(
             θᵏ,
             πᵏ,
             xᵏ,
             sigma_use,
-            JuMP.ConstraintRef,
+            nothing,
             # obj_y,
             # belief_y,
             1,
@@ -1214,7 +1214,7 @@ function _add_cut_constraints_to_models(
         V.theta - sum(cut.coefficients[i] * x for (i, x) in V.states)
     )
 
-    cut.constraint_ref = if JuMP.objective_sense(model) == MOI.MIN_SENSE
+    cut.cut_constraint = if JuMP.objective_sense(model) == MOI.MIN_SENSE
         JuMP.@constraint(model, expr >= cut.intercept)
     else
         JuMP.@constraint(model, expr <= cut.intercept)

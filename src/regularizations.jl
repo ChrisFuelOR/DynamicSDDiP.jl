@@ -258,3 +258,88 @@ function deregularize_binary!(node::SDDP.Node, subproblem::JuMP.Model, regulariz
 
     return
 end
+
+
+################################################################################
+
+"""
+Regularization caller for backward pass if BinaryApproximation is used
+"""
+function regularize_bw!(node::SDDP.Node, node_index::Int64,
+    subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.Regularization,
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation)
+
+    regularize_binary!(node, node_index, subproblem, regularization_regime)
+end
+
+"""
+Regularization caller for backward pass if NoStateApproximation is used
+"""
+function regularize_bw!(node::SDDP.Node, node_index::Int64,
+    subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.Regularization,
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation)
+
+    regularize_subproblem!(node, node_index, subproblem, regularization_regime)
+end
+
+"""
+Regularization caller if no regularization is used
+"""
+function regularize_bw!(node::SDDP.Node, node_index::Int64,
+    subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.NoRegularization,
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation)
+
+    regularize_binary!(node, node_index, subproblem, regularization_regime)
+end
+
+"""
+Regularization caller if no regularization is used
+"""
+function regularize_bw!(node::SDDP.Node, node_index::Int64,
+    subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.NoRegularization,
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation)
+
+    regularize_subproblem!(node, node_index, subproblem, regularization_regime)
+end
+
+################################################################################
+
+"""
+Deregularization caller for backward pass if BinaryApproximation is used
+"""
+function deregularize_bw!(node::SDDP.Node,
+    subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.Regularization,
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation)
+
+    deregularize_binary!(node, subproblem, regularization_regime)
+end
+
+"""
+Deregularization caller for backward pass if NoStateApproximation is used
+"""
+function deregularize_bw!(node::SDDP.Node,
+    subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.Regularization,
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation)
+
+    deregularize_subproblem!(node, subproblem, regularization_regime)
+end
+
+"""
+Deregularization caller if no regularization is used
+"""
+function deregularize_bw!(node::SDDP.Node,
+    subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.NoRegularization,
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation)
+
+    deregularize_subproblem!(node, subproblem, regularization_regime)
+end
+
+"""
+Deregularization caller if no regularization is used
+"""
+function deregularize_bw!(node::SDDP.Node,
+    subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.NoRegularization,
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation)
+
+    deregularize_subproblem!(node, subproblem, regularization_regime)
+end

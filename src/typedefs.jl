@@ -492,7 +492,7 @@ mutable struct LinearCut <: Cut
     ############################################################################
     sigma::Float64
     ############################################################################
-    cut_constraint::JuMP.ConstraintRef
+    cut_constraint::Union{Nothing,JuMP.ConstraintRef}
     ############################################################################
     # obj_y::Union{Nothing,NTuple{N,Float64} where {N}}
     # belief_y::Union{Nothing,Dict{T,Float64} where {T}}
