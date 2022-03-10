@@ -130,7 +130,6 @@ function solve_lagrangian_dual(
         relax_copy_constraints!(node, x_in_value, h_expr, algo_params.state_approximation_regime)
     end
     node.ext[:backward_data][:old_rhs] = x_in_value
-    @infiltrate
 
     ############################################################################
     # LOGGING OF LAGRANGIAN DUAL
@@ -162,6 +161,8 @@ function solve_lagrangian_dual(
         JuMP.@expression(approx_model, π, π⁺ .- π⁻) # not required to be a constraint
         set_multiplier_bounds!(node, approx_model, number_of_states, bound_results.dual_bound, algo_params)
     end
+
+    @infiltrate
 
     ############################################################################
     # CUTTING-PLANE METHOD
@@ -213,8 +214,7 @@ function solve_lagrangian_dual(
         π_k .= JuMP.value.(π)
         @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
-        #print("UB: ", f_approx, ", LB: ", f_actual)
-        #println()
+        @infiltrate
 
         ########################################################################
         if L_star > t_k + atol/10.0
@@ -247,6 +247,8 @@ function solve_lagrangian_dual(
             lag_status = :iter
         end
     end
+
+    @infiltrate
 
     ############################################################################
     # APPLY MAGNANTI AND WONG APPROACH IF INTENDED

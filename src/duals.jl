@@ -212,7 +212,7 @@ function get_dual_solution(
     ############################################################################
     # REGULARIZE PROBLEM IF REGULARIZATION IS USED
     node.ext[:regularization_data] = Dict{Symbol,Any}()
-    regularize_bw!(node, node_index, subproblem, algo_params.regularization_regime, algo_params.state_approximation_regime)
+    regularize_bw!(node, node_index, subproblem, algo_params.regularization_regime, algo_params, algo_params.state_approximation_regime)
 
     # RESET SOLVER (as it may have been changed in between for some reason)
     DynamicSDDiP.set_solver!(subproblem, algo_params, applied_solvers, :backward_pass)
@@ -225,6 +225,7 @@ function get_dual_solution(
     # Maybe attempt numerical recovery as in SDDP
     primal_obj = JuMP.objective_value(subproblem)
     @assert JuMP.termination_status(subproblem) == MOI.OPTIMAL
+    @infiltrate
 
     # DEREGULARIZE PROBLEM IF REQUIRED
     deregularize_bw!(node, subproblem, algo_params.regularization_regime, algo_params.state_approximation_regime)
@@ -329,9 +330,17 @@ function get_dual_bounds(
     dual_bound_regime::DynamicSDDiP.NormBound,
     )
 
+    dual_bound = Inf
+    if isa(algo_params.regularization_regime, DynamicSDDiP.NoRegularization)
+        # if no regularization is used, bounds should be Inf even if intended to use
+        dual_bound = Inf
+    else
+        dual_bound = algo_params.regularization_regime.sigma[node_index]
+    end
+
     return (
         obj_bound = Inf,
-        dual_bound = get_norm_bound(node, node_index, algo_params)
+        dual_bound = dual_bound
     )
 
 end
@@ -352,45 +361,19 @@ function get_dual_bounds(
     dual_bound_regime::DynamicSDDiP.BothBounds,
     )
 
-    return (
-        obj_bound = primal_obj,
-        #dual_bound = get_norm_bound(node, node_index, algo_params)
-        dual_bound = algo_params.regularization_regime.sigma[node_index]
-    )
-
-end
-
-"""
-Determining the norm bound to be used for the Lagrangian dual.
-
-Actually, we attempt to calculate a norm of B (coefficient matrix of the
-binary expansion), e.g. the column sum norm. However, we can also use an
-overestimator by taking the maximum upper bound of all state variables.
-"""
-function get_norm_bound(
-    node::SDDP.Node,
-    node_index::Int64,
-    algo_params::DynamicSDDiP.AlgoParams,
-    )
-
-    B_norm_bound = 0
-    for (name, state_comp) in node.states
-
-        variable_info = node.ext[:state_info_storage][name].in
-
-        if variable_info.upper_bound > B_norm_bound
-            B_norm_bound = variable_info.upper_bound
-        end
-    end
-
+    dual_bound = Inf
     if isa(algo_params.regularization_regime, DynamicSDDiP.NoRegularization)
         # if no regularization is used, bounds should be Inf even if intended to use
         dual_bound = Inf
     else
-        dual_bound = algo_params.regularization_regime.sigma[node_index] * B_norm_bound
+        dual_bound = algo_params.regularization_regime.sigma[node_index]
     end
 
-    return dual_bound
+    return (
+        obj_bound = primal_obj,
+        dual_bound = dual_bound
+    )
+
 end
 
 

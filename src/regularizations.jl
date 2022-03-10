@@ -124,7 +124,7 @@ end
 """
 Regularizing the backward pass problem in binary space if regularization is used.
 """
-function regularize_binary!(node::SDDP.Node, node_index::Int64, subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.Regularization)
+function regularize_binary!(node::SDDP.Node, node_index::Int64, subproblem::JuMP.Model, algo_params::DynamicSDDiP.AlgoParams, regularization_regime::DynamicSDDiP.Regularization)
 
     bw_data = node.ext[:backward_data]
     binary_states = bw_data[:bin_states]
@@ -136,32 +136,26 @@ function regularize_binary!(node::SDDP.Node, node_index::Int64, subproblem::JuMP
     reg_data[:slacks] = Any[]
     reg_data[:reg_variables] = JuMP.VariableRef[]
     reg_data[:reg_constraints] = JuMP.ConstraintRef[]
+    reg_data[:weights] = Float64[]
+
+    # sigma to be used in binary space
+    sigma_bin = regularization_regime.sigma[node_index]
 
     ############################################################################
-    # DETERMINE SIGMA TO BE USED IN BINARY SPACE
-    ############################################################################
-    U_max = 0
-    for (i, (name, state_comp)) in enumerate(node.states)
-
-        # TODO: is .out correct here?
-        variable_info = node.ext[:state_info_storage][name].out
-
-        if variable_info.upper_bound > U_max
-            U_max = variable_info.upper_bound
-        end
-    end
-
-    # Here, not sigma, but a different regularization parameter is used
-    sigma_bin = regularization_regime.sigma[node_index] * U_max
-
-    ############################################################################
-    # UNFIX THE STATE VARIABLES
+    # UNFIX THE STATE VARIABLES & DETERMINE WEIGHT
     ############################################################################
     for (i, (name, state_comp)) in enumerate(binary_states)
+        # unfix the state variable and store previous value
         reg_data[:fixed_state_value][name] = JuMP.fix_value(state_comp)
         push!(reg_data[:slacks], reg_data[:fixed_state_value][name] - state_comp)
         JuMP.unfix(state_comp)
         follow_state_unfixing_binary!(state_comp)
+
+        # determine and store the corresponding weight
+        associated_original_state = node.ext[:backward_data][:bin_x_names][name]
+    	beta = algo_params.state_approximation_regime.binary_precision[associated_original_state]
+    	associated_k = node.ext[:backward_data][:bin_k][name]
+        push!(reg_data[:weights], 2^(associated_k-1) * beta)
     end
 
     ############################################################################
@@ -197,7 +191,7 @@ function regularize_binary!(node::SDDP.Node, node_index::Int64, subproblem::JuMP
     append!(reg_data[:reg_constraints], const_plus)
     append!(reg_data[:reg_constraints], const_minus)
 
-    const_norm = JuMP.@constraint(subproblem, v >= sum(alpha[i] for i in 1:number_of_states))
+    const_norm = JuMP.@constraint(subproblem, v >= sum(reg_data[:weights][i] * alpha[i] for i in 1:number_of_states))
     push!(reg_data[:reg_constraints], const_norm)
 
     return
@@ -267,9 +261,10 @@ Regularization caller for backward pass if BinaryApproximation is used
 """
 function regularize_bw!(node::SDDP.Node, node_index::Int64,
     subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.Regularization,
+    algo_params::DynamicSDDiP.AlgoParams,
     state_approximation_regime::DynamicSDDiP.BinaryApproximation)
 
-    regularize_binary!(node, node_index, subproblem, regularization_regime)
+    regularize_binary!(node, node_index, subproblem, algo_params, regularization_regime)
 end
 
 """
@@ -277,6 +272,7 @@ Regularization caller for backward pass if NoStateApproximation is used
 """
 function regularize_bw!(node::SDDP.Node, node_index::Int64,
     subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.Regularization,
+    algo_params::DynamicSDDiP.AlgoParams,
     state_approximation_regime::DynamicSDDiP.NoStateApproximation)
 
     regularize_subproblem!(node, node_index, subproblem, regularization_regime)
@@ -287,6 +283,7 @@ Regularization caller if no regularization is used
 """
 function regularize_bw!(node::SDDP.Node, node_index::Int64,
     subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.NoRegularization,
+    algo_params::DynamicSDDiP.AlgoParams,
     state_approximation_regime::DynamicSDDiP.NoStateApproximation)
 
     regularize_binary!(node, node_index, subproblem, regularization_regime)
@@ -297,6 +294,7 @@ Regularization caller if no regularization is used
 """
 function regularize_bw!(node::SDDP.Node, node_index::Int64,
     subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.NoRegularization,
+    algo_params::DynamicSDDiP.AlgoParams,
     state_approximation_regime::DynamicSDDiP.BinaryApproximation)
 
     regularize_subproblem!(node, node_index, subproblem, regularization_regime)

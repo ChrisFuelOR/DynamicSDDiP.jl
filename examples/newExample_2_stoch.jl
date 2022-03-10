@@ -153,7 +153,7 @@ function model_definition()
 
             # Random variables
             JuMP.@variable(subproblem, rhs)
-            Ω = [-1.0, 0.0, 1.0]
+            Ω = [0.0, 1.0, -1.0]
             P = [1 / 3, 1 / 3, 1 / 3]
             SDDP.parameterize(subproblem, Ω, P) do ω
                 return JuMP.fix(rhs, ω)
