@@ -1135,6 +1135,8 @@ function get_cut_expression(
     w = JuMP.@variable(model, [i in 1:number_of_states], base_name = "w_it" * string(iteration))
     append!(cut.cut_variables, w)
 
+    @infiltrate
+
     ############################################################################
     # ITERATE OVER STATES AND ADD MCCORMICK CONSTRAINTS
     ############################################################################
