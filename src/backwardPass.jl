@@ -40,7 +40,7 @@ function backward_pass(
 
     # storage for data on solving Lagrangian dual
     model.ext[:lag_iterations] = Int[]
-    model.ext[:lag_status] = Symbol[]
+    model.ext[:lag_status] = String[]
 
     ############################################################################
     # Traverse backwards through the stages
@@ -83,7 +83,7 @@ function backward_pass(
         ########################################################################
         # RECONSTRUCT ANCHOR POINTS IN BACKWARD PASS
         ########################################################################
-        anchor_states = determine_anchor_states(node, outgoing_state, algo_params.state_approximation_regime)
+        anchor_state = determine_anchor_state(node, outgoing_state, algo_params.state_approximation_regime)
         @infiltrate algo_params.infiltrate_state in [:all]
 
         ########################################################################
@@ -94,7 +94,6 @@ function backward_pass(
         so we can just use bin_state[1] in the following.
         Maybe this should be changed later.
         """
-
         TimerOutputs.@timeit DynamicSDDiP_TIMER "update_bellman" begin
             new_cuts = refine_bellman_function(
                 model,
@@ -103,7 +102,7 @@ function backward_pass(
                 node.bellman_function,
                 options.risk_measures[node_index],
                 outgoing_state,
-                anchor_states,
+                anchor_state,
                 items.bin_state[1],
                 items.duals,
                 items.supports,
@@ -115,11 +114,16 @@ function backward_pass(
         end
 
         push!(cuts[node_index], new_cuts)
-        # NOTE: This has to be adapted for stochastic case
-        push!(model.ext[:lag_iterations], sum(items.lag_iterations))
-        push!(model.ext[:lag_status], items.lag_status[1])
+        push!(model.ext[:lag_iterations], Statistics.mean(items.lag_iterations))
 
-        #TODO: Implement cut-sharing as in SDDP
+        lag_status_string = ""
+        for i in items.lag_status
+            lag_status_string = string(lag_status_string, i, ", ")
+        end
+        push!(model.ext[:lag_status], lag_status_string)
+
+        #NOTE: I did not include the similar node thing from SDDP.jl.
+        #Not really sure what it means anyway.
 
     end
 

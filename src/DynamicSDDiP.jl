@@ -16,6 +16,7 @@ import GAMS
 import MathOptInterface
 using Printf
 using Dates
+using Statistics
 
 #import Reexport
 #Reexport.@reexport using JuMP

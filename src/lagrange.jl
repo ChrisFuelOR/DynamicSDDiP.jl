@@ -162,8 +162,6 @@ function solve_lagrangian_dual(
         set_multiplier_bounds!(node, approx_model, number_of_states, bound_results.dual_bound, algo_params)
     end
 
-    @infiltrate
-
     ############################################################################
     # CUTTING-PLANE METHOD
     ############################################################################
@@ -214,8 +212,6 @@ function solve_lagrangian_dual(
         π_k .= JuMP.value.(π)
         @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
-        @infiltrate
-
         ########################################################################
         if L_star > t_k + atol/10.0
             error("Could not solve for Lagrangian duals. LB > UB.")
@@ -247,8 +243,6 @@ function solve_lagrangian_dual(
             lag_status = :iter
         end
     end
-
-    @infiltrate
 
     ############################################################################
     # APPLY MAGNANTI AND WONG APPROACH IF INTENDED

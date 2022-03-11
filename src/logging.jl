@@ -33,7 +33,7 @@ struct Log
     subproblem_size::Union{Dict{Symbol,Int64},Nothing}
     algo_params::DynamicSDDiP.AlgoParams
     lag_iterations::Union{Vector{Int},Nothing}
-    lag_status::Union{Vector{Symbol},Nothing}
+    lag_status::Union{Vector{String},Nothing}
     total_cuts::Int
     active_cuts::Int
 end

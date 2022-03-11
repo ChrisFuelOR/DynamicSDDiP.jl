@@ -348,22 +348,22 @@ end
 Determining the anchor points in the original space if BinaryApproximation
 is used.
 """
-function determine_anchor_states(
+function determine_anchor_state(
     node::SDDP.Node,
     outgoing_state::Dict{Symbol,Float64},
     state_approximation_regime::DynamicSDDiP.BinaryApproximation,
 )
 
-    anchor_states = Dict{Symbol,Float64}()
+    anchor_state = Dict{Symbol,Float64}()
     for (name, value) in outgoing_state
         state_comp = node.states[name]
         beta = state_approximation_regime.binary_precision[name]
         variable_info = node.ext[:state_info_storage][name].out
         (approx_state_value, )  = determine_anchor_state(state_comp, value, beta, variable_info)
-        anchor_states[name] = approx_state_value
+        anchor_state[name] = approx_state_value
     end
 
-    return anchor_states
+    return anchor_state
 end
 
 
@@ -401,12 +401,12 @@ end
 Determining the anchor points in the original space if no state approximation
 is used.
 """
-function determine_anchor_states(
+function determine_anchor_state(
     node::SDDP.Node,
     outgoing_state::Dict{Symbol,Float64},
     state_approximation_regime::DynamicSDDiP.NoStateApproximation,
 )
 
-    anchor_states = Dict{Symbol,Float64}()
-    return anchor_states
+    anchor_state = Dict{Symbol,Float64}()
+    return anchor_state
 end
