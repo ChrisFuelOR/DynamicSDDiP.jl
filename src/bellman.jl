@@ -140,7 +140,7 @@ function initialize_bellman_function(
     ## belief_μ = node.belief_state !== nothing ? node.belief_state.μ : nothing
     return BellmanFunction(
         ## CutApproximation(Θᴳ, x′, obj_μ, belief_μ, deletion_minimum),
-        CutApproximation(Θᴳ, x′, deletion_minimum),
+        DynamicSDDiP.CutApproximation(Θᴳ, x′, deletion_minimum),
         CutApproximation[],
         cut_type,
         Set{Vector{Float64}}(),
@@ -220,7 +220,21 @@ function refine_bellman_function(
         )
     else  # Add a multi-cut
         @assert bellman_function.cut_type == SDDP.MULTI_CUT
-        # TODO: Not implemented so far, see SDDP.jl
+        _add_locals_if_necessary(node, bellman_function, length(dual_variables))
+        return _add_multi_cut(
+            node,
+            node_index,
+            trial_points,
+            anchor_points,
+            bin_states,
+            risk_adjusted_probability,
+            objective_realizations,
+            dual_variables,
+            offset,
+            algo_params,
+            model.ext[:iteration],
+            applied_solvers
+        )
     end
 end
 
@@ -277,6 +291,13 @@ function _add_average_cut(
     ############################################################################
     # ADD THE CUT USING THE NEW EXPECTED COEFFICIENTS
     ############################################################################
+    # Now add the average-cut to the subproblem. We include the objective-state
+    # component μᵀy and the belief state (if it exists).
+    #obj_y =
+    #    node.objective_state === nothing ? nothing : node.objective_state.state
+    #belief_y =
+    #    node.belief_state === nothing ? nothing : node.belief_state.belief
+
     _add_cut(
         node,
         node.bellman_function.global_theta,
@@ -295,7 +316,107 @@ function _add_average_cut(
         algo_params.state_approximation_regime,
     )
 
-    return (theta = θᵏ, pi = πᵏ, λ = bin_states)
+    return
+end
+
+"""
+Adding one cut per realization to the bellman function (multi-cut approach).
+"""
+function _add_multi_cut(
+    node::SDDP.Node,
+    node_index::Int64,
+    trial_points::Dict{Symbol,Float64},
+    anchor_points::Dict{Symbol,Float64},
+    bin_states::Dict{Symbol,BinaryState},
+    risk_adjusted_probability::Vector{Float64},
+    objective_realizations::Vector{Float64},
+    dual_variables::Vector{Dict{Symbol,Float64}},
+    offset::Float64,
+    algo_params::DynamicSDDiP.AlgoParams,
+    iteration::Int64,
+    applied_solvers::DynamicSDDiP.AppliedSolvers,
+)
+
+    # Some initializations
+    N = length(risk_adjusted_probability)
+    @assert N == length(objective_realizations) == length(dual_variables)
+
+    #μᵀy = get_objective_state_component(node)
+    #JuMP.add_to_expression!(μᵀy, get_belief_state_component(node))
+
+    ############################################################################
+    # GET CORRECT SIGMA
+    ############################################################################
+    # As cuts are created for the value function of the following state,
+    # we need the parameters for this stage.
+    if isa(algo_params.regularization_regime, DynamicSDDiP.NoRegularization)
+        sigma = nothing
+    else
+        sigma = algo_params.regularization_regime.sigma[node_index+1]
+    end
+
+    ############################################################################
+    # ADD THE CUT FOR ALL REALIZATIONS
+    ############################################################################
+    for i in 1:length(dual_variables)
+        _add_cut(
+            node,
+            node.bellman_function.local_thetas[i],
+            objective_realizations[i],
+            dual_variables[i],
+            bin_states,
+            anchor_points,
+            trial_points,
+            # obj_y,
+            # belief_y,
+            sigma,
+            iteration,
+            algo_params.infiltrate_state,
+            algo_params,
+            applied_solvers,
+            algo_params.state_approximation_regime,
+        )
+    end
+
+    ############################################################################
+    # CONNECT THE SEPARATE CUTS TO GLOBAL_THETA
+    ############################################################################
+    """ Note that cuts are always incorporated into the subproblems using an
+    epigraph reformulation, i.e. using a single-cut approach (see objective.jl).
+    Therefore, the local thetas still have to be related to the global_theta
+    after the actual cuts have been added.
+
+    If we do not use objective states and belief states it should be sufficient
+    to do this one single time instead of in each iteration as in SDDP.jl.
+    Instead of checking for the iteration number, it is checked if the
+    objective state part μᵀy is zero (see if-statement). If that is the case,
+    no new constraint is added.
+    """
+
+    model = JuMP.owner_model(bellman_function.global_theta.theta)
+    cut_expr = @expression(
+        model,
+        sum(
+            risk_adjusted_probability[i] *
+            bellman_function.local_thetas[i].theta for i in 1:N
+        ) #- (1 - sum(risk_adjusted_probability)) * μᵀy + offset
+    )
+
+    # TODO(odow): should we use `cut_expr` instead?
+    ξ = copy(risk_adjusted_probability)
+    if !(ξ in bellman_function.risk_set_cuts) || μᵀy != JuMP.AffExpr(0.0)
+        push!(bellman_function.risk_set_cuts, ξ)
+        if JuMP.objective_sense(model) == MOI.MIN_SENSE
+            @constraint(model, bellman_function.global_theta.theta >= cut_expr)
+        else
+            @constraint(model, bellman_function.global_theta.theta <= cut_expr)
+        end
+    end
+
+    return
+end
+
+    return
 end
 
 
@@ -1222,4 +1343,55 @@ function _add_cut_constraints_to_models(
 
     return
 
+end
+
+################################################################################
+
+# Adapted from SDDP.jl by (odow)
+# If we are adding a multi-cut for the first time, then the local θ variables
+# won't have been added.
+function _add_locals_if_necessary(
+    node::Node,
+    bellman_function::DynamicSDDiP.BellmanFunction,
+    N::Int,
+)
+    num_local_thetas = length(bellman_function.local_thetas)
+    if num_local_thetas == N
+        # Do nothing. Already initialized.
+    elseif num_local_thetas == 0
+        global_theta = bellman_function.global_theta
+        model = JuMP.owner_model(global_theta.theta)
+        local_thetas = JuMP.@variable(model, [1:N])
+        if JuMP.has_lower_bound(global_theta.theta)
+            JuMP.set_lower_bound.(
+                local_thetas,
+                JuMP.lower_bound(global_theta.theta),
+            )
+        end
+        if JuMP.has_upper_bound(global_theta.theta)
+            JuMP.set_upper_bound.(
+                local_thetas,
+                JuMP.upper_bound(global_theta.theta),
+            )
+        end
+        for local_theta in local_thetas
+            push!(
+                bellman_function.local_thetas,
+                DynamicSDDiP.CutApproximation(
+                    local_theta,
+                    global_theta.states,
+                    #node.objective_state === nothing ? nothing :
+                    #node.objective_state.μ,
+                    #node.belief_state === nothing ? nothing :
+                    #node.belief_state.μ,
+                    global_theta.cut_oracle.deletion_minimum,
+                ),
+            )
+        end
+    else
+        error(
+            "Expected $(N) local θ variables but there were $(num_local_thetas).",
+        )
+    end
+    return
 end

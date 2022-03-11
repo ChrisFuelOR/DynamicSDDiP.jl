@@ -392,7 +392,8 @@ end
 Convergence handler if regularization is not used.
 """
 
-function convergence_handler(result::DynamicSDDiP.IterationResult,
+function convergence_handler(
+    result::DynamicSDDiP.IterationResult,
     model::SDDP.PolicyGraph{T}, options::DynamicSDDiP.Options,
     algo_params::DynamicSDDiP.AlgoParams,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
@@ -513,7 +514,7 @@ function iteration(
     # BACKWARD PASS
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "backward_pass" begin
-        cuts = DynamicSDDiP.backward_pass(
+        DynamicSDDiP.backward_pass(
             model,
             options,
             algo_params,
@@ -603,6 +604,5 @@ function iteration(
         forward_trajectory.scenario_path,
         has_converged,
         status,
-        cuts,
     )
 end

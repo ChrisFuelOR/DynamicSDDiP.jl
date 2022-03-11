@@ -35,9 +35,6 @@ function backward_pass(
     # INITIALIZATION
     ############################################################################
 
-    # storage for cuts
-    cuts = Dict{T,Vector{Any}}(index => Any[] for index in keys(model.nodes))
-
     # storage for data on solving Lagrangian dual
     model.ext[:lag_iterations] = Int[]
     model.ext[:lag_status] = String[]
@@ -95,7 +92,7 @@ function backward_pass(
         Maybe this should be changed later.
         """
         TimerOutputs.@timeit DynamicSDDiP_TIMER "update_bellman" begin
-            new_cuts = refine_bellman_function(
+            refine_bellman_function(
                 model,
                 node,
                 node_index,
@@ -127,7 +124,7 @@ function backward_pass(
 
     end
 
-    return cuts
+    return
 end
 
 

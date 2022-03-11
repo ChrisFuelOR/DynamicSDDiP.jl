@@ -524,7 +524,6 @@ mutable struct IterationResult{T,S}
     scenario_path :: Vector{Tuple{T,S}}
     has_converged :: Bool
     status :: Symbol #NOTE
-    nonlinear_cuts :: Dict{T, Vector{Any}} #NOTE
 end
 
 ################################################################################
