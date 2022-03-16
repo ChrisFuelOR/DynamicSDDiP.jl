@@ -155,7 +155,7 @@ function solve_lagrangian_dual(
 
         # Create the dual variables
         # Note that the real dual multipliers are split up into two non-negative
-        # variables here, which is required for the Magnanti Wong part later
+        # variables here, which is required for the Norm Minimization part later
         JuMP.@variable(approx_model, π⁺[1:number_of_states] >= 0)
         JuMP.@variable(approx_model, π⁻[1:number_of_states] >= 0)
         JuMP.@expression(approx_model, π, π⁺ .- π⁻) # not required to be a constraint
@@ -400,7 +400,7 @@ function magnanti_wong!(
     iteration_limit::Int,
     atol::Float64,
     rtol::Float64,
-    dual_choice_regime::DynamicSDDiP.MagnantiWongChoice,
+    dual_choice_regime::DynamicSDDiP.MinimalNormChoice,
     iter::Int,
     )
 
@@ -539,7 +539,7 @@ function solve_lagrangian_dual(
 
         # Create the dual variables
         # Note that the real dual multipliers are split up into two non-negative
-        # variables here, which is required for the Magnanti Wong part later
+        # variables here, which is required for the Norm Minimization part later
         JuMP.@variable(approx_model, π⁺[1:number_of_states] >= 0)
         JuMP.@variable(approx_model, π⁻[1:number_of_states] >= 0)
         JuMP.@expression(approx_model, π, π⁺ .- π⁻) # not required to be a constraint
