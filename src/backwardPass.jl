@@ -36,7 +36,7 @@ function backward_pass(
     ############################################################################
 
     # storage for data on solving Lagrangian dual
-    model.ext[:lag_iterations] = Int[]
+    model.ext[:lag_iterations] = Float64[]
     model.ext[:lag_status] = String[]
 
     ############################################################################
@@ -110,7 +110,6 @@ function backward_pass(
             )
         end
 
-        push!(cuts[node_index], new_cuts)
         push!(model.ext[:lag_iterations], Statistics.mean(items.lag_iterations))
 
         lag_status_string = ""

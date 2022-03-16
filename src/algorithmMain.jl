@@ -534,6 +534,8 @@ function iteration(
     end
     bound = first_stage_results.bound
 
+    @infiltrate
+
     ############################################################################
     # CHECK IF BEST KNOWN SOLUTION HAS BEEN IMPROVED
     ############################################################################

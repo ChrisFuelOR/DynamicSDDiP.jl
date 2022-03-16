@@ -51,6 +51,9 @@ function model_config()
     # Cut selection configuration
     cut_selection_regime = DynamicSDDiP.NoCutSelection()
 
+    # Cut type
+    cut_type = SDDP.MULTI_CUT
+
     # File for logging
     log_file = "C:/Users/cg4102/Documents/julia_logs/newExample_2_stoch.log"
 
@@ -70,6 +73,7 @@ function model_config()
         log_file = log_file,
         silent = silent,
         infiltrate_state = infiltrate_state,
+        cut_type = cut_type,
     )
 
     # Define solvers to be used
@@ -174,10 +178,6 @@ function model_definition()
             SDDP.@stageobjective(subproblem, y[1] + y[2])
 
         end
-
-
-
-
 
     end
 

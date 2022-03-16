@@ -393,6 +393,8 @@ function _add_multi_cut(
     no new constraint is added.
     """
 
+    bellman_function = node.bellman_function
+
     model = JuMP.owner_model(bellman_function.global_theta.theta)
     cut_expr = @expression(
         model,
@@ -402,10 +404,7 @@ function _add_multi_cut(
         ) #- (1 - sum(risk_adjusted_probability)) * μᵀy + offset
     )
 
-    # TODO(odow): should we use `cut_expr` instead?
-    ξ = copy(risk_adjusted_probability)
-    if !(ξ in bellman_function.risk_set_cuts) || μᵀy != JuMP.AffExpr(0.0)
-        push!(bellman_function.risk_set_cuts, ξ)
+    if iteration == 1
         if JuMP.objective_sense(model) == MOI.MIN_SENSE
             @constraint(model, bellman_function.global_theta.theta >= cut_expr)
         else
@@ -413,10 +412,18 @@ function _add_multi_cut(
         end
     end
 
-    return
-end
-
-    return
+    # # TODO(odow): should we use `cut_expr` instead?
+    # ξ = copy(risk_adjusted_probability)
+    # if !(ξ in bellman_function.risk_set_cuts) || μᵀy != JuMP.AffExpr(0.0)
+    #     push!(bellman_function.risk_set_cuts, ξ)
+    #     if JuMP.objective_sense(model) == MOI.MIN_SENSE
+    #         @constraint(model, bellman_function.global_theta.theta >= cut_expr)
+    #     else
+    #         @constraint(model, bellman_function.global_theta.theta <= cut_expr)
+    #     end
+    # end
+    #
+    # return
 end
 
 
@@ -1351,7 +1358,7 @@ end
 # If we are adding a multi-cut for the first time, then the local θ variables
 # won't have been added.
 function _add_locals_if_necessary(
-    node::Node,
+    node::SDDP.Node,
     bellman_function::DynamicSDDiP.BellmanFunction,
     N::Int,
 )
@@ -1384,7 +1391,7 @@ function _add_locals_if_necessary(
                     #node.objective_state.μ,
                     #node.belief_state === nothing ? nothing :
                     #node.belief_state.μ,
-                    global_theta.cut_oracle.deletion_minimum,
+                    global_theta.deletion_minimum,
                 ),
             )
         end
