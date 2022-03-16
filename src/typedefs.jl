@@ -46,17 +46,11 @@ abstract type AbstractDualInitializationRegime end
 ZeroDuals means that the dual multipliers are initialized as zero.
 LPDuals means that the LP relaxation is solved and the corresponding optimal
     dual multipliers are used as an initial solution.
-CPLEXFixed can only be chosen if CPLEX is used to solve the subproblems.
-    In contrast to Gurobi, CPLEX provides marginal values even when the primal
-    MILP is solved. These dual values are determined by solving an LP after fixing
-    the integer variables to their optimal values. They are hard to interpret,
-    but still may be used for initialization.
 Default is ZeroDuals.
 """
 
 mutable struct ZeroDuals <: AbstractDualInitializationRegime end
 mutable struct LPDuals <: AbstractDualInitializationRegime end
-#mutable struct CPLEXFixed <: AbstractDualInitializationRegime end
 
 ################################################################################
 # SOLUTION METHOD FOR LAGRANGIAN DUAL
