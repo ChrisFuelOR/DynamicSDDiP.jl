@@ -27,6 +27,7 @@ function backward_pass(
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     scenario_path::Vector{Tuple{T,NoiseType}},
     sampled_states::Vector{Dict{Symbol,Float64}},
+    epi_states::Dict{Symbol,Vector{Float64}},
     # objective_states::Vector{NTuple{N,Float64}},
     # belief_states::Vector{Tuple{Int,Dict{T,Float64}}}) where {T,NoiseType,N}
     ) where {T,NoiseType}
@@ -40,17 +41,22 @@ function backward_pass(
     model.ext[:lag_status] = String[]
 
     ############################################################################
-    # Traverse backwards through the stages
+    # TRAVERSE THE STAGES BACKWARDS
     ############################################################################
     for index in length(scenario_path):-1:1
+        # Determine trial state
         outgoing_state = sampled_states[index]
         items = BackwardPassItems(T, SDDP.Noise)
 
+        # Determine current node (stage)
         node_index, _ = scenario_path[index]
         node = model[node_index]
         if length(node.children) == 0
             continue
         end
+
+        # Determine required epi_states
+        epi_states = epi_states[Symbol(node_index)]
 
         # Dict to store values of binary approximation of the state
         # Note that we could also retrieve this from the actual trial point
@@ -60,21 +66,23 @@ function backward_pass(
         node.ext[:binary_state_values] = Dict{Symbol, Float64}()
 
         ########################################################################
-        # SOLVE ALL CHILDREN PROBLEMS
+        # Solve backward pass problems for all realizations depending on framework
         ########################################################################
-        solve_all_children(
+        backward_pass_node(
             model,
             node,
             node_index,
+            index,
             items,
-            1.0,
             # belief_state,
             # objective_state,
             outgoing_state,
-            algo_params.backward_sampling_scheme,
+            epi_states,
             scenario_path[1:index],
             algo_params,
-            applied_solvers
+            applied_solvers,
+            algo_params.duality_regime,
+            algo_params.cut_aggregation_regime,
         )
 
         ########################################################################
@@ -110,171 +118,21 @@ function backward_pass(
             )
         end
 
-        push!(model.ext[:lag_iterations], Statistics.mean(items.lag_iterations))
-
+        # Logging of lag_iterations and lag_status
         lag_status_string = ""
         for i in items.lag_status
             lag_status_string = string(lag_status_string, i, ", ")
         end
         push!(model.ext[:lag_status], lag_status_string)
+        push!(model.ext[:lag_iterations], Statistics.mean(items.lag_iterations))
 
+        ########################################################################
         #NOTE: I did not include the similar node thing from SDDP.jl.
         #Not really sure what it means anyway.
 
     end
 
     return
-end
-
-
-"""
-Solving all children within the backward pass.
-"""
-function solve_all_children(
-    model::SDDP.PolicyGraph{T},
-    node::SDDP.Node{T},
-    node_index::Int64,
-    items::BackwardPassItems,
-    belief::Float64,
-    # belief_state,
-    # objective_state,
-    outgoing_state::Dict{Symbol,Float64},
-    backward_sampling_scheme::SDDP.AbstractBackwardSamplingScheme,
-    scenario_path,
-    algo_params::DynamicSDDiP.AlgoParams,
-    applied_solvers::DynamicSDDiP.AppliedSolvers
-) where {T}
-    length_scenario_path = length(scenario_path)
-    for child in node.children
-        if isapprox(child.probability, 0.0, atol = 1e-6)
-            continue
-        end
-        child_node = model[child.term]
-        for noise in SDDP.sample_backward_noise_terms(backward_sampling_scheme, child_node)
-            if length(scenario_path) == length_scenario_path
-                push!(scenario_path, (child.term, noise.term))
-            else
-                scenario_path[end] = (child.term, noise.term)
-            end
-            ####################################################################
-            # IF SOLUTIONS FOR THIS NODE ARE CACHED ALREADY, USE THEM
-            ####################################################################
-            if haskey(items.cached_solutions, (child.term, noise.term))
-                sol_index = items.cached_solutions[(child.term, noise.term)]
-                push!(items.duals, items.duals[sol_index])
-                push!(items.supports, items.supports[sol_index])
-                push!(items.nodes, child_node.index)
-                push!(items.probability, items.probability[sol_index])
-                push!(items.objectives, items.objectives[sol_index])
-                push!(items.belief, belief)
-                push!(items.bin_state, items.bin_state[sol_index])
-                push!(items.lag_iterations, items.lag_iterations[sol_index])
-                push!(items.lag_status, items.lag_status[sol_index])
-            else
-                ################################################################
-                # SOLVE THE BACKWARD PASS PROBLEM
-                ################################################################
-                TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_BP" begin
-                    subproblem_results = solve_subproblem_backward(
-                        model,
-                        child_node,
-                        node_index+1,
-                        outgoing_state,
-                        noise.term,
-                        scenario_path,
-                        algo_params,
-                        applied_solvers
-                    )
-                end
-                push!(items.duals, subproblem_results.duals)
-                push!(items.supports, noise)
-                push!(items.nodes, child_node.index)
-                push!(items.probability, child.probability * noise.probability)
-                push!(items.objectives, subproblem_results.objective)
-                push!(items.belief, belief)
-                push!(items.bin_state, subproblem_results.bin_state)
-                push!(items.lag_iterations, subproblem_results.iterations)
-                push!(items.lag_status, subproblem_results.lag_status)
-                items.cached_solutions[(child.term, noise.term)] = length(items.duals)
-            end
-        end
-    end
-    if length(scenario_path) == length_scenario_path
-        # No-op. There weren't any children to solve.
-    else
-        # Drop the last element (i.e., the one we added).
-        pop!(scenario_path)
-    end
-
-    return
-end
-
-
-"""
-Solving the backward pass problem for one specific child
-"""
-# Internal function: solve the subproblem associated with node given the
-# incoming state variables state and realization of the stagewise-independent
-# noise term noise. If require_duals=true, also return the dual variables
-# associated with the fixed constraint of the incoming state variables.
-function solve_subproblem_backward(
-    model::SDDP.PolicyGraph{T},
-    node::SDDP.Node{T},
-    node_index::Int64,
-    state::Dict{Symbol,Float64},
-    noise,
-    scenario_path::Vector{Tuple{T,S}},
-    algo_params::DynamicSDDiP.AlgoParams,
-    applied_solvers::DynamicSDDiP.AppliedSolvers;
-) where {T,S}
-
-    ############################################################################
-    # MODEL PARAMETRIZATION
-    ############################################################################
-    subproblem = node.subproblem
-
-    # Storage for backward pass data
-    node.ext[:backward_data] = Dict{Symbol,Any}()
-
-    # Parameterize the model. Fix the value of the incoming state variables.
-    # Then parameterize the model depending on `noise` and set the objective.
-    set_incoming_state!(node, state)
-    parameterize(node, noise)
-
-    @infiltrate algo_params.infiltrate_state in [:all]
-
-    ############################################################################
-    # CHANGE STATE SPACE IF BINARY APPROXIMATION IS USED
-    ############################################################################
-    TimerOutputs.@timeit DynamicSDDiP_TIMER "space_change" begin
-        changeStateSpace!(node, subproblem, state, algo_params.state_approximation_regime)
-    end
-
-    ############################################################################
-    # SOLVE DUAL PROBLEM TO OBTAIN CUT INFORMATION
-    ############################################################################
-    # Solve dual and return a dict with the multipliers of the copy constraints.
-    TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_dual" begin
-        dual_results = get_dual_solution(node, node_index, algo_params, applied_solvers, algo_params.duality_regime)
-    end
-
-    ############################################################################
-    # REGAIN ORIGINAL MODEL IF BINARY APPROXIMATION IS USED
-    ############################################################################
-    TimerOutputs.@timeit DynamicSDDiP_TIMER "space_change" begin
-        rechangeStateSpace!(node, subproblem, state, algo_params.state_approximation_regime)
-    end
-
-    @infiltrate algo_params.infiltrate_state in [:all]
-
-    return (
-        duals = dual_results.dual_values,
-        bin_state = dual_results.bin_state,
-        objective = dual_results.intercept,
-        iterations = dual_results.iterations,
-        lag_status = dual_results.lag_status,
-    )
-
 end
 
 

@@ -25,16 +25,39 @@ function model_config()
     dual_bound_regime = DynamicSDDiP.BothBounds()
     dual_status_regime = DynamicSDDiP.Lax()
     dual_choice_regime = DynamicSDDiP.StandardChoice()
+    normalization_regime = DynamicSDDiP.L∞_Deep()
+    dual_space_regime = DynamicSDDiP.NoDualSpaceRestriction()
+
+    # duality_regime = DynamicSDDiP.UnifiedLagrangianDuality(
+    #     atol = 1e-4,
+    #     rtol = 1e-4,
+    #     iteration_limit = 1000,
+    #     dual_initialization_regime = dual_initialization_regime,
+    #     dual_bound_regime = dual_bound_regime,
+    #     dual_solution_regime = dual_solution_regime,
+    #     #dual_choice_regime = dual_choice_regime,
+    #     dual_status_regime = dual_status_regime,
+    #     normalization_regime = normalization_regime,
+    #     dual_space_regime = dual_space_regime
+    # )
+
     duality_regime = DynamicSDDiP.LagrangianDuality(
-        atol = 1e-8,
-        rtol = 1e-8,
-        iteration_limit = 1000,
-        dual_initialization_regime = dual_initialization_regime,
-        dual_bound_regime = dual_bound_regime,
-        dual_solution_regime = dual_solution_regime,
-        dual_choice_regime = dual_choice_regime,
-        dual_status_regime = dual_status_regime,
-    )
+         atol = 1e-4,
+         rtol = 1e-4,
+         iteration_limit = 1000,
+         dual_initialization_regime = dual_initialization_regime,
+         dual_bound_regime = dual_bound_regime,
+         dual_solution_regime = dual_solution_regime,
+         dual_choice_regime = dual_choice_regime,
+         dual_status_regime = dual_status_regime,
+     )
+
+    #duality_regime = DynamicSDDiP.LinearDuality()
+    #duality_regime = DynamicSDDiP.StrengthenedDuality()
+
+    # State approximation and cut projection configuration
+    #cut_projection_regime = DynamicSDDiP.BigM()
+    #binary_precision = Dict{Symbol, Float64}()
 
     # State approximation and cut projection configuration
     state_approximation_regime = DynamicSDDiP.NoStateApproximation()
@@ -42,11 +65,16 @@ function model_config()
     # Regularization configuration
     regularization_regime = DynamicSDDiP.NoRegularization()
 
+    # Cut aggregation regime
+    cut_aggregation_regime = DynamicSDDiP.MultiCutRegime()
+
+    cut_type = SDDP.SINGLE_CUT
+    if isa(cut_aggregation_regime,DynamicSDDiP.MultiCutRegime)
+        cut_type = SDDP.MULTI_CUT
+    end
+
     # Cut selection configuration
     cut_selection_regime = DynamicSDDiP.CutSelection()
-
-    # Framework regime
-    framework_regime = DynamicSDDiP.UnifiedFramework()
 
     # File for logging
     log_file = "C:/Users/cg4102/Documents/julia_logs/SDDP_Example.log"
@@ -63,8 +91,9 @@ function model_config()
         state_approximation_regime = state_approximation_regime,
         regularization_regime = regularization_regime,
         duality_regime = duality_regime,
+        cut_aggregation_regime = cut_aggregation_regime,
         cut_selection_regime = cut_selection_regime,
-        framework_regime = framework_regime,
+        cut_type = cut_type,
         log_file = log_file,
         silent = silent,
         infiltrate_state = infiltrate_state,

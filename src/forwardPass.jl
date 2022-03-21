@@ -34,6 +34,8 @@ function forward_pass(model::SDDP.PolicyGraph{T}, options::DynamicSDDiP.Options,
     incoming_state_value = copy(model.initial_root_state)
     # A cumulator for the stage-objectives.
     cumulative_value = 0.0
+    # Storage for the list of epi states that we got on the forward pass
+    epi_states = Dict{Symbol, Vector{Float64}}()
 
     ############################################################################
     # ACTUAL ITERATION
@@ -41,6 +43,7 @@ function forward_pass(model::SDDP.PolicyGraph{T}, options::DynamicSDDiP.Options,
     # Iterate down the scenario tree.
     for (depth, (node_index, noise)) in enumerate(scenario_path)
         node = model[node_index]
+        epi_states_stage = Float64[]
 
         ########################################################################
         # SET SOLVER
@@ -59,6 +62,7 @@ function forward_pass(model::SDDP.PolicyGraph{T}, options::DynamicSDDiP.Options,
                 incoming_state_value, # only values, no State struct!
                 noise,
                 scenario_path[1:depth],
+                epi_states_stage,
                 algo_params,
                 algo_params.regularization_regime,
             )
@@ -71,6 +75,8 @@ function forward_pass(model::SDDP.PolicyGraph{T}, options::DynamicSDDiP.Options,
         # Add the outgoing state variable to the list of states we have sampled
         # on this forward pass.
         push!(sampled_states, incoming_state_value)
+        # Add current array of epigraph variables to epi_state
+        epi_states[Symbol(node_index)] = epi_states_stage
 
     end
 
@@ -80,6 +86,7 @@ function forward_pass(model::SDDP.PolicyGraph{T}, options::DynamicSDDiP.Options,
         # objective_states = objective_states,
         # belief_states = belief_states,
         cumulative_value = cumulative_value,
+        epi_states = epi_states,
     )
 end
 
@@ -98,6 +105,7 @@ function solve_subproblem_forward(
     state::Dict{Symbol,Float64},
     noise,
     scenario_path::Vector{Tuple{T,S}},
+    epi_states_stage::Vector{Float64},
     algo_params::DynamicSDDiP.AlgoParams,
     regularization_regime::DynamicSDDiP.AbstractRegularizationRegime;
 ) where {T,S}
@@ -132,6 +140,7 @@ function solve_subproblem_forward(
     state = get_outgoing_state(node)
     objective = JuMP.objective_value(subproblem)
     stage_objective = objective - JuMP.value(bellman_term(node.bellman_function))
+    get_epi_states(node, epi_states_stage, algo_params.cut_aggregation_regime)
     @infiltrate algo_params.infiltrate_state in [:all]
 
     ############################################################################
@@ -146,4 +155,41 @@ function solve_subproblem_forward(
         objective = objective,
         stage_objective = stage_objective,
     )
+end
+
+
+"""
+Getting the current values of the epigraph variables for single-cut approach.
+For the single-cut case we could simply use something like
+push!(epi_states, subproblem_results.objective - subproblem_results.stage_objective),
+but here we access the global_theta variable directly to have a unified procedure
+for single-cuts and multi-cuts.
+"""
+function get_epi_states(
+    node::SDDP.Node{T},
+    epi_states_stage::Vector{Float64},
+    cut_aggregation_regime::DynamicSDDiP.SingleCutRegime;
+) where {T}
+
+    push!(epi_states_stage, JuMP.value(bellman_term(node.bellman_function)))
+
+    return
+
+end
+
+"""
+Getting the current values of the epigraph variables for multi-cut approach.
+We access the local_theta variables explicitly.
+"""
+function get_epi_states(
+    node::SDDP.Node{T},
+    epi_states_stage::Vector{Float64},
+    cut_aggregation_regime::DynamicSDDiP.MultiCutRegime;
+) where {T}
+
+    for i in 1:length(node.bellman_function.local_thetas)
+        push!(epi_states_stage, JuMP.value(node.bellman_function.local_thetas[i].theta))
+    end
+
+    return
 end

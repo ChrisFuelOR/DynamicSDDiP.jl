@@ -220,7 +220,7 @@ function refine_bellman_function(
         )
     else  # Add a multi-cut
         @assert bellman_function.cut_type == SDDP.MULTI_CUT
-        _add_locals_if_necessary(node, bellman_function, length(dual_variables))
+        #_add_locals_if_necessary(node, bellman_function, length(dual_variables))
         return _add_multi_cut(
             node,
             node_index,
@@ -423,7 +423,8 @@ function _add_multi_cut(
     #     end
     # end
     #
-    # return
+
+    return
 end
 
 
@@ -479,7 +480,9 @@ function _add_cut(
             # obj_y,
             # belief_y,
             1,
-            iteration
+            iteration,
+            algo_params.cut_aggregation_regime,
+            algo_params.duality_regime,
             )
 
     ############################################################################
@@ -1294,7 +1297,9 @@ function _add_cut(
             # obj_y,
             # belief_y,
             1,
-            iteration
+            iteration,
+            algo_params.cut_aggregation_regime,
+            algo_params.duality_regime,
             )
 
     ############################################################################

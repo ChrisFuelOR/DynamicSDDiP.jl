@@ -159,7 +159,9 @@ function solve_lagrangian_dual(
         JuMP.@variable(approx_model, π⁺[1:number_of_states] >= 0)
         JuMP.@variable(approx_model, π⁻[1:number_of_states] >= 0)
         JuMP.@expression(approx_model, π, π⁺ .- π⁻) # not required to be a constraint
-        set_multiplier_bounds!(node, approx_model, number_of_states, bound_results.dual_bound, algo_params)
+        set_multiplier_bounds!(node, approx_model, number_of_states, bound_results.dual_bound,
+            algo_params.regularization_regime, algo_params.state_approximation_regime,
+            algo_params.duality_regime)
     end
 
     ############################################################################
@@ -211,6 +213,7 @@ function solve_lagrangian_dual(
         t_k = JuMP.objective_value(approx_model)
         π_k .= JuMP.value.(π)
         @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
+        @infiltrate
 
         ########################################################################
         if L_star > t_k + atol/10.0
@@ -245,10 +248,10 @@ function solve_lagrangian_dual(
     end
 
     ############################################################################
-    # APPLY MAGNANTI AND WONG APPROACH IF INTENDED
+    # APPLY MINIMAL NORM CHOICE APPROACH IF INTENDED
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "magnanti_wong" begin
-        magnanti_wong!(node, approx_model, π_k, π_star, t_k, h_expr, h_k, s, L_star,
+        minimal_norm_choice!(node, approx_model, π_k, π_star, t_k, h_expr, h_k, s, L_star,
             iteration_limit, atol, rtol, algo_params.duality_regime.dual_choice_regime, iter)
     end
 
@@ -364,19 +367,49 @@ function set_objective_bound!(approx_model::JuMP.Model, s::Int, obj_bound::Float
     return
 end
 
-function set_multiplier_bounds!(node::SDDP.Node, approx_model::JuMP.Model, number_of_states::Int, dual_bound::Float64, algo_params::DynamicSDDiP.AlgoParams)
+function set_multiplier_bounds!(node::SDDP.Node, approx_model::JuMP.Model,
+    number_of_states::Int, dual_bound::Float64,
+    regularization_regime::DynamicSDDiP.Regularization,
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation,
+    duality_regime::DynamicSDDiP.LagrangianDuality)
 
     π⁺ = approx_model[:π⁺]
     π⁻ = approx_model[:π⁻]
 
     for (i, (key, value)) in enumerate(node.ext[:backward_data][:bin_states])
     	associated_original_state = node.ext[:backward_data][:bin_x_names][key]
-    	beta = algo_params.state_approximation_regime.binary_precision[associated_original_state]
+    	beta = state_approximation_regime.binary_precision[associated_original_state]
     	associated_k = node.ext[:backward_data][:bin_k][key]
     	bound = dual_bound * 2^(associated_k-1) * beta
     	JuMP.set_upper_bound(π⁺[i], bound)
         JuMP.set_upper_bound(π⁻[i], bound)
 	end
+end
+
+function set_multiplier_bounds!(node::SDDP.Node, approx_model::JuMP.Model,
+    number_of_states::Int, dual_bound::Float64,
+    regularization_regime::DynamicSDDiP.NoRegularization,
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation,
+    duality_regime::DynamicSDDiP.LagrangianDuality)
+
+    set_multiplier_bounds!(node, approx_model, number_of_states, dual_bound,
+        algo_params, DynamicSDDiP.NoRegularization, DynamicSDDiP.NoStateApproximation,
+        DynamicSDDiP.LagrangianDuality)
+end
+
+function set_multiplier_bounds!(node::SDDP.Node, approx_model::JuMP.Model,
+    number_of_states::Int, dual_bound::Float64,
+    regularization_regime::Union{DynamicSDDiP.NoRegularization,DynamicSDDiP.Regularization},
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation,
+    duality_regime::DynamicSDDiP.LagrangianDuality)
+
+    π⁺ = approx_model[:π⁺]
+    π⁻ = approx_model[:π⁻]
+
+    for i in 1:number_of_states
+        JuMP.set_upper_bound(π⁺[i], dual_bound)
+        JuMP.set_upper_bound(π⁻[i], dual_bound)
+    end
 end
 
 """
@@ -387,7 +420,7 @@ Note that this is only done until the maximum number of iterations is
 achieved in total.
 """
 
-function magnanti_wong!(
+function minimal_norm_choice!(
     node::SDDP.Node,
     approx_model::JuMP.Model,
     π_k::Vector{Float64},
@@ -436,7 +469,7 @@ function magnanti_wong!(
 end
 
 
-function magnanti_wong!(
+function minimal_norm_choice!(
     node::SDDP.Node,
     approx_model::JuMP.Model,
     π_k::Vector{Float64},
@@ -455,7 +488,6 @@ function magnanti_wong!(
 
     return
 end
-
 
 
 """
@@ -725,10 +757,10 @@ function solve_lagrangian_dual(
     end
 
     ############################################################################
-    # APPLY MAGNANTI AND WONG APPROACH IF INTENDED
+    # APPLY MINIMAL NORM CHOICE APPROACH IF INTENDED
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "magnanti_wong" begin
-        magnanti_wong!(node, approx_model, π_k, π_star, t_k, h_expr, h_k, s, L_star,
+        minimal_norm_choice!(node, approx_model, π_k, π_star, t_k, h_expr, h_k, s, L_star,
             iteration_limit, atol, rtol, algo_params.duality_regime.dual_choice_regime, iter)
     end
 
@@ -787,13 +819,13 @@ function _getStrengtheningInformation(
     ############################################################################
     # RELAXING THE COPY CONSTRAINTS
     ############################################################################
-    relax_copy_constraints(node, x_in_value, h_expr, algo_params.state_approximation_regime)
+    relax_copy_constraints!(node, x_in_value, h_expr, algo_params.state_approximation_regime)
 
     ########################################################################
     # SOLVE LAGRANGIAN RELAXATION FOR GIVEN DUAL_VARS
     ########################################################################
     # Evaluate the inner problem and determine a subgradient
-    Lag_obj = _solve_Lagrangian_relaxation!(node, π_k, h_expr, h_k, false)
+    lag_obj = _solve_Lagrangian_relaxation!(node, π_k, h_expr, h_k, false)
     @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
     ############################################################################

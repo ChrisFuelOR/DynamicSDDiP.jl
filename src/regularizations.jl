@@ -265,6 +265,8 @@ function regularize_bw!(node::SDDP.Node, node_index::Int64,
     state_approximation_regime::DynamicSDDiP.BinaryApproximation)
 
     regularize_binary!(node, node_index, subproblem, algo_params, regularization_regime)
+
+    return
 end
 
 """
@@ -276,6 +278,8 @@ function regularize_bw!(node::SDDP.Node, node_index::Int64,
     state_approximation_regime::DynamicSDDiP.NoStateApproximation)
 
     regularize_subproblem!(node, node_index, subproblem, regularization_regime)
+
+    return
 end
 
 """
@@ -287,6 +291,8 @@ function regularize_bw!(node::SDDP.Node, node_index::Int64,
     state_approximation_regime::DynamicSDDiP.NoStateApproximation)
 
     regularize_binary!(node, node_index, subproblem, regularization_regime)
+
+    return
 end
 
 """
@@ -298,6 +304,8 @@ function regularize_bw!(node::SDDP.Node, node_index::Int64,
     state_approximation_regime::DynamicSDDiP.BinaryApproximation)
 
     regularize_subproblem!(node, node_index, subproblem, regularization_regime)
+
+    return
 end
 
 ################################################################################
@@ -320,6 +328,8 @@ function deregularize_bw!(node::SDDP.Node,
     state_approximation_regime::DynamicSDDiP.NoStateApproximation)
 
     deregularize_subproblem!(node, subproblem, regularization_regime)
+
+    return
 end
 
 """
@@ -330,6 +340,8 @@ function deregularize_bw!(node::SDDP.Node,
     state_approximation_regime::DynamicSDDiP.BinaryApproximation)
 
     deregularize_subproblem!(node, subproblem, regularization_regime)
+
+    return
 end
 
 """
@@ -340,4 +352,6 @@ function deregularize_bw!(node::SDDP.Node,
     state_approximation_regime::DynamicSDDiP.NoStateApproximation)
 
     deregularize_subproblem!(node, subproblem, regularization_regime)
+
+    return
 end

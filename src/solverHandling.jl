@@ -43,6 +43,8 @@ function set_solver!(
         elseif algorithmic_step in [:LP_relax, :kelley, :cut_selection]
             # TODO: What about nonlinear cut projections here?
             solver = applied_solvers.LP
+        elseif algorithmic_step in [:l₂]
+            solver = "scip"
         end
 
     elseif isa(algo_params.state_approximation_regime, DynamicSDDiP.NoStateApproximation)
@@ -58,6 +60,8 @@ function set_solver!(
         elseif algorithmic_step in [:LP_relax, :kelley, :cut_selection]
             # TODO: What about nonlinear cut projections here?
             solver = applied_solvers.LP
+        elseif algorithmic_step in [:l₂]
+            solver = "scip"
         end
     end
 

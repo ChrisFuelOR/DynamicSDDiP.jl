@@ -48,6 +48,9 @@ function model_config()
     regularization_regime = DynamicSDDiP.Regularization(sigma = [0.0, 1.0], sigma_factor = 5.0)
     # regularization_regime = DynamicSDDiP.NoRegularization()
 
+    # Cut aggregation regime
+    cut_aggregation_regime = DynamicSDDiP.SingleCutRegime()
+
     # Cut selection configuration
     cut_selection_regime = DynamicSDDiP.NoCutSelection()
 
@@ -66,6 +69,7 @@ function model_config()
         state_approximation_regime = state_approximation_regime,
         regularization_regime = regularization_regime,
         duality_regime = duality_regime,
+        cut_aggregation_regime = cut_aggregation_regime,
         cut_selection_regime = cut_selection_regime,
         log_file = log_file,
         silent = silent,

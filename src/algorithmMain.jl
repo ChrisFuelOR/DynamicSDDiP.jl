@@ -120,6 +120,7 @@ function solve(
 
         if key != model.root_node
 
+            # Determine correct objective sense and bounds for bellman function
             if model.objective_sense == MOI.MIN_SENSE
                 lower_bound = JuMP.lower_bound(node.bellman_function.global_theta.theta)
                 upper_bound = Inf
@@ -128,17 +129,35 @@ function solve(
                 lower_bound = -Inf
             end
 
+            # Initialize bellman function
             bellman_function = BellmanFunction(lower_bound = lower_bound, upper_bound = upper_bound)
             node.bellman_function = DynamicSDDiP.initialize_bellman_function(bellman_function, model, node)
             node.bellman_function.cut_type = algo_params.cut_type
 
-            if algo_params.cut_selection_regime == DynamicSDDiP.CutSelection
+            # Prepare multi-cut case
+            if node.bellman_function.cut_type == SDDP.MULTI_CUT
+                # Count number of local thetas (number of sets of dual variables later)
+                counter = 0
+                for child in node.children
+                    if isapprox(child.probability, 0.0, atol = 1e-6)
+                        continue
+                    end
+                    child_node = model[child.term]
+                    for noise in SDDP.sample_backward_noise_terms(algo_params.backward_sampling_scheme, child_node)
+                        counter = counter + 1
+                    end
+                end
+                _add_locals_if_necessary(node, node.bellman_function, counter)
+            end
+
+            if isa(algo_params.cut_selection_regime, DynamicSDDiP.CutSelection)
                 node.bellman_function.global_theta.deletion_minimum =
                     algo_params.cut_selection_regime.cut_deletion_minimum
                 for oracle in node.bellman_function.local_thetas
                     oracle.deletion_minimum = algo_params.cut_selection_regime.cut_deletion_minimum
                 end
             end
+
         end
     end
 
@@ -521,10 +540,13 @@ function iteration(
             applied_solvers,
             forward_trajectory.scenario_path,
             forward_trajectory.sampled_states,
+            forward_trajectory.epi_states,
             # forward_trajectory.objective_states,
             # forward_trajectory.belief_states,
         )
     end
+
+    @infiltrate
 
     ############################################################################
     # CALCULATE LOWER BOUND

@@ -22,6 +22,7 @@ Solving the dual problem to obtain cut information - using LP relaxation
 function get_dual_solution(
     node::SDDP.Node,
     node_index::Int64,
+    epi_state::Float64,
     algo_params::DynamicSDDiP.AlgoParams,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     duality_regime::DynamicSDDiP.LinearDuality,
@@ -42,25 +43,29 @@ function get_dual_solution(
     # INITIALIZE DUALS
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "LP_relaxation" begin
-        dual_results = solve_LP_relaxation(node, subproblem, algo_params, applied_solvers, duality_regime.DynamicSDDiP.LPDuals)
+        dual_results = solve_LP_relaxation(node, subproblem, algo_params, applied_solvers, DynamicSDDiP.LPDuals())
     end
 
     dual_vars = dual_results.dual_vars
     dual_obj = dual_results.dual_obj
+
+    """ Note that we always initialize π₀ as well, even if we do not change it
+    from 1.0 in the classical framework."""
+    dual_0_var = 1.0
 
     @infiltrate algo_params.infiltrate_state in [:all]
 
     ############################################################################
     # SET DUAL VARIABLES AND STATES CORRECTLY FOR RETURN
     ############################################################################
-    store_dual_values!(node, dual_values, dual_vars, binary_state, integrality_handler, algo_params.state_approximation_regime)
+    store_dual_values!(node, dual_values, dual_vars, dual_0_var, bin_state, algo_params.state_approximation_regime)
 
     return (
         dual_values=dual_values,
         bin_state=bin_state,
         intercept=dual_obj,
         iterations=1,
-        lag_status=nothing,
+        lag_status=:B,
     )
 end
 
@@ -118,6 +123,7 @@ and strengthening by Lagrangian relaxation
 function get_dual_solution(
     node::SDDP.Node,
     node_index::Int64,
+    epi_state::Float64,
     algo_params::DynamicSDDiP.AlgoParams,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     duality_regime::DynamicSDDiP.StrengthenedDuality,
@@ -138,11 +144,15 @@ function get_dual_solution(
     # INITIALIZE DUALS
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "LP_relaxation" begin
-        dual_results = solve_LP_relaxation(node, subproblem, algo_params, applied_solvers, duality_regime.DynamicSDDiP.LPDuals)
+        dual_results = solve_LP_relaxation(node, subproblem, algo_params, applied_solvers, DynamicSDDiP.LPDuals())
     end
 
     dual_vars = dual_results.dual_vars
     dual_obj = dual_results.dual_obj
+
+    """ Note that we always initialize π₀ as well, even if we do not change it
+    from 1.0 in the classical framework."""
+    dual_0_var = 1.0
 
     @infiltrate algo_params.infiltrate_state in [:all]
 
@@ -157,14 +167,14 @@ function get_dual_solution(
     ############################################################################
     # SET DUAL VARIABLES AND STATES CORRECTLY FOR RETURN
     ############################################################################
-    store_dual_values!(node, dual_values, dual_vars, binary_state, integrality_handler, algo_params.state_approximation_regime)
+    store_dual_values!(node, dual_values, dual_vars, dual_0_var, bin_state, algo_params.state_approximation_regime)
 
     return (
         dual_values=dual_values,
         bin_state=bin_state,
         intercept=dual_obj,
         iterations=1,
-        lag_status=nothing,
+        lag_status=:SB,
     )
 end
 
@@ -179,6 +189,7 @@ Solving the dual problem to obtain cut information - using Lagrangian dual
 function get_dual_solution(
     node::SDDP.Node,
     node_index::Int64,
+    epi_state::Float64,
     algo_params::DynamicSDDiP.AlgoParams,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     duality_regime::DynamicSDDiP.LagrangianDuality,
@@ -206,6 +217,10 @@ function get_dual_solution(
     TimerOutputs.@timeit DynamicSDDiP_TIMER "dual_initialization" begin
         dual_vars = initialize_duals(node, subproblem, algo_params, applied_solvers, duality_regime.dual_initialization_regime)
     end
+
+    """ Note that we always initialize π₀ as well, even if we do not change it
+    from 1.0 in the classical framework."""
+    dual_0_var = 1.0
 
     ############################################################################
     # GET PRIMAL SOLUTION TO BOUND LAGRANGIAN DUAL, TRACK CONVERGENCE AND DEBUGGING
@@ -275,7 +290,7 @@ function get_dual_solution(
     ############################################################################
     # SET DUAL VARIABLES AND STATES CORRECTLY FOR RETURN
     ############################################################################
-    store_dual_values!(node, dual_values, dual_vars, bin_state, algo_params.state_approximation_regime)
+    store_dual_values!(node, dual_values, dual_vars, dual_0_var, bin_state, algo_params.state_approximation_regime)
 
     return (
         dual_values=dual_values,
@@ -285,6 +300,141 @@ function get_dual_solution(
         lag_status=lag_status,
     )
 end
+
+
+#*******************************************************************************
+# LAGRANGIAN DUAL - UNIFIED SETTING - MULTI-CUT
+#*******************************************************************************
+
+"""
+Solving the dual problem to obtain cut information - using Lagrangian dual
+in the unified framework with multi-cuts
+"""
+function get_dual_solution(
+    node::SDDP.Node,
+    node_index::Int64,
+    epi_state::Float64,
+    algo_params::DynamicSDDiP.AlgoParams,
+    applied_solvers::DynamicSDDiP.AppliedSolvers,
+    duality_regime::DynamicSDDiP.UnifiedLagrangianDuality,
+    )
+
+    ############################################################################
+    # SOME INITIALIZATIONS
+    ############################################################################
+    subproblem = node.subproblem
+
+    # storages for return of dual values and binary state values (trial point)
+    # note that with NoStateApproximation bin_state will just remain empty
+    dual_values = Dict{Symbol,Float64}()
+    bin_state = Dict{Symbol, BinaryState}()
+    number_of_states = get_number_of_states(node, algo_params.state_approximation_regime)
+
+    # storages for information on Lagrangian dual
+    lag_obj = 0
+    lag_iterations = 0
+    lag_status = :none
+
+    ############################################################################
+    # INITIALIZE DUALS
+    ############################################################################
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "dual_initialization" begin
+        dual_vars = initialize_duals(node, subproblem, algo_params, applied_solvers, duality_regime.dual_initialization_regime)
+    end
+
+    # Initialize π₀ as 1 (0 is not suitable for relatively complete recourse)
+    dual_0_var = 0.0
+
+    ############################################################################
+    # GET PRIMAL SOLUTION TO BOUND LAGRANGIAN DUAL, TRACK CONVERGENCE AND DEBUGGING
+    ############################################################################
+    """ Note that we also solve the primal problem if we generate cuts in
+    the unified framework to allow for a possible tightness check."""
+
+    # REGULARIZE PROBLEM IF REGULARIZATION IS USED
+    node.ext[:regularization_data] = Dict{Symbol,Any}()
+    regularize_bw!(node, node_index, subproblem, algo_params.regularization_regime, algo_params, algo_params.state_approximation_regime)
+
+    # RESET SOLVER (as it may have been changed in between for some reason)
+    DynamicSDDiP.set_solver!(subproblem, algo_params, applied_solvers, :backward_pass)
+
+    # SOLVE PRIMAL PROBLEM (can be regularized or not)
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_primal" begin
+        JuMP.optimize!(subproblem)
+    end
+
+    # Maybe attempt numerical recovery as in SDDP
+    primal_obj = JuMP.objective_value(subproblem)
+    @assert JuMP.termination_status(subproblem) == MOI.OPTIMAL
+
+    # DEREGULARIZE PROBLEM IF REQUIRED
+    deregularize_bw!(node, subproblem, algo_params.regularization_regime, algo_params.state_approximation_regime)
+
+    @infiltrate algo_params.infiltrate_state in [:all]
+
+    ############################################################################
+    # GET BOUNDS FOR LAGRANGIAN DUAL
+    ############################################################################
+    bound_results = get_dual_bounds(node, node_index, algo_params, primal_obj, duality_regime.dual_bound_regime)
+    @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
+
+    try
+        ########################################################################
+        # CALL SOLUTION METHOD
+        ########################################################################
+        # Solve dual and return a dict with the multiplier of the copy constraints.
+        TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_lagrange" begin
+            results = solve_unified_lagrangian_dual(
+                        node,
+                        node_index,
+                        epi_state,
+                        primal_obj,
+                        dual_vars,
+                        dual_0_var,
+                        bound_results,
+                        algo_params,
+                        applied_solvers,
+                        duality_regime.dual_solution_regime
+                        )
+        end
+
+        lag_obj = results.lag_obj
+        lag_iterations = results.iterations
+        lag_status = results.lag_status
+        dual_0_var = results.dual_0_var
+
+        ########################################################################
+        # CHECK STATUS FOR ABNORMAL BEHAVIOR
+        ########################################################################
+        # if status is not as intended, the algorithm terminates with an error
+        lagrangian_status_check(lag_status, duality_regime.dual_status_regime)
+
+        @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
+
+    catch e
+        #SDDP.write_subproblem_to_file(node, "subproblem.mof.json", throw_error = false)
+        rethrow(e)
+    end
+
+    ############################################################################
+    # SET DUAL VARIABLES AND STATES CORRECTLY FOR RETURN
+    ############################################################################
+    store_dual_values!(node, dual_values, dual_vars, dual_0_var, bin_state, algo_params.state_approximation_regime)
+
+    # We still want to express the cuts in the original system,
+    # so we have to divide the value for the intercept by dual_0_var as well.
+    # Moreover, we have to add epi_state
+    lag_obj = lag_obj / dual_0_var + epi_state
+
+    return (
+        dual_values=dual_values,
+        bin_state=bin_state,
+        intercept=lag_obj,
+        iterations=lag_iterations,
+        lag_status=lag_status,
+    )
+end
+
 
 #*******************************************************************************
 # AUXILIARY METHODS
@@ -480,8 +630,8 @@ end
 function get_and_set_dual_values!(node::SDDP.Node, dual_vars_initial::Vector{Float64},
     state_approximation_regime::DynamicSDDiP.NoStateApproximation)
 
-    for (i, name) in enumerate(keys(node,states))
-        reference_to_constr = FixRef(name.in)
+    for (i, name) in enumerate(keys(node.states))
+        reference_to_constr = FixRef(node.subproblem[name].in)
         dual_vars_initial[i] = JuMP.dual(reference_to_constr)
     end
 
@@ -489,13 +639,13 @@ function get_and_set_dual_values!(node::SDDP.Node, dual_vars_initial::Vector{Flo
 end
 
 function store_dual_values!(node::SDDP.Node, dual_values::Dict{Symbol, Float64},
-    dual_vars::Vector{Float64}, bin_state::Dict{Symbol, BinaryState},
+    dual_vars::Vector{Float64}, dual_0_var::Float64, bin_state::Dict{Symbol, BinaryState},
     state_approximation_regime::DynamicSDDiP.BinaryApproximation)
 
     old_rhs = node.ext[:backward_data][:old_rhs]
 
     for (i, name) in enumerate(keys(node.ext[:backward_data][:bin_states]))
-        dual_values[name] = dual_vars[i]
+        dual_values[name] = dual_vars[i] / dual_0_var
 
         value = old_rhs[i]
         x_name = node.ext[:backward_data][:bin_x_names][name]
@@ -507,11 +657,11 @@ function store_dual_values!(node::SDDP.Node, dual_values::Dict{Symbol, Float64},
 end
 
 function store_dual_values!(node::SDDP.Node, dual_values::Dict{Symbol, Float64},
-    dual_vars::Vector{Float64}, bin_state::Dict{Symbol, BinaryState},
+    dual_vars::Vector{Float64}, dual_0_var::Float64, bin_state::Dict{Symbol, BinaryState},
     state_approximation_regime::DynamicSDDiP.NoStateApproximation)
 
     for (i, name) in enumerate(keys(node.states))
-        dual_values[name] = dual_vars[i]
+        dual_values[name] = dual_vars[i] / dual_0_var
     end
 
     return

@@ -143,15 +143,15 @@ mutable struct Lax <: AbstractDualStatusRegime end
 abstract type AbstractDualChoiceRegime end
 
 """
-Standard choice means that the Lagrangian multipliers are used as determined
+StandardChoice means that the Lagrangian multipliers are used as determined
     by the cutting-plane or level bundle method.
-MagnantiWongChoice means that it is attempted to determine pareto-optimal
-    dual multipliers (as in the newer SDDP package version).
-Default is MagnantiWongChoice.
+MinimalNormChoice means that a second step is added to minimize the norm
+    among all dual optimal solutions.
+Default is MinimalNormChoice.
 """
 
 mutable struct StandardChoice <: AbstractDualChoiceRegime end
-mutable struct MagnantiWongChoice <: AbstractDualChoiceRegime end
+mutable struct MinimalNormChoice <: AbstractDualChoiceRegime end
 
 ################################################################################
 # CUT PROJECTION APPROACH
@@ -243,6 +243,54 @@ Default is Regularization.
 """
 
 ################################################################################
+# DUAL NORMALIZATION
+################################################################################
+abstract type AbstractNormalizationRegime end
+
+mutable struct L₁_Deep <: AbstractNormalizationRegime end
+mutable struct L₂_Deep <: AbstractNormalizationRegime end
+mutable struct L∞_Deep <: AbstractNormalizationRegime end
+mutable struct Brandenberg <: AbstractNormalizationRegime end
+mutable struct Fischetti <: AbstractNormalizationRegime end
+mutable struct ChenLuedtke <: AbstractNormalizationRegime end
+
+"""
+L_1_Deep means that a normalization is used in the Lagrangian dual such that
+    deepest cuts w.r.t. to the 1-norm are generated. Note that this is equivalent
+    to approaches by Fischetti et al. and Chen & Luedtke if copy constraints
+    are used.
+L_2_Deep means that a normalization is used in the Lagrangian dual such that
+        deepest cuts w.r.t. to the 2-norm are generated.
+L_Inf_Deep means that a normalization is used in the Lagrangian dual such that
+    deepest cuts w.r.t. to the supremum norm are generated.
+Brandenberg means that a normalization is used in the Lagrangian dual such that
+    Pareto-optimal and likely also facet-defining cuts are generated. This
+    approach can be interpreted as optimizing over the reverse polar set.
+    TODO: How does that work?
+Fischetti means that the classical normalization approach by Fischetti et al.
+    (2010) is used for the Lagrangian dual.
+Chen & Luedtke means that a similar, but slightly different normalization
+    approach compared to Fischetti et al. is used.
+Default is L_1_Deep.
+"""
+
+################################################################################
+# DUAL SPACE RESTRICTION
+################################################################################
+abstract type AbstractDualSpaceRegime end
+
+mutable struct NoDualSpaceRestriction <: AbstractDualSpaceRegime end
+mutable struct BendersSpanSpaceRestriction <: AbstractDualSpaceRegime end
+
+"""
+NoDualSpaceRestriction means that no additional restriction is imposed
+    on the dual space, so exact separation is possible.
+BendersSpanSpaceRestriction means that only dual multipliers are considered
+    which are in the span of the last K Benders multipliers (see Chen & Luedtke).
+Default is NoDualSpaceRestriction.
+"""
+
+################################################################################
 # CUT FAMILY TO BE USED
 ################################################################################
 abstract type AbstractDualityRegime end
@@ -263,7 +311,7 @@ mutable struct LagrangianDuality <: AbstractDualityRegime
         dual_initialization_regime = ZeroDuals(),
         dual_bound_regime = BothBounds(),
         dual_solution_regime = Kelley(),
-        dual_choice_regime = MagnantiWongChoice(),
+        dual_choice_regime = MinimalNormChoice(),
         dual_status_regime = Rigorous(),
     )
         return new(atol, rtol, iteration_limit,
@@ -275,6 +323,35 @@ end
 mutable struct LinearDuality <: AbstractDualityRegime end
 mutable struct StrengthenedDuality <: AbstractDualityRegime end
 
+mutable struct UnifiedLagrangianDuality <: AbstractDualityRegime
+    atol::Float64
+    rtol::Float64
+    iteration_limit::Int
+    dual_initialization_regime::AbstractDualInitializationRegime
+    dual_bound_regime::AbstractDualBoundRegime
+    dual_solution_regime::AbstractDualSolutionRegime
+    dual_status_regime::AbstractDualStatusRegime
+    normalization_regime::AbstractNormalizationRegime
+    dual_space_regime::AbstractDualSpaceRegime
+    function UnifiedLagrangianDuality(;
+        atol = 1e-8,
+        rtol = 1e-8,
+        iteration_limit = 1000,
+        dual_initialization_regime = ZeroDuals(),
+        dual_bound_regime = BothBounds(),
+        dual_solution_regime = Kelley(),
+        dual_status_regime = Rigorous(),
+        normalization_regime = L₁_Deep(),
+        dual_space_regime = NoDualSpaceRestriction(),
+    )
+        return new(atol, rtol, iteration_limit,
+            dual_initialization_regime, dual_bound_regime,
+            dual_solution_regime, dual_status_regime,
+            normalization_regime, dual_space_regime)
+    end
+end
+
+
 """
 LagrangianDuality means that the Lagrangian dual is (approximately) solved to obtain
     a cut. In this case, a lot of parameters have to be defined to configure
@@ -283,7 +360,22 @@ LinearDuality means that the LP relaxation is solved to obtain a cut.
 StrengthenedDuality means that the Lagrangian relaxation is solved using the optimal
     dual multiplier of the LP relaxation to obtain a strengthened Benders cuts.
 Default is LagrangianDuality.
+
+The new addition UnifiedLagrangianDuality allows to determine cuts using the
+unified framework originally proposed by Fischetti et al. (2010) and also used
+by Chen & Luedtke (2021) for Lagrangian cuts in 2-stage stochastic programming.
+This regime supports different choices for cut separation, e.g. deepest cuts,
+facet-defining/Pareto-optimal cuts or the standard normalization by Fischetti
+et al. It can be used in a multi-cut or a single-cut setting.
 """
+
+################################################################################
+# CUT AGGREGATION REGIME
+################################################################################
+abstract type AbstractCutAggregationRegime end
+
+mutable struct SingleCutRegime <: AbstractCutAggregationRegime end
+mutable struct MultiCutRegime <: AbstractCutAggregationRegime end
 
 ################################################################################
 # CUT SELECTION
@@ -323,6 +415,7 @@ mutable struct AlgoParams
     state_approximation_regime::AbstractStateApproximationRegime
     regularization_regime::AbstractRegularizationRegime
     duality_regime::AbstractDualityRegime
+    cut_aggregation_regime::AbstractCutAggregationRegime
     cut_selection_regime::AbstractCutSelectionRegime
     ############################################################################
     risk_measure::SDDP.AbstractRiskMeasure
@@ -347,6 +440,7 @@ mutable struct AlgoParams
         state_approximation_regime = BinaryApproximation(),
         regularization_regime = Regularization(),
         duality_regime = LagrangianDuality(),
+        cut_aggregation_regime = SingleCutRegime(),
         cut_selection_regime = CutSelection(),
         risk_measure = SDDP.Expectation(),
         forward_pass = SDDP.DefaultForwardPass(),
@@ -369,6 +463,7 @@ mutable struct AlgoParams
             state_approximation_regime,
             regularization_regime,
             duality_regime,
+            cut_aggregation_regime,
             cut_selection_regime,
             risk_measure,
             forward_pass,
@@ -450,6 +545,9 @@ mutable struct NonlinearCut <: Cut
     non_dominated_count::Int
     ############################################################################
     iteration::Int64
+    ############################################################################
+    aggregation_regime::DynamicSDDiP.AbstractCutAggregationRegime
+    duality_regime::DynamicSDDiP.AbstractDualityRegime
 end
 
 """
@@ -484,7 +582,7 @@ mutable struct LinearCut <: Cut
     ############################################################################
     trial_state::Dict{Symbol,Float64} # same as anchor state
     ############################################################################
-    sigma::Float64
+    sigma::Union{Nothing,Float64}
     ############################################################################
     cut_constraint::Union{Nothing,JuMP.ConstraintRef}
     ############################################################################
@@ -494,6 +592,9 @@ mutable struct LinearCut <: Cut
     non_dominated_count::Int
     ############################################################################
     iteration::Int64
+    ############################################################################
+    aggregation_regime::DynamicSDDiP.AbstractCutAggregationRegime
+    duality_regime::DynamicSDDiP.AbstractDualityRegime
 end
 
 ################################################################################

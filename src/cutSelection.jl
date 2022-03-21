@@ -238,7 +238,7 @@ function _cut_selection_update(
     at the existing states. If a cut is an improvement, add it to a queue to be added.
     """
     for old_cut in V.cuts
-        if !isempty(old_cut.cut_constraints)
+        if !isnothing(old_cut.cut_constraint)
             # We only care about cuts not currently in the model.
             continue
         end

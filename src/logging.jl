@@ -180,6 +180,9 @@ function print_parameters(io, algo_params::DynamicSDDiP.AlgoParams, applied_solv
     #end
     println(io, "----------------------------------------------------------------------------------------------------------------------------------------")
 
+    print(io, "Cut aggregation used: ")
+    println(io, algo_params.cut_aggregation_regime)
+
     print(io, "Cut selection used: ")
     println(io, algo_params.cut_selection_regime)
     println(io, "----------------------------------------------------------------------------------------------------------------------------------------")
