@@ -127,7 +127,7 @@ function solve_lagrangian_dual(
     # RELAXING THE COPY CONSTRAINTS
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "relax_copy" begin
-        relax_copy_constraints!(node, x_in_value, h_expr, algo_params.state_approximation_regime)
+        relax_copy_constraints!(node, x_in_value, h_expr, algo_params.state_approximation_regime, algo_params.duality_regime.copy_regime)
     end
     node.ext[:backward_data][:old_rhs] = x_in_value
 
@@ -213,7 +213,7 @@ function solve_lagrangian_dual(
         t_k = JuMP.objective_value(approx_model)
         π_k .= JuMP.value.(π)
         @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
-        @infiltrate
+        #@infiltrate
 
         ########################################################################
         if L_star > t_k + atol/10.0
@@ -284,7 +284,8 @@ function relax_copy_constraints!(
     node::SDDP.Node,
     x_in_value::Vector{Float64},
     h_expr::Vector{JuMP.GenericAffExpr{Float64,JuMP.VariableRef}},
-    state_approximation_regime::DynamicSDDiP.BinaryApproximation
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation,
+    copy_regime::DynamicSDDiP.StateSpaceCopy,
     )
 
     for (i, (_, state)) in enumerate(node.ext[:backward_data][:bin_states])
@@ -295,11 +296,8 @@ function relax_copy_constraints!(
         # Relax copy constraint (i.e. z does not have to take the value of ̄x anymore)
         JuMP.unfix(state)
 
-        # Set bounds to ensure that inner problems are feasible
-        # As we use binary approximation, 0 and 1 can be used
-        JuMP.set_lower_bound(state, 0)
-        JuMP.set_upper_bound(state, 1)
-
+        # Set constraint for copy variable. Here it has to be binary.
+        JuMP.set_binary(state)
     end
 
     return
@@ -309,7 +307,57 @@ function relax_copy_constraints!(
     node::SDDP.Node,
     x_in_value::Vector{Float64},
     h_expr::Vector{JuMP.GenericAffExpr{Float64,JuMP.VariableRef}},
-    state_approximation_regime::DynamicSDDiP.NoStateApproximation
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation,
+    copy_regime::DynamicSDDiP.ConvexHullCopy,
+    )
+
+    for (i, (_, state)) in enumerate(node.ext[:backward_data][:bin_states])
+        # Store original value of ̄x, which z was fixed to
+        x_in_value[i] = JuMP.fix_value(state)
+        # Store expression for slack
+        h_expr[i] = JuMP.@expression(node.subproblem, state - x_in_value[i])
+        # Relax copy constraint (i.e. z does not have to take the value of ̄x anymore)
+        JuMP.unfix(state)
+
+        # Set constraint for copy variable. Here the copy has to be in [0,1].
+        JuMP.set_lower_bound(state, 0)
+        JuMP.set_upper_bound(state, 1)
+    end
+
+    return
+end
+
+function relax_copy_constraints!(
+    node::SDDP.Node,
+    x_in_value::Vector{Float64},
+    h_expr::Vector{JuMP.GenericAffExpr{Float64,JuMP.VariableRef}},
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation,
+    copy_regime::DynamicSDDiP.NoBoundsCopy,
+    )
+
+    for (i, (_, state)) in enumerate(node.ext[:backward_data][:bin_states])
+        # Store original value of ̄x, which z was fixed to
+        x_in_value[i] = JuMP.fix_value(state)
+        # Store expression for slack
+        h_expr[i] = JuMP.@expression(node.subproblem, state - x_in_value[i])
+        # Relax copy constraint (i.e. z does not have to take the value of ̄x anymore)
+        JuMP.unfix(state)
+
+        # Aim: Impose no constraints for the state variable.
+        # However, we have to set some bounds to ensure feasibility.
+        JuMP.set_lower_bound(state, 0)
+        JuMP.set_upper_bound(state, 1e9)
+    end
+
+    return
+end
+
+function relax_copy_constraints!(
+    node::SDDP.Node,
+    x_in_value::Vector{Float64},
+    h_expr::Vector{JuMP.GenericAffExpr{Float64,JuMP.VariableRef}},
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation,
+    copy_regime::DynamicSDDiP.StateSpaceCopy,
     )
 
     for (i, (_, state)) in enumerate(node.states)
@@ -320,17 +368,87 @@ function relax_copy_constraints!(
         # Relax copy constraint (i.e. z does not have to take the value of ̄x anymore)
         JuMP.unfix(state.in)
 
-        # Set bounds to ensure that inner problems are feasible
-        # Bound shouldn't be too tight, so use 1e9 as a default if nothing
-        # else is specified
-        lb = has_lower_bound(state.out) ? lower_bound(state.out) : -1e9
-        ub = has_upper_bound(state.out) ? upper_bound(state.out) : 1e9
+        # Set constraint for copy variable. Here we use the state space bounds
+        # but relax integer requirements.
+        if JuMP.is_binary(state.out)
+            JuMP.set_binary(state.in)
+            lb = 0
+            ub = 1
+        elseif JuMP.is_integer(state.out)
+            JuMP.set_integer(state.in)
+            lb = has_lower_bound(state.out) ? lower_bound(state.out) : -1e9
+            ub = has_upper_bound(state.out) ? upper_bound(state.out) : 1e9
+        else
+            lb = has_lower_bound(state.out) ? lower_bound(state.out) : -1e9
+            ub = has_upper_bound(state.out) ? upper_bound(state.out) : 1e9
+        end
         JuMP.set_lower_bound(state.in, lb)
         JuMP.set_upper_bound(state.in, ub)
     end
 
     return
 end
+
+function relax_copy_constraints!(
+    node::SDDP.Node,
+    x_in_value::Vector{Float64},
+    h_expr::Vector{JuMP.GenericAffExpr{Float64,JuMP.VariableRef}},
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation,
+    copy_regime::DynamicSDDiP.ConvexHullCopy,
+    )
+
+    for (i, (_, state)) in enumerate(node.states)
+        # Store original value of ̄x, which z was fixed to
+        x_in_value[i] = JuMP.fix_value(state.in)
+        # Store expression for slack
+        h_expr[i] = JuMP.@expression(node.subproblem, state.in - x_in_value[i])
+        # Relax copy constraint (i.e. z does not have to take the value of ̄x anymore)
+        JuMP.unfix(state.in)
+
+        # Set constraint for copy variable. Here we use the state space bounds
+        # but relax integer requirements.
+        if JuMP.is_binary(state.out)
+            lb = 0
+            ub = 1
+        elseif JuMP.is_integer(state.out)
+            lb = has_lower_bound(state.out) ? lower_bound(state.out) : -1e9
+            ub = has_upper_bound(state.out) ? upper_bound(state.out) : 1e9
+        else
+            lb = has_lower_bound(state.out) ? lower_bound(state.out) : -1e9
+            ub = has_upper_bound(state.out) ? upper_bound(state.out) : 1e9
+        end
+        JuMP.set_lower_bound(state.in, lb)
+        JuMP.set_upper_bound(state.in, ub)
+    end
+
+    return
+end
+
+function relax_copy_constraints!(
+    node::SDDP.Node,
+    x_in_value::Vector{Float64},
+    h_expr::Vector{JuMP.GenericAffExpr{Float64,JuMP.VariableRef}},
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation,
+    copy_regime::DynamicSDDiP.NoBoundsCopy,
+    )
+
+    for (i, (_, state)) in enumerate(node.states)
+        # Store original value of ̄x, which z was fixed to
+        x_in_value[i] = JuMP.fix_value(state.in)
+        # Store expression for slack
+        h_expr[i] = JuMP.@expression(node.subproblem, state.in - x_in_value[i])
+        # Relax copy constraint (i.e. z does not have to take the value of ̄x anymore)
+        JuMP.unfix(state.in)
+
+        # Aim: Impose no constraints for the state variable.
+        # However, we have to set some bounds to ensure feasibility.
+        JuMP.set_lower_bound(state.in, 0)
+        JuMP.set_upper_bound(state.in, 1e9)
+    end
+
+    return
+end
+
 
 function restore_copy_constraints!(
     node::SDDP.Node,
@@ -339,7 +457,7 @@ function restore_copy_constraints!(
     )
 
     for (i, (_, bin_state)) in enumerate(node.ext[:backward_data][:bin_states])
-        # prepare_state_fixing!(node, state_comp)
+        prepare_state_fixing!(node, bin_state)
         JuMP.fix(bin_state, x_in_value[i], force = true)
     end
 
@@ -353,7 +471,7 @@ function restore_copy_constraints!(
     )
 
     for (i, (_, state)) in enumerate(node.states)
-        # prepare_state_fixing!(node, state_comp)
+        prepare_state_fixing!(node, state)
         JuMP.fix(state.in, x_in_value[i], force = true)
     end
 
@@ -544,7 +662,7 @@ function solve_lagrangian_dual(
     # RELAXING THE COPY CONSTRAINTS
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "relax_copy" begin
-        relax_copy_constraints!(node, x_in_value, h_expr, algo_params.state_approximation_regime)
+        relax_copy_constraints!(node, x_in_value, h_expr, algo_params.state_approximation_regime, algo_params.duality_regime.copy_regime)
     end
     node.ext[:backward_data][:old_rhs] = x_in_value
 
@@ -819,7 +937,7 @@ function _getStrengtheningInformation(
     ############################################################################
     # RELAXING THE COPY CONSTRAINTS
     ############################################################################
-    relax_copy_constraints!(node, x_in_value, h_expr, algo_params.state_approximation_regime)
+    relax_copy_constraints!(node, x_in_value, h_expr, algo_params.state_approximation_regime, algo_params.duality_regime.copy_regime)
 
     ########################################################################
     # SOLVE LAGRANGIAN RELAXATION FOR GIVEN DUAL_VARS

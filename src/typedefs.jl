@@ -291,6 +291,32 @@ Default is NoDualSpaceRestriction.
 """
 
 ################################################################################
+# COPY RESTRICTION
+################################################################################
+abstract type AbstractCopyRegime end
+
+mutable struct StateSpaceCopy <: AbstractCopyRegime end
+mutable struct ConvexHullCopy <: AbstractCopyRegime end
+mutable struct NoBoundsCopy <: AbstractCopyRegime end
+
+"""
+StateSpaceCopy means that the copy variable has to satisfy the state space
+    bounds and integer requirements. This is the classical approach in SDDP.jl.
+ConvexHullCopy means that the copy variables has to be in the convex hull of
+    the state space (e.g. [0,1] for binary state variables as in SDDiP).
+    Since we cannot compute the convex hull for complicated state spaces,
+    we assume that the state space is just box-constrained and maybe requires
+    integer or binary states. Hence, using this regime the bounds are kept
+    as they are, but the integer requirements are relaxed.
+NoBoundsCopy means that the copy variables do not have to satisfy any state
+    space constraints at all. To avoid unboundedness and infeasibility of the
+    dual problem, we set the lower bound of the states to zero and
+    the upper bound of the states to 1e9.
+    This is equivalent to the approach of relaxing the linking constraint
+    without introducing a copy constraint at all.
+"""
+
+################################################################################
 # CUT FAMILY TO BE USED
 ################################################################################
 abstract type AbstractDualityRegime end
@@ -304,6 +330,7 @@ mutable struct LagrangianDuality <: AbstractDualityRegime
     dual_solution_regime::AbstractDualSolutionRegime
     dual_choice_regime::AbstractDualChoiceRegime
     dual_status_regime::AbstractDualStatusRegime
+    copy_regime::AbstractCopyRegime
     function LagrangianDuality(;
         atol = 1e-8,
         rtol = 1e-8,
@@ -313,10 +340,12 @@ mutable struct LagrangianDuality <: AbstractDualityRegime
         dual_solution_regime = Kelley(),
         dual_choice_regime = MinimalNormChoice(),
         dual_status_regime = Rigorous(),
+        copy_regime = ConvexHull(),
     )
         return new(atol, rtol, iteration_limit,
             dual_initialization_regime, dual_bound_regime,
-            dual_solution_regime, dual_choice_regime, dual_status_regime)
+            dual_solution_regime, dual_choice_regime, dual_status_regime,
+            copy_regime)
     end
 end
 

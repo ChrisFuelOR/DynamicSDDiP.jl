@@ -27,6 +27,7 @@ function model_config()
     dual_choice_regime = DynamicSDDiP.StandardChoice()
     normalization_regime = DynamicSDDiP.L∞_Deep()
     dual_space_regime = DynamicSDDiP.NoDualSpaceRestriction()
+    copy_regime = DynamicSDDiP.ConvexHullCopy()
 
     # duality_regime = DynamicSDDiP.UnifiedLagrangianDuality(
     #     atol = 1e-4,
@@ -50,6 +51,7 @@ function model_config()
          dual_solution_regime = dual_solution_regime,
          dual_choice_regime = dual_choice_regime,
          dual_status_regime = dual_status_regime,
+         copy_regime = copy_regime,
      )
 
     #duality_regime = DynamicSDDiP.LinearDuality()
