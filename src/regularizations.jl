@@ -128,7 +128,6 @@ function regularize_binary!(
     node::SDDP.Node,
     node_index::Int64,
     subproblem::JuMP.Model,
-    algo_params::DynamicSDDiP.AlgoParams,
     regularization_regime::DynamicSDDiP.Regularization,
     state_approximation_regime::DynamicSDDiP.BinaryApproximation
     )
@@ -212,7 +211,6 @@ function regularize_binary!(
     node::SDDP.Node,
     node_index::Int64,
     subproblem::JuMP.Model,
-    algo_params::DynamicSDDiP.AlgoParams,
     regularization_regime::DynamicSDDiP.NoRegularization,
     state_approximation_regime::DynamicSDDiP.BinaryApproximation
     )
@@ -302,7 +300,7 @@ Regularization caller if no regularization is used
 function regularize_bw!(node::SDDP.Node, node_index::Int64,
     subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.NoRegularization,
     algo_params::DynamicSDDiP.AlgoParams,
-    state_approximation_regime::DynamicSDDiP.NoStateApproximation)
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation)
 
     regularize_binary!(node, node_index, subproblem, regularization_regime, state_approximation_regime)
 
@@ -315,7 +313,7 @@ Regularization caller if no regularization is used
 function regularize_bw!(node::SDDP.Node, node_index::Int64,
     subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.NoRegularization,
     algo_params::DynamicSDDiP.AlgoParams,
-    state_approximation_regime::DynamicSDDiP.BinaryApproximation)
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation)
 
     regularize_subproblem!(node, node_index, subproblem, regularization_regime)
 

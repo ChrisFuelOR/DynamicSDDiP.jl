@@ -132,14 +132,14 @@ function print_parameters(io, algo_params::DynamicSDDiP.AlgoParams, applied_solv
     println(io, "----------------------------------------------------------------------------------------------------------------------------------------")
 
     print(io, "Binary approximation used: ")
-    println(io, algo_params.state_approximation_regime)
-    if isa(algo_params.state_approximation_regime, DynamicSDDiP.BinaryApproximation)
-        state_approximation_regime = algo_params.state_approximation_regime
-        print(io, "Initial binary precision: ")
-        println(io, state_approximation_regime.binary_precision)
-        print(io, "Cut projection method: ")
-        println(io, state_approximation_regime.cut_projection_regime)
-    end
+    # println(io, algo_params.state_approximation_regime)
+    # if isa(algo_params.state_approximation_regime, DynamicSDDiP.BinaryApproximation)
+    #     state_approximation_regime = algo_params.state_approximation_regime
+    #     print(io, "Initial binary precision: ")
+    #     println(io, state_approximation_regime.binary_precision)
+    #     print(io, "Cut projection method: ")
+    #     println(io, state_approximation_regime.cut_projection_regime)
+    # end
 
     println(io, "----------------------------------------------------------------------------------------------------------------------------------------")
     print(io, "Regularization used: ")
@@ -149,35 +149,9 @@ function print_parameters(io, algo_params::DynamicSDDiP.AlgoParams, applied_solv
     #    println(io, Printf.@sprintf("Sigma increase factor: %4.1e", algo_params.sigma:factor))
     #end
 
-    println(io, "----------------------------------------------------------------------------------------------------------------------------------------")
-    print(io, "Cut family used: ")
-    println(io, algo_params.duality_regime)
-    # if isa(algo_params.duality_regime, DynamicSDDiP.LagrangianDuality)
-    #     duality_regime = algo_params.duality_regime
-    #     print(io, "Dual initialization: ")
-    #     println(io, duality_regime.dual_initialization_regime)
-    #     print(io, "Dual bounding: ")
-    #     println(io, duality_regime.dual_bound_regime)
-    #     print(io, "Dual solution method: ")
-    #     println(io, duality_regime.dual_solution_regime)
-    #     print(io, "Dual multiplier choice: ")
-    #     println(io, duality_regime.dual_choice_regime)
-    #     print(io, "Dual status regime: ")
-    #     println(io, duality_regime.dual_status_regime)
-    #     #print(io, "Numerical focus used: ")
-    #     #println(io, duality_regime.numerical_focus)
-    #     println(io, "----------------------------------------------------------------------------------------------------------------------------------------")
-    #     dual_solution_regime = duality_regime.dual_solution_regime
-    #     println(io, Printf.@sprintf("Lagrangian rtol: %1.4e", dual_solution_regime.rtol))
-    #     println(io, Printf.@sprintf("Lagrangian atol: %1.4e", dual_solution_regime.atol))
-    #     println(io, Printf.@sprintf("iteration_limit: %5d", dual_solution_regime.iteration_limit))
-    #     if isa(dual_solution_regime, DynamicSDDiP.LevelBundle)
-    #         println(io, Printf.@sprintf("Level parameter: %2.4e", dual_solution_regime.level_factor))
-    #         println(io, Printf.@sprintf("Bundle alpha: %2.4e", dual_solution_regime.bundle_alpha))
-    #         println(io, Printf.@sprintf("Bundle factor: %2.4e", dual_solution_regime.bundle_factor))
-    #     end
-    #    println(io, "----------------------------------------------------------------------------------------------------------------------------------------")
-    #end
+    #println(io, "----------------------------------------------------------------------------------------------------------------------------------------")
+    #print(io, "Cut family used: ")
+    #println(io, algo_params.duality_regime)
     println(io, "----------------------------------------------------------------------------------------------------------------------------------------")
 
     print(io, "Cut aggregation used: ")

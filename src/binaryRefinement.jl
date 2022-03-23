@@ -23,7 +23,7 @@ function binary_refinement(
     refinement_check_required = false
 
     for cut_generation_regime in algo_params.cut_generation_regimes
-        if isa(cut_generation_regime.state_approximation_regime)
+        if isa(cut_generation_regime.state_approximation_regime, DynamicSDDiP.BinaryApproximation)
             refinement_check_required = true
         end
     end

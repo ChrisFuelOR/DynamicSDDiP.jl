@@ -46,7 +46,6 @@ function backward_pass(
     for index in length(scenario_path):-1:1
         # Determine trial state
         outgoing_state = sampled_states[index]
-        items = BackwardPassItems(T, SDDP.Noise)
 
         # Determine current node (stage)
         node_index, _ = scenario_path[index]
@@ -58,15 +57,19 @@ function backward_pass(
         # Boolean variable to check if current incumbent was cut away already.
         cut_away = false
 
-        for cut_generation_regime in algo_params.cut_generation_regime
+        for cut_generation_regime in algo_params.cut_generation_regimes
 
             # New cuts for cut_generation regime are only added if we do not
             # use the cut_away_approach at all or if we use it, as long as
             # the current incumbent hasn't been cut away already.
-            if (cut_generation_regime.cut_away_approach && !cut_away) || !cut_generation_regime.cut_away_approach
+            if (((cut_generation_regime.cut_away_approach && !cut_away) || !cut_generation_regime.cut_away_approach)
+                && model.ext[:iteration] >= cut_generation_regime.iteration_to_start
+                && model.ext[:iteration] <= cut_generation_regime.iteration_to_stop)
+
+                items = BackwardPassItems(T, SDDP.Noise)
 
                 # Determine required epi_states
-                epi_states = epi_states[Symbol(node_index)]
+                epi_states_node = epi_states[Symbol(node_index)]
 
                 # Dict to store values of binary approximation of the state
                 # Note that we could also retrieve this from the actual trial point
@@ -87,7 +90,7 @@ function backward_pass(
                     # belief_state,
                     # objective_state,
                     outgoing_state,
-                    epi_states,
+                    epi_states_node,
                     scenario_path[1:index],
                     algo_params,
                     cut_generation_regime,
@@ -118,7 +121,7 @@ function backward_pass(
                         node.bellman_function,
                         options.risk_measures[node_index],
                         outgoing_state,
-                        epi_states,
+                        epi_states_node,
                         anchor_state,
                         items.bin_state[1],
                         items.duals,
@@ -131,14 +134,15 @@ function backward_pass(
                         applied_solvers
                     )
                 end
+                @infiltrate
 
                 # Logging of lag_iterations and lag_status
                 lag_status_string = ""
                 for i in items.lag_status
                     lag_status_string = string(lag_status_string, i, ", ")
                 end
-                push!(model.ext[:lag_status], lag_status_string)
-                push!(model.ext[:lag_iterations], Statistics.mean(items.lag_iterations))
+                #push!(model.ext[:lag_status], lag_status_string)
+                #push!(model.ext[:lag_iterations], Statistics.mean(items.lag_iterations))
 
                 #TODO: lag_status and lag_iterations have to be stored for each
                 #cut_generation_regime separately.

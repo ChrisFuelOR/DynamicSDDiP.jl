@@ -26,6 +26,7 @@ function _cut_selection_update(
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     algo_params::DynamicSDDiP.AlgoParams,
     infiltrate_state::Symbol,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     cut_selection_regime::DynamicSDDiP.NoCutSelection
 )
 
@@ -63,6 +64,7 @@ function _cut_selection_update(
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     algo_params::DynamicSDDiP.AlgoParams,
     infiltrate_state::Symbol,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     cut_selection_regime::DynamicSDDiP.CutSelection
 )
 
@@ -128,7 +130,7 @@ function _cut_selection_update(
             old_cut.non_dominated_count += 1
             sampled_state_anchor.dominating_cut = old_cut
             sampled_state_anchor.best_objective = height
-            _add_cut_constraints_to_models(node, V, old_cut, algo_params, infiltrate_state)
+            _add_cut_constraints_to_models(node, V, old_cut, algo_params, cut_generation_regime, infiltrate_state)
         end
 
         # For trial state
@@ -138,7 +140,7 @@ function _cut_selection_update(
             old_cut.non_dominated_count += 1
             sampled_state_trial.dominating_cut = old_cut
             sampled_state_trial.best_objective = height
-            _add_cut_constraints_to_models(node, V, old_cut, algo_params, infiltrate_state)
+            _add_cut_constraints_to_models(node, V, old_cut, algo_params, cut_generation_regime, infiltrate_state)
         end
 
     end
@@ -196,6 +198,7 @@ function _cut_selection_update(
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     algo_params::DynamicSDDiP.AlgoParams,
     infiltrate_state::Symbol,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     cut_selection_regime::DynamicSDDiP.CutSelection
 )
 
@@ -250,7 +253,7 @@ function _cut_selection_update(
             old_cut.non_dominated_count += 1
             sampled_state_trial.dominating_cut = old_cut
             sampled_state_trial.best_objective = height
-            _add_cut_constraints_to_models(node, V, old_cut, algo_params, infiltrate_state)
+            _add_cut_constraints_to_models(node, V, old_cut, algo_params, cut_generation_regime, infiltrate_state)
         end
     end
     push!(V.cuts, cut)

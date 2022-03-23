@@ -61,6 +61,7 @@ function set_solver!(
                     solver = applied_solvers.MILP
                 elseif algorithmic_step in [:lagrange_relax]
                     solver = applied_solvers.Lagrange
+                end
             end
         end
     end

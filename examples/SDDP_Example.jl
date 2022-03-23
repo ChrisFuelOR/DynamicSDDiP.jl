@@ -42,7 +42,7 @@ function model_config()
     #     dual_space_regime = dual_space_regime
     # )
 
-    duality_regime = DynamicSDDiP.LagrangianDuality(
+    duality_regime_2 = DynamicSDDiP.LagrangianDuality(
          atol = 1e-4,
          rtol = 1e-4,
          iteration_limit = 1000,
@@ -62,13 +62,29 @@ function model_config()
     #binary_precision = Dict{Symbol, Float64}()
 
     # State approximation and cut projection configuration
-    state_approximation_regime = DynamicSDDiP.NoStateApproximation()
+    state_approximation_regime_2 = DynamicSDDiP.NoStateApproximation()
+
+    # Cut generation regimes
+    cut_generation_regime_2 = DynamicSDDiP.CutGenerationRegime(
+        state_approximation_regime = state_approximation_regime_2,
+        duality_regime = duality_regime_2,
+    )
+
+    duality_regime_1 = DynamicSDDiP.LinearDuality()
+    state_approximation_regime_1 = DynamicSDDiP.NoStateApproximation()
+
+    cut_generation_regime_1 = DynamicSDDiP.CutGenerationRegime(
+        state_approximation_regime = state_approximation_regime_1,
+        duality_regime = duality_regime_1,
+    )
+
+    cut_generation_regimes = [cut_generation_regime_1, cut_generation_regime_2]
 
     # Regularization configuration
     regularization_regime = DynamicSDDiP.NoRegularization()
 
     # Cut aggregation regime
-    cut_aggregation_regime = DynamicSDDiP.MultiCutRegime()
+    cut_aggregation_regime = DynamicSDDiP.SingleCutRegime()
 
     cut_type = SDDP.SINGLE_CUT
     if isa(cut_aggregation_regime,DynamicSDDiP.MultiCutRegime)
@@ -90,11 +106,10 @@ function model_config()
     # Definition of algo_params
     algo_params = DynamicSDDiP.AlgoParams(
         stopping_rules = stopping_rules,
-        state_approximation_regime = state_approximation_regime,
         regularization_regime = regularization_regime,
-        duality_regime = duality_regime,
         cut_aggregation_regime = cut_aggregation_regime,
         cut_selection_regime = cut_selection_regime,
+        cut_generation_regimes = cut_generation_regimes,
         cut_type = cut_type,
         log_file = log_file,
         silent = silent,

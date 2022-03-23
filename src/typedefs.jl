@@ -280,7 +280,10 @@ Default is L_1_Deep.
 abstract type AbstractDualSpaceRegime end
 
 mutable struct NoDualSpaceRestriction <: AbstractDualSpaceRegime end
-mutable struct BendersSpanSpaceRestriction <: AbstractDualSpaceRegime end
+mutable struct BendersSpanSpaceRestriction <: AbstractDualSpaceRegime
+    K::Int64
+    cut_type::Symbol #:Benders or :Lagrange
+end
 
 """
 NoDualSpaceRestriction means that no additional restriction is imposed
@@ -449,14 +452,14 @@ mutable struct CutGenerationRegime
     duality_regime::AbstractDualityRegime
     iteration_to_start::Int64
     iteration_to_stop::Union{Int64,Float64}
-    gap_to_start::Float64
-    gap_to_stop::Float64
+    gap_to_start::Float64       # not used so far
+    gap_to_stop::Float64        # not used so far
     cut_away_approach::Bool
 
-    function AlgoParams(;
+    function CutGenerationRegime(;
         state_approximation_regime = BinaryApproximation(),
         duality_regime = LagrangianDuality(),
-        iteration_to_start = 0,
+        iteration_to_start = 1,
         iteration_to_stop = Inf,
         gap_to_start = Inf,
         gap_to_stop = 0.0,
