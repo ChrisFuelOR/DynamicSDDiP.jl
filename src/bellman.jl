@@ -163,12 +163,14 @@ function refine_bellman_function(
     bellman_function::BellmanFunction,
     risk_measure::SDDP.AbstractRiskMeasure,
     trial_points::Dict{Symbol,Float64},
+    epi_states::Vector{Float64},
     anchor_points::Dict{Symbol,Float64},
     bin_states::Dict{Symbol,BinaryState},
     dual_variables::Vector{Dict{Symbol,Float64}},
     noise_supports::Vector,
     nominal_probability::Vector{Float64},
     objective_realizations::Vector{Float64},
+    cut_away::Bool,
     algo_params::DynamicSDDiP.AlgoParams,
     cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
@@ -209,12 +211,14 @@ function refine_bellman_function(
             node,
             node_index,
             trial_points,
+            epi_states,
             anchor_points,
             bin_states,
             risk_adjusted_probability,
             objective_realizations,
             dual_variables,
             offset,
+            cut_away,
             algo_params,
             cut_generation_regime,
             model.ext[:iteration],
@@ -227,12 +231,14 @@ function refine_bellman_function(
             node,
             node_index,
             trial_points,
+            epi_states,
             anchor_points,
             bin_states,
             risk_adjusted_probability,
             objective_realizations,
             dual_variables,
             offset,
+            cut_away,
             algo_params,
             cut_generation_regime,
             model.ext[:iteration],
@@ -249,12 +255,14 @@ function _add_average_cut(
     node::SDDP.Node,
     node_index::Int64,
     trial_points::Dict{Symbol,Float64},
+    epi_states::Vector{Float64},
     anchor_points::Dict{Symbol,Float64},
     bin_states::Dict{Symbol,BinaryState},
     risk_adjusted_probability::Vector{Float64},
     objective_realizations::Vector{Float64},
     dual_variables::Vector{Dict{Symbol,Float64}},
     offset::Float64,
+    cut_away::Bool,
     algo_params::DynamicSDDiP.AlgoParams,
     cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     iteration::Int64,
@@ -264,6 +272,7 @@ function _add_average_cut(
     # Some initializations
     N = length(risk_adjusted_probability)
     @assert N == length(objective_realizations) == length(dual_variables)
+    @assert length(epi_states) == 1
 
     ############################################################################
     # EXPECTED INTERCEPT AND DUAL VARIABLES
@@ -302,7 +311,7 @@ function _add_average_cut(
     #belief_y =
     #    node.belief_state === nothing ? nothing : node.belief_state.belief
 
-    _add_cut(
+    cut_away = _add_cut(
         node,
         node.bellman_function.global_theta,
         θᵏ,
@@ -310,10 +319,12 @@ function _add_average_cut(
         bin_states,
         anchor_points,
         trial_points,
+        epi_states[1],
         # obj_y,
         # belief_y,
         sigma,
         iteration,
+        cut_away,
         algo_params.infiltrate_state,
         algo_params,
         cut_generation_regime,
@@ -321,7 +332,7 @@ function _add_average_cut(
         cut_generation_regime.state_approximation_regime,
     )
 
-    return
+    return cut_away
 end
 
 """
@@ -331,12 +342,14 @@ function _add_multi_cut(
     node::SDDP.Node,
     node_index::Int64,
     trial_points::Dict{Symbol,Float64},
+    epi_states::Vector{Float64},
     anchor_points::Dict{Symbol,Float64},
     bin_states::Dict{Symbol,BinaryState},
     risk_adjusted_probability::Vector{Float64},
     objective_realizations::Vector{Float64},
     dual_variables::Vector{Dict{Symbol,Float64}},
     offset::Float64,
+    cut_away::Bool,
     algo_params::DynamicSDDiP.AlgoParams,
     cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     iteration::Int64,
@@ -345,7 +358,7 @@ function _add_multi_cut(
 
     # Some initializations
     N = length(risk_adjusted_probability)
-    @assert N == length(objective_realizations) == length(dual_variables)
+    @assert N == length(objective_realizations) == length(dual_variables) == length(epi_states)
 
     #μᵀy = get_objective_state_component(node)
     #JuMP.add_to_expression!(μᵀy, get_belief_state_component(node))
@@ -365,7 +378,7 @@ function _add_multi_cut(
     # ADD THE CUT FOR ALL REALIZATIONS
     ############################################################################
     for i in 1:length(dual_variables)
-        _add_cut(
+        cut_away = _add_cut(
             node,
             node.bellman_function.local_thetas[i],
             objective_realizations[i],
@@ -373,10 +386,12 @@ function _add_multi_cut(
             bin_states,
             anchor_points,
             trial_points,
+            epi_states[i],
             # obj_y,
             # belief_y,
             sigma,
             iteration,
+            cut_away,
             algo_params.infiltrate_state,
             algo_params,
             cut_generation_regime,
@@ -431,7 +446,7 @@ function _add_multi_cut(
     # end
     #
 
-    return
+    return cut_away
 end
 
 
@@ -447,10 +462,12 @@ function _add_cut(
     λᵏ::Dict{Symbol,BinaryState}, # binary states (anchor point in binary space for cut using BinaryApproximation)
     xᵏ_b::Dict{Symbol,Float64}, # anchor point for cut using BinaryApproximation
     xᵏ::Dict{Symbol,Float64}, # trial point (anchor point for cut without BinaryApproximation), outgoing_state
+    epi_state::Float64,
     # obj_y::Union{Nothing,NTuple{N,Float64}},
     # belief_y::Union{Nothing,Dict{T,Float64}},
     sigma::Union{Nothing,Float64},
     iteration::Int64,
+    cut_away::Bool,
     infiltrate_state::Symbol,
     algo_params::DynamicSDDiP.AlgoParams,
     cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
@@ -499,6 +516,13 @@ function _add_cut(
     _add_cut_constraints_to_models(node, V, cut, algo_params, cut_generation_regime, infiltrate_state)
 
     ############################################################################
+    # CHECK IF INCUMBENT IS CUT AWAY BY NEW CUT
+    ############################################################################
+    cut_away = check_for_cut_away(node, cut, V, xᵏ, epi_state, cut_away, algo_params)
+    #NOTE: We might as well want to check this for anchor_state instead of xᵏ,
+    #but epi_state is not related to this point.
+
+    ############################################################################
     # UPDATE CUT SELECTION
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "cut_selection" begin
@@ -507,7 +531,7 @@ function _add_cut(
             algo_params.cut_selection_regime)
     end
 
-    return
+    return cut_away
 end
 
 
@@ -1318,6 +1342,11 @@ function _add_cut(
     _add_cut_constraints_to_models(node, V, cut, algo_params, cut_generation_regime, infiltrate_state)
 
     ############################################################################
+    # CHECK IF INCUMBENT IS CUT AWAY BY NEW CUT
+    ############################################################################
+    cut_away = check_for_cut_away(node, cut, V, xᵏ, epi_state, cut_away, algo_params)
+
+    ############################################################################
     # UPDATE CUT SELECTION
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "cut_selection" begin
@@ -1417,4 +1446,31 @@ function _add_locals_if_necessary(
         )
     end
     return
+end
+
+function check_for_cut_away(
+    node::SDDP.Node,
+    cut::Union{DynamicSDDiP.LinearCut,DynamicSDDiP.NonlinearCut},
+    V::DynamicSDDiP.CutApproximation,
+    xᵏ::Dict{Symbol,Float64},
+    epi_state::Float64,
+    cut_away::bool,
+    algo_params::DynamicSDDiP.AlgoParams,
+    )
+
+    sampled_state = DynamicSDDiP.SampledState(xᵏ, cut, NaN)
+    height = _eval_height(node, cut, xᵏ, sampled_state, algo_params)
+    incumbent_cut_away = false
+
+    model = JuMP.owner_model(V.theta)
+    if JuMP.objective_sense(model) == MOI.MIN_SENSE
+       incumbent_cut_away = epi_state < height
+    else
+       incumbent_cut_away = epi_state > height
+    end
+
+    if incumbent_cut_away
+        cut_away = true
+    end
+
 end
