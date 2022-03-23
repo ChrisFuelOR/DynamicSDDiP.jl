@@ -49,6 +49,7 @@ function solve_unified_lagrangian_dual(
     π0_k::Float64,
     bound_results::NamedTuple{(:obj_bound, :dual_bound),Tuple{Float64,Float64}},
     algo_params::DynamicSDDiP.AlgoParams,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     dual_solution_regime::DynamicSDDiP.Kelley
 )
@@ -61,7 +62,7 @@ function solve_unified_lagrangian_dual(
 
     # Storage for the cutting-plane method
     #---------------------------------------------------------------------------
-    number_of_states = get_number_of_states(node, algo_params.state_approximation_regime)
+    number_of_states = get_number_of_states(node, cut_generation_regime.state_approximation_regime)
     # The original value for x (former old_rhs)
     x_in_value = zeros(number_of_states)
     # The current estimate for π (in our case determined in initialization)
@@ -86,9 +87,9 @@ function solve_unified_lagrangian_dual(
 
     # Set tolerances
     #---------------------------------------------------------------------------
-    atol = algo_params.duality_regime.atol
-    rtol = algo_params.duality_regime.rtol
-    iteration_limit = algo_params.duality_regime.iteration_limit
+    atol = cut_generation_regime.duality_regime.atol
+    rtol = cut_generation_regime.duality_regime.rtol
+    iteration_limit = cut_generation_regime.duality_regime.iteration_limit
 
     # Set solver for inner problem
     #---------------------------------------------------------------------------
@@ -98,7 +99,7 @@ function solve_unified_lagrangian_dual(
     # RELAXING THE COPY CONSTRAINTS
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "relax_copy" begin
-        relax_copy_constraints!(node, x_in_value, h_expr, algo_params.state_approximation_regime, algo_params.duality_regime.copy_regime)
+        relax_copy_constraints!(node, x_in_value, h_expr, cut_generation_regime.state_approximation_regime, cut_generation_regime.duality_regime.copy_regime)
     end
     node.ext[:backward_data][:old_rhs] = x_in_value
 
@@ -120,7 +121,7 @@ function solve_unified_lagrangian_dual(
         # Approximation of Lagrangian dual by cutting planes
         # Optimizer is re-set anyway
         approx_model = JuMP.Model(GAMS.Optimizer)
-        if isa(algo_params.duality_regime.normalization_regime, DynamicSDDiP.L₂_Deep)
+        if isa(cut_generation_regime.duality_regime.normalization_regime, DynamicSDDiP.L₂_Deep)
             set_solver!(approx_model, algo_params, applied_solvers, :l₂)
         else
             set_solver!(approx_model, algo_params, applied_solvers, :kelley)
@@ -143,14 +144,14 @@ function solve_unified_lagrangian_dual(
         JuMP.@expression(approx_model, π, π⁺ .- π⁻) # not required to be a constraint
         JuMP.@variable(approx_model, π₀ >= 0)
         set_multiplier_bounds!(node, approx_model, number_of_states, bound_results.dual_bound,
-            algo_params.regularization_regime, algo_params.state_approximation_regime,
-            algo_params.duality_regime)
+            algo_params.regularization_regime, cut_generation_regime.state_approximation_regime,
+            cut_generation_regime.duality_regime)
 
         # Add dual space restriction (span of earlier multipliers)
-        dual_space_restriction!(node, approx_model, algo_params.duality_regime.dual_space_regime)
+        dual_space_restriction!(node, approx_model, cut_generation_regime.duality_regime.dual_space_regime)
 
         # Add normalization constraint depending on abstract normalization regime
-        add_normalization_constraint!(node, approx_model, number_of_states, algo_params.duality_regime.normalization_regime)
+        add_normalization_constraint!(node, approx_model, number_of_states, cut_generation_regime.duality_regime.normalization_regime)
 
     end
 
@@ -236,7 +237,7 @@ function solve_unified_lagrangian_dual(
     # RESTORE THE COPY CONSTRAINT x.in = value(x.in) (̄x = z)
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "restore_copy" begin
-        restore_copy_constraints!(node, x_in_value, algo_params.state_approximation_regime)
+        restore_copy_constraints!(node, x_in_value, cut_generation_regime.state_approximation_regime)
     end
 
     ############################################################################
@@ -438,6 +439,7 @@ function solve_lagrangian_dual(
     π0_k::Float64,
     bound_results::NamedTuple{(:obj_bound, :dual_bound),Tuple{Float64,Float64}},
     algo_params::DynamicSDDiP.AlgoParams,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     dual_solution_regime::DynamicSDDiP.LevelBundle
     )
@@ -450,7 +452,7 @@ function solve_lagrangian_dual(
 
     # Storage for the cutting-plane method
     #---------------------------------------------------------------------------
-    number_of_states = get_number_of_states(node, algo_params.state_approximation_regime)
+    number_of_states = get_number_of_states(node, cut_generation_regime.state_approximation_regime)
     # The original value for x (former old_rhs)
     x_in_value = zeros(number_of_states)
     # The current estimate for π (in our case determined in initialization)
@@ -475,9 +477,9 @@ function solve_lagrangian_dual(
 
     # Set tolerances
     #---------------------------------------------------------------------------
-    atol = algo_params.duality_regime.atol
-    rtol = algo_params.duality_regime.rtol
-    iteration_limit = algo_params.duality_regime.iteration_limit
+    atol = cut_generation_regime.duality_regime.atol
+    rtol = cut_generation_regime.duality_regime.rtol
+    iteration_limit = cut_generation_regime.duality_regime.iteration_limit
 
     # Set solver for inner problem
     #---------------------------------------------------------------------------
@@ -491,7 +493,7 @@ function solve_lagrangian_dual(
     # RELAXING THE COPY CONSTRAINTS
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "relax_copy" begin
-        relax_copy_constraints!(node, x_in_value, h_expr, algo_params.state_approximation_regime, algo_params.duality_regime.copy_regime)
+        relax_copy_constraints!(node, x_in_value, h_expr, cut_generation_regime.state_approximation_regime, cut_generation_regime.duality_regime.copy_regime)
     end
     node.ext[:backward_data][:old_rhs] = x_in_value
 
@@ -514,7 +516,7 @@ function solve_lagrangian_dual(
         # Optimizer is re-set anyway
         approx_model = JuMP.Model(GAMS.Optimizer)
 
-        if isa(algo_params.duality_regime.normalization_regime, DynamicSDDiP.L₂_Deep)
+        if isa(cut_generation_regime.duality_regime.normalization_regime, DynamicSDDiP.L₂_Deep)
             set_solver!(approx_model, algo_params, applied_solvers, :l₂)
         else
             set_solver!(approx_model, algo_params, applied_solvers, :kelley)
@@ -539,14 +541,14 @@ function solve_lagrangian_dual(
         JuMP.@expression(approx_model, π, π⁺ .- π⁻) # not required to be a constraint
         JuMP.@variable(approx_model, π₀ >= 0)
         set_multiplier_bounds!(node, approx_model, number_of_states, bound_results.dual_bound,
-            algo_params.regularization_regime, algo_params.state_approximation_regime,
-            algo_params.duality_regime)
+            algo_params.regularization_regime, cut_generation_regime.state_approximation_regime,
+            cut_generation_regime.duality_regime)
 
         # Add dual space restriction (span of earlier multipliers)
-        dual_space_restriction!(node, approx_model, algo_params.duality_regime.dual_space_regime)
+        dual_space_restriction!(node, approx_model, cut_generation_regime.duality_regime.dual_space_regime)
 
         # Add normalization constraint depending on abstract normalization regime
-        add_normalization_constraint!(node, approx_model, number_of_states, algo_params.duality_regime.normalization_regime)
+        add_normalization_constraint!(node, approx_model, number_of_states, cut_generation_regime.duality_regime.normalization_regime)
 
     end
 
@@ -595,7 +597,7 @@ function solve_lagrangian_dual(
         # RESET OBJECTIVE FOR APPROX_MODEL AFTER NONLINEAR MODEL
         ########################################################################
         JuMP.@objective(approx_model, Max, t)
-        if isa(algo_params.duality_regime.normalization_regime, DynamicSDDiP.L₂_Deep)
+        if isa(cut_generation_regime.duality_regime.normalization_regime, DynamicSDDiP.L₂_Deep)
             set_solver!(approx_model, algo_params, applied_solvers, :l₂)
         else
             set_solver!(approx_model, algo_params, applied_solvers, :kelley)
@@ -729,7 +731,7 @@ function solve_lagrangian_dual(
     # RESTORE THE COPY CONSTRAINT x.in = value(x.in) (̄x = z)
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "restore_copy" begin
-        restore_copy_constraints!(node, x_in_value, algo_params.state_approximation_regime)
+        restore_copy_constraints!(node, x_in_value, cut_generation_regime.state_approximation_regime)
     end
 
     ############################################################################

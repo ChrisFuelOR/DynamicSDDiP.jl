@@ -63,17 +63,19 @@ function solve(
 
     # Prepare binary_precision
     #---------------------------------------------------------------------------
-    regime = algo_params.state_approximation_regime
-    if isa(regime,DynamicSDDiP.BinaryApproximation) && isempty(regime.binary_precision)
-        # If no binary_precision dict has been defined explicitly, it is
-        # initialized as empty. Then, for each state take a default precision.
-        for (name, state_comp) in model.nodes[1].states
-            if JuMP.is_binary(state_comp.out) || JuMP.is_integer(state_comp.out)
-                regime.binary_precision[name] = 1.0
-            else
-                ub = JuMP.upper_bound(state_comp.out)
-                lb = 0.0 # all states are assumed to satisfy non-negativity constraints
-                regime.binary_precision[name] = (ub-lb)/7.0
+    for cut_generation_regime in algo_params.cut_generation_regimes
+        regime = cut_generation_regime.state_approximation_regime
+        if isa(regime,DynamicSDDiP.BinaryApproximation) && isempty(regime.binary_precision)
+            # If no binary_precision dict has been defined explicitly, it is
+            # initialized as empty. Then, for each state take a default precision.
+            for (name, state_comp) in model.nodes[1].states
+                if JuMP.is_binary(state_comp.out) || JuMP.is_integer(state_comp.out)
+                    regime.binary_precision[name] = 1.0
+                else
+                    ub = JuMP.upper_bound(state_comp.out)
+                    lb = 0.0 # all states are assumed to satisfy non-negativity constraints
+                    regime.binary_precision[name] = (ub-lb)/7.0
+                end
             end
         end
     end
@@ -502,30 +504,21 @@ function iteration(
     ############################################################################
     # BINARY REFINEMENT
     ############################################################################
-    # If the forward pass solution and the lower bound did not change during
-    # the last iteration, then increase the binary precision (for all stages)
     solution_check = true
     binary_refinement = :none
 
     TimerOutputs.@timeit DynamicSDDiP_TIMER "bin_refinement" begin
-        if !isnothing(previous_solution)
-                solution_check = DynamicSDDiP.binary_refinement_check(
-                    model,
-                    previous_solution,
-                    forward_trajectory.sampled_states,
-                    solution_check,
-                    algo_params.state_approximation_regime
-                )
-
-                if solution_check || bound_check
-                    binary_refinement = DynamicSDDiP.binary_refinement(
-                        model,
-                        algo_params.state_approximation_regime.binary_precision,
-                        binary_refinement
-                    )
-                end
-        end
+        binary_refinement = DynamicSDDiP.binary_refinement(
+            model,
+            previous_solution,
+            forward_trajectory.sampled_states,
+            algo_params,
+            solution_check,
+            binary_refinement,
+            bound_check
+        )
     end
+
     # bound_check = true
     @infiltrate algo_params.infiltrate_state in [:all]
 

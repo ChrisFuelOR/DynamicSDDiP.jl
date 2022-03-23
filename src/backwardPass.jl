@@ -55,80 +55,89 @@ function backward_pass(
             continue
         end
 
-        # Determine required epi_states
-        epi_states = epi_states[Symbol(node_index)]
+        for cut_generation_regime in algo_params.cut_generation_regime
 
-        # Dict to store values of binary approximation of the state
-        # Note that we could also retrieve this from the actual trial point
-        # (outgoing_state) or from its approximation via binexpand. However,
-        # this collection is not only important to obtain the correct values,
-        # but also to store them together with the symbol/name of the variable.
-        node.ext[:binary_state_values] = Dict{Symbol, Float64}()
+            # Determine required epi_states
+            epi_states = epi_states[Symbol(node_index)]
 
-        ########################################################################
-        # Solve backward pass problems for all realizations depending on framework
-        ########################################################################
-        backward_pass_node(
-            model,
-            node,
-            node_index,
-            index,
-            items,
-            # belief_state,
-            # objective_state,
-            outgoing_state,
-            epi_states,
-            scenario_path[1:index],
-            algo_params,
-            applied_solvers,
-            algo_params.duality_regime,
-            algo_params.cut_aggregation_regime,
-        )
+            # Dict to store values of binary approximation of the state
+            # Note that we could also retrieve this from the actual trial point
+            # (outgoing_state) or from its approximation via binexpand. However,
+            # this collection is not only important to obtain the correct values,
+            # but also to store them together with the symbol/name of the variable.
+            node.ext[:binary_state_values] = Dict{Symbol, Float64}()
 
-        ########################################################################
-        # RECONSTRUCT ANCHOR POINTS IN BACKWARD PASS
-        ########################################################################
-        anchor_state = determine_anchor_state(node, outgoing_state, algo_params.state_approximation_regime)
-        @infiltrate algo_params.infiltrate_state in [:all]
-
-        ########################################################################
-        # REFINE BELLMAN FUNCTION BY ADDING CUTS
-        ########################################################################
-        """
-        Note that for all backward openings, bin_state is the same,
-        so we can just use bin_state[1] in the following.
-        Maybe this should be changed later.
-        """
-        TimerOutputs.@timeit DynamicSDDiP_TIMER "update_bellman" begin
-            refine_bellman_function(
+            ########################################################################
+            # Solve backward pass problems for all realizations depending on framework
+            ########################################################################
+            backward_pass_node(
                 model,
                 node,
                 node_index,
-                node.bellman_function,
-                options.risk_measures[node_index],
+                index,
+                items,
+                # belief_state,
+                # objective_state,
                 outgoing_state,
-                anchor_state,
-                items.bin_state[1],
-                items.duals,
-                items.supports,
-                items.probability,
-                items.objectives,
+                epi_states,
+                scenario_path[1:index],
                 algo_params,
-                applied_solvers
+                cut_generation_regime,
+                applied_solvers,
+                cut_generation_regime.duality_regime,
+                algo_params.cut_aggregation_regime,
             )
-        end
 
-        # Logging of lag_iterations and lag_status
-        lag_status_string = ""
-        for i in items.lag_status
-            lag_status_string = string(lag_status_string, i, ", ")
-        end
-        push!(model.ext[:lag_status], lag_status_string)
-        push!(model.ext[:lag_iterations], Statistics.mean(items.lag_iterations))
+            ########################################################################
+            # RECONSTRUCT ANCHOR POINTS IN BACKWARD PASS
+            ########################################################################
+            anchor_state = determine_anchor_state(node, outgoing_state, cut_generation_regime.state_approximation_regime)
+            @infiltrate algo_params.infiltrate_state in [:all]
 
-        ########################################################################
-        #NOTE: I did not include the similar node thing from SDDP.jl.
-        #Not really sure what it means anyway.
+            ########################################################################
+            # REFINE BELLMAN FUNCTION BY ADDING CUTS
+            ########################################################################
+            """
+            Note that for all backward openings, bin_state is the same,
+            so we can just use bin_state[1] in the following.
+            Maybe this should be changed later.
+            """
+            TimerOutputs.@timeit DynamicSDDiP_TIMER "update_bellman" begin
+                refine_bellman_function(
+                    model,
+                    node,
+                    node_index,
+                    node.bellman_function,
+                    options.risk_measures[node_index],
+                    outgoing_state,
+                    anchor_state,
+                    items.bin_state[1],
+                    items.duals,
+                    items.supports,
+                    items.probability,
+                    items.objectives,
+                    algo_params,
+                    cut_generation_regime,
+                    applied_solvers
+                )
+            end
+
+            # Logging of lag_iterations and lag_status
+            lag_status_string = ""
+            for i in items.lag_status
+                lag_status_string = string(lag_status_string, i, ", ")
+            end
+            push!(model.ext[:lag_status], lag_status_string)
+            push!(model.ext[:lag_iterations], Statistics.mean(items.lag_iterations))
+
+            #TODO: lag_status and lag_iterations have to be stored for each
+            #cut_generation_regime separately.
+
+            ########################################################################
+            #NOTE: I did not include the similar node thing from SDDP.jl.
+            #Not really sure what it means anyway.
+
+        end
 
     end
 

@@ -15,53 +15,53 @@ function set_solver!(
     algorithmic_step::Symbol,
 )
 
-    if isa(algo_params.state_approximation_regime, DynamicSDDiP.BinaryApproximation)
-        cut_projection_regime = algo_params.state_approximation_regime.cut_projection_regime
+    # CHOOSE THE CORRECT TYPE OF SOLVER
+    ########################################################################
+    if algorithmic_step in [:level_bundle]
+        solver = applied_solvers.NLP
+    elseif algorithmic_step in [:LP_relax, :kelley, :cut_selection]
+        # TODO: What about nonlinear cut projections here?
+        solver = applied_solvers.LP
+    elseif algorithmic_step in [:l₂]
+        solver = "scip"
+    else
+        # For all other algorithmic steps, we have to consider the projection
+        # of the non-convex cuts if BinaryApproximation is used.
+        # We loop over all cut_generation_regimes to see if such non-convex
+        # cuts have been created so far.
 
-        # CHOOSE THE CORRECT TYPE OF SOLVER
-        ########################################################################
-        if algorithmic_step in [:forward_pass, :backward_pass]
-            if isa(cut_projection_regime, DynamicSDDiP.KKT)
-                solver = applied_solvers.MINLP
-            elseif isa(cut_projection_regime, DynamicSDDiP.StrongDuality)
-                solver = applied_solvers.MINLP
-                #solver = applied_solvers.MIQCP
+        for cut_generation_regime in algo_params.cut_generation_regimes
+            # NON-CONVEX CUTS HAVE BEEN CREATED SO FAR
+            if isa(cut_generation_regime.state_approximation_regime, DynamicSDDiP.BinaryApproximation) && cut_generation_regime.iteration_to_start <= iteration
+                cut_projection_regime = cut_generation_regime.state_approximation_regime.cut_projection_regime
+
+                if algorithmic_step in [:forward_pass, :backward_pass]
+                    if isa(cut_projection_regime, DynamicSDDiP.KKT)
+                        solver = applied_solvers.MINLP
+                    elseif isa(cut_projection_regime, DynamicSDDiP.StrongDuality)
+                        solver = applied_solvers.MINLP
+                        #solver = applied_solvers.MIQCP
+                    else
+                        solver = applied_solvers.MILP
+                    end
+                elseif algorithmic_step in [:lagrange_relax]
+                    if isa(cut_projection_regime, DynamicSDDiP.KKT)
+                        solver = applied_solvers.MINLP
+                    elseif isa(cut_projection_regime, DynamicSDDiP.StrongDuality)
+                        solver = applied_solvers.MINLP
+                        #solver = applied_solvers.MIQCP
+                    else
+                        solver = applied_solvers.Lagrange
+                    end
+                end
+
+            # NO NON-CONVEX CUTS HAVE BEEN CREATED SO FAR
             else
-                solver = applied_solvers.MILP
+                if algorithmic_step in [:forward_pass, :backward_pass]
+                    solver = applied_solvers.MILP
+                elseif algorithmic_step in [:lagrange_relax]
+                    solver = applied_solvers.Lagrange
             end
-        elseif algorithmic_step in [:lagrange_relax]
-            if isa(cut_projection_regime, DynamicSDDiP.KKT)
-                solver = applied_solvers.MINLP
-            elseif isa(cut_projection_regime, DynamicSDDiP.StrongDuality)
-                solver = applied_solvers.MINLP
-                #solver = applied_solvers.MIQCP
-            else
-                solver = applied_solvers.Lagrange
-            end
-        elseif algorithmic_step in [:level_bundle]
-            solver = applied_solvers.NLP
-        elseif algorithmic_step in [:LP_relax, :kelley, :cut_selection]
-            # TODO: What about nonlinear cut projections here?
-            solver = applied_solvers.LP
-        elseif algorithmic_step in [:l₂]
-            solver = "scip"
-        end
-
-    elseif isa(algo_params.state_approximation_regime, DynamicSDDiP.NoStateApproximation)
-
-        # CHOOSE THE CORRECT TYPE OF SOLVER
-        ########################################################################
-        if algorithmic_step in [:forward_pass, :backward_pass]
-            solver = applied_solvers.MILP
-        elseif algorithmic_step in [:lagrange_relax]
-            solver = applied_solvers.Lagrange
-        elseif algorithmic_step in [:level_bundle]
-            solver = applied_solvers.NLP
-        elseif algorithmic_step in [:LP_relax, :kelley, :cut_selection]
-            # TODO: What about nonlinear cut projections here?
-            solver = applied_solvers.LP
-        elseif algorithmic_step in [:l₂]
-            solver = "scip"
         end
     end
 

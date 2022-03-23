@@ -24,6 +24,7 @@ function get_dual_solution(
     node_index::Int64,
     epi_state::Float64,
     algo_params::DynamicSDDiP.AlgoParams,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     duality_regime::DynamicSDDiP.LinearDuality,
     )
@@ -37,13 +38,13 @@ function get_dual_solution(
     # note that with NoStateApproximation bin_state will just remain empty
     dual_values = Dict{Symbol,Float64}()
     bin_state = Dict{Symbol, BinaryState}()
-    number_of_states = get_number_of_states(node, algo_params.state_approximation_regime)
+    number_of_states = get_number_of_states(node, cut_generation_regime.state_approximation_regime)
 
     ############################################################################
     # INITIALIZE DUALS
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "LP_relaxation" begin
-        dual_results = solve_LP_relaxation(node, subproblem, algo_params, applied_solvers, DynamicSDDiP.LPDuals())
+        dual_results = solve_LP_relaxation(node, subproblem, algo_params, cut_generation_regime, applied_solvers, DynamicSDDiP.LPDuals())
     end
 
     dual_vars = dual_results.dual_vars
@@ -58,7 +59,7 @@ function get_dual_solution(
     ############################################################################
     # SET DUAL VARIABLES AND STATES CORRECTLY FOR RETURN
     ############################################################################
-    store_dual_values!(node, dual_values, dual_vars, dual_0_var, bin_state, algo_params.state_approximation_regime)
+    store_dual_values!(node, dual_values, dual_vars, dual_0_var, bin_state, cut_generation_regime.state_approximation_regime)
 
     return (
         dual_values=dual_values,
@@ -74,12 +75,13 @@ function solve_LP_relaxation(
     node::SDDP.Node,
     subproblem::JuMP.Model,
     algo_params::DynamicSDDiP.AlgoParams,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     dual_initalization_regime::DynamicSDDiP.LPDuals,
 )
 
     # Get number of states and create zero vector for duals
-    number_of_states = get_number_of_states(node, algo_params.state_approximation_regime)
+    number_of_states = get_number_of_states(node, cut_generation_regime.state_approximation_regime)
     dual_vars_initial = zeros(number_of_states)
 
     # Create LP Relaxation
@@ -95,7 +97,7 @@ function solve_LP_relaxation(
     dual_obj = JuMP.objective_value(subproblem)
 
     # Get dual values (reduced costs) for binary states as initial solution
-    get_and_set_dual_values!(node, dual_vars_initial, algo_params.state_approximation_regime)
+    get_and_set_dual_values!(node, dual_vars_initial, cut_generation_regime.state_approximation_regime)
 
     # Note: due to JuMP's dual convention, we need to flip the sign for
     # maximization problems.
@@ -125,6 +127,7 @@ function get_dual_solution(
     node_index::Int64,
     epi_state::Float64,
     algo_params::DynamicSDDiP.AlgoParams,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     duality_regime::DynamicSDDiP.StrengthenedDuality,
     )
@@ -138,13 +141,13 @@ function get_dual_solution(
     # note that with NoStateApproximation bin_state will just remain empty
     dual_values = Dict{Symbol,Float64}()
     bin_state = Dict{Symbol, BinaryState}()
-    number_of_states = get_number_of_states(node, algo_params.state_approximation_regime)
+    number_of_states = get_number_of_states(node, cut_generation_regime.state_approximation_regime)
 
     ############################################################################
     # INITIALIZE DUALS
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "LP_relaxation" begin
-        dual_results = solve_LP_relaxation(node, subproblem, algo_params, applied_solvers, DynamicSDDiP.LPDuals())
+        dual_results = solve_LP_relaxation(node, subproblem, algo_params, cut_generation_regime, applied_solvers, DynamicSDDiP.LPDuals())
     end
 
     dual_vars = dual_results.dual_vars
@@ -167,7 +170,7 @@ function get_dual_solution(
     ############################################################################
     # SET DUAL VARIABLES AND STATES CORRECTLY FOR RETURN
     ############################################################################
-    store_dual_values!(node, dual_values, dual_vars, dual_0_var, bin_state, algo_params.state_approximation_regime)
+    store_dual_values!(node, dual_values, dual_vars, dual_0_var, bin_state, cut_generation_regime.state_approximation_regime)
 
     return (
         dual_values=dual_values,
@@ -191,6 +194,7 @@ function get_dual_solution(
     node_index::Int64,
     epi_state::Float64,
     algo_params::DynamicSDDiP.AlgoParams,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     duality_regime::DynamicSDDiP.LagrangianDuality,
     )
@@ -204,7 +208,7 @@ function get_dual_solution(
     # note that with NoStateApproximation bin_state will just remain empty
     dual_values = Dict{Symbol,Float64}()
     bin_state = Dict{Symbol, BinaryState}()
-    number_of_states = get_number_of_states(node, algo_params.state_approximation_regime)
+    number_of_states = get_number_of_states(node, cut_generation_regime.state_approximation_regime)
 
     # storages for information on Lagrangian dual
     lag_obj = 0
@@ -215,7 +219,7 @@ function get_dual_solution(
     # INITIALIZE DUALS
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "dual_initialization" begin
-        dual_vars = initialize_duals(node, subproblem, algo_params, applied_solvers, duality_regime.dual_initialization_regime)
+        dual_vars = initialize_duals(node, subproblem, algo_params, cut_generation_regime, applied_solvers, duality_regime.dual_initialization_regime)
     end
 
     """ Note that we always initialize π₀ as well, even if we do not change it
@@ -227,7 +231,7 @@ function get_dual_solution(
     ############################################################################
     # REGULARIZE PROBLEM IF REGULARIZATION IS USED
     node.ext[:regularization_data] = Dict{Symbol,Any}()
-    regularize_bw!(node, node_index, subproblem, algo_params.regularization_regime, algo_params, algo_params.state_approximation_regime)
+    regularize_bw!(node, node_index, subproblem, algo_params.regularization_regime, algo_params, cut_generation_regime.state_approximation_regime)
 
     # RESET SOLVER (as it may have been changed in between for some reason)
     DynamicSDDiP.set_solver!(subproblem, algo_params, applied_solvers, :backward_pass)
@@ -242,7 +246,7 @@ function get_dual_solution(
     @assert JuMP.termination_status(subproblem) == MOI.OPTIMAL
 
     # DEREGULARIZE PROBLEM IF REQUIRED
-    deregularize_bw!(node, subproblem, algo_params.regularization_regime, algo_params.state_approximation_regime)
+    deregularize_bw!(node, subproblem, algo_params.regularization_regime, cut_generation_regime.state_approximation_regime)
 
     @infiltrate algo_params.infiltrate_state in [:all]
 
@@ -265,6 +269,7 @@ function get_dual_solution(
                     dual_vars,
                     bound_results,
                     algo_params,
+                    cut_generation_regime,
                     applied_solvers,
                     duality_regime.dual_solution_regime
                     )
@@ -290,7 +295,7 @@ function get_dual_solution(
     ############################################################################
     # SET DUAL VARIABLES AND STATES CORRECTLY FOR RETURN
     ############################################################################
-    store_dual_values!(node, dual_values, dual_vars, dual_0_var, bin_state, algo_params.state_approximation_regime)
+    store_dual_values!(node, dual_values, dual_vars, dual_0_var, bin_state, cut_generation_regime.state_approximation_regime)
 
     return (
         dual_values=dual_values,
@@ -315,6 +320,7 @@ function get_dual_solution(
     node_index::Int64,
     epi_state::Float64,
     algo_params::DynamicSDDiP.AlgoParams,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     duality_regime::DynamicSDDiP.UnifiedLagrangianDuality,
     )
@@ -328,7 +334,7 @@ function get_dual_solution(
     # note that with NoStateApproximation bin_state will just remain empty
     dual_values = Dict{Symbol,Float64}()
     bin_state = Dict{Symbol, BinaryState}()
-    number_of_states = get_number_of_states(node, algo_params.state_approximation_regime)
+    number_of_states = get_number_of_states(node, cut_generation_regime.state_approximation_regime)
 
     # storages for information on Lagrangian dual
     lag_obj = 0
@@ -339,7 +345,7 @@ function get_dual_solution(
     # INITIALIZE DUALS
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "dual_initialization" begin
-        dual_vars = initialize_duals(node, subproblem, algo_params, applied_solvers, duality_regime.dual_initialization_regime)
+        dual_vars = initialize_duals(node, subproblem, algo_params, cut_generation_regime, applied_solvers, duality_regime.dual_initialization_regime)
     end
 
     # Initialize π₀ as 1 (0 is not suitable for relatively complete recourse)
@@ -353,7 +359,7 @@ function get_dual_solution(
 
     # REGULARIZE PROBLEM IF REGULARIZATION IS USED
     node.ext[:regularization_data] = Dict{Symbol,Any}()
-    regularize_bw!(node, node_index, subproblem, algo_params.regularization_regime, algo_params, algo_params.state_approximation_regime)
+    regularize_bw!(node, node_index, subproblem, algo_params.regularization_regime, algo_params, cut_generation_regime.state_approximation_regime)
 
     # RESET SOLVER (as it may have been changed in between for some reason)
     DynamicSDDiP.set_solver!(subproblem, algo_params, applied_solvers, :backward_pass)
@@ -368,7 +374,7 @@ function get_dual_solution(
     @assert JuMP.termination_status(subproblem) == MOI.OPTIMAL
 
     # DEREGULARIZE PROBLEM IF REQUIRED
-    deregularize_bw!(node, subproblem, algo_params.regularization_regime, algo_params.state_approximation_regime)
+    deregularize_bw!(node, subproblem, algo_params.regularization_regime, cut_generation_regime.state_approximation_regime)
 
     @infiltrate algo_params.infiltrate_state in [:all]
 
@@ -419,7 +425,7 @@ function get_dual_solution(
     ############################################################################
     # SET DUAL VARIABLES AND STATES CORRECTLY FOR RETURN
     ############################################################################
-    store_dual_values!(node, dual_values, dual_vars, dual_0_var, bin_state, algo_params.state_approximation_regime)
+    store_dual_values!(node, dual_values, dual_vars, dual_0_var, bin_state, cut_generation_regime.state_approximation_regime)
 
     # We still want to express the cuts in the original system,
     # so we have to divide the value for the intercept by dual_0_var as well.
@@ -566,12 +572,13 @@ function initialize_duals(
     node::SDDP.Node,
     subproblem::JuMP.Model,
     algo_params::DynamicSDDiP.AlgoParams,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     dual_initalization_regime::DynamicSDDiP.ZeroDuals,
 )
 
     # Get number of states and create zero vector for duals
-    number_of_states = get_number_of_states(node, algo_params.state_approximation_regime)
+    number_of_states = get_number_of_states(node, cut_generation_regime.state_approximation_regime)
     dual_vars_initial = zeros(number_of_states)
 
     return dual_vars_initial
@@ -586,12 +593,13 @@ function initialize_duals(
     node::SDDP.Node,
     subproblem::JuMP.Model,
     algo_params::DynamicSDDiP.AlgoParams,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     dual_initalization_regime::DynamicSDDiP.LPDuals,
 )
 
     # Get number of states and create zero vector for duals
-    number_of_states = get_number_of_states(node, algo_params.state_approximation_regime)
+    number_of_states = get_number_of_states(node, cut_generation_regime.state_approximation_regime)
     dual_vars_initial = zeros(number_of_states)
 
     # Create LP Relaxation
@@ -606,7 +614,7 @@ function initialize_duals(
     # or MOI.FEASIBLE_POINT???
 
     # Get dual values (reduced costs) for binary states as initial solution
-    get_and_set_dual_values!(node, dual_vars_initial, algo_params.state_approximation_regime)
+    get_and_set_dual_values!(node, dual_vars_initial, cut_generation_regime.state_approximation_regime)
 
     # Undo relaxation
     undo_relax()

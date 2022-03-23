@@ -170,6 +170,7 @@ function refine_bellman_function(
     nominal_probability::Vector{Float64},
     objective_realizations::Vector{Float64},
     algo_params::DynamicSDDiP.AlgoParams,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
 ) where {T}
 
@@ -215,6 +216,7 @@ function refine_bellman_function(
             dual_variables,
             offset,
             algo_params,
+            cut_generation_regime,
             model.ext[:iteration],
             applied_solvers
         )
@@ -232,6 +234,7 @@ function refine_bellman_function(
             dual_variables,
             offset,
             algo_params,
+            cut_generation_regime,
             model.ext[:iteration],
             applied_solvers
         )
@@ -253,6 +256,7 @@ function _add_average_cut(
     dual_variables::Vector{Dict{Symbol,Float64}},
     offset::Float64,
     algo_params::DynamicSDDiP.AlgoParams,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     iteration::Int64,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
 )
@@ -266,7 +270,7 @@ function _add_average_cut(
     ############################################################################
     # Calculate the expected intercept and dual variables with respect to the
     # risk-adjusted probability distribution.
-    πᵏ = set_up_dict_for_duals(bin_states, trial_points, algo_params.state_approximation_regime)
+    πᵏ = set_up_dict_for_duals(bin_states, trial_points, cut_generation_regime.state_approximation_regime)
     θᵏ = offset
 
     for i in 1:length(objective_realizations)
@@ -312,8 +316,9 @@ function _add_average_cut(
         iteration,
         algo_params.infiltrate_state,
         algo_params,
+        cut_generation_regime,
         applied_solvers,
-        algo_params.state_approximation_regime,
+        cut_generation_regime.state_approximation_regime,
     )
 
     return
@@ -333,6 +338,7 @@ function _add_multi_cut(
     dual_variables::Vector{Dict{Symbol,Float64}},
     offset::Float64,
     algo_params::DynamicSDDiP.AlgoParams,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     iteration::Int64,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
 )
@@ -373,8 +379,9 @@ function _add_multi_cut(
             iteration,
             algo_params.infiltrate_state,
             algo_params,
+            cut_generation_regime,
             applied_solvers,
-            algo_params.state_approximation_regime,
+            cut_generation_regime.state_approximation_regime,
         )
     end
 
@@ -446,6 +453,7 @@ function _add_cut(
     iteration::Int64,
     infiltrate_state::Symbol,
     algo_params::DynamicSDDiP.AlgoParams,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     state_approximation_regime::DynamicSDDiP.BinaryApproximation,
 ) where {N,T}
@@ -482,13 +490,13 @@ function _add_cut(
             1,
             iteration,
             algo_params.cut_aggregation_regime,
-            algo_params.duality_regime,
+            cut_generation_regime.duality_regime,
             )
 
     ############################################################################
     # ADD CUT PROJECTION TO SUBPROBLEM (we are already at the previous stage)
     ############################################################################
-    _add_cut_constraints_to_models(node, V, cut, algo_params, infiltrate_state)
+    _add_cut_constraints_to_models(node, V, cut, algo_params, cut_generation_regime, infiltrate_state)
 
     ############################################################################
     # UPDATE CUT SELECTION
@@ -511,6 +519,7 @@ function _add_cut_constraints_to_models(
     V::DynamicSDDiP.CutApproximation,
     cut::DynamicSDDiP.NonlinearCut,
     algo_params::DynamicSDDiP.AlgoParams,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     infiltrate_state::Symbol,
     )
 
@@ -611,7 +620,7 @@ function _add_cut_constraints_to_models(
                     ########################################################
                     infiltrate_state,
                     ########################################################
-                    algo_params.state_approximation_regime.cut_projection_regime
+                    cut_generation_regime.state_approximation_regime.cut_projection_regime
                     )
 
     end
@@ -623,7 +632,7 @@ function _add_cut_constraints_to_models(
     ############################################################################
     validity_checks!(cut, V, K_tilde, all_lambda, all_mu, all_eta,
         all_coefficients, number_of_states,
-        algo_params.state_approximation_regime.cut_projection_regime)
+        cut_generation_regime.state_approximation_regime.cut_projection_regime)
 
     number_of_duals = size(all_lambda, 1)
 
@@ -632,7 +641,7 @@ function _add_cut_constraints_to_models(
     ############################################################################
     expr = get_cut_expression(model, node, V, all_lambda, all_mu, all_eta,
         all_coefficients, number_of_states, number_of_duals,
-        algo_params.state_approximation_regime.cut_projection_regime)
+        cut_generation_regime.state_approximation_regime.cut_projection_regime)
 
     constraint_ref = if JuMP.objective_sense(model) == MOI.MIN_SENSE
         JuMP.@constraint(model, expr >= cut.intercept)
@@ -646,7 +655,7 @@ function _add_cut_constraints_to_models(
     ############################################################################
     #add_strong_duality_cut!(model, node, cut, V, all_lambda, all_mu, all_eta,
     #    all_coefficients, number_of_states, number_of_duals,
-    #    algo_params.state_approximation_regime.cut_projection_regime)
+    #    cut_generation_regime.state_approximation_regime.cut_projection_regime)
 
     return
 
@@ -1267,6 +1276,7 @@ function _add_cut(
     iteration::Int64,
     infiltrate_state::Symbol,
     algo_params::DynamicSDDiP.AlgoParams,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     state_approximation_regime::DynamicSDDiP.NoStateApproximation,
 ) where {N,T}
@@ -1299,13 +1309,13 @@ function _add_cut(
             1,
             iteration,
             algo_params.cut_aggregation_regime,
-            algo_params.duality_regime,
+            cut_generation_regime.duality_regime,
             )
 
     ############################################################################
     # ADD CUT TO SUBPROBLEM (we are already at the previous stage)
     ############################################################################
-    _add_cut_constraints_to_models(node, V, cut, algo_params, infiltrate_state)
+    _add_cut_constraints_to_models(node, V, cut, algo_params, cut_generation_regime, infiltrate_state)
 
     ############################################################################
     # UPDATE CUT SELECTION
@@ -1328,6 +1338,7 @@ function _add_cut_constraints_to_models(
     V::DynamicSDDiP.CutApproximation,
     cut::DynamicSDDiP.LinearCut,
     algo_params::DynamicSDDiP.AlgoParams,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     infiltrate_state::Symbol,
     )
 

@@ -430,6 +430,66 @@ NoCutSelection means that no such procedure is used, so all cuts are used
 """
 
 ################################################################################
+# DEFINING STRUCT FOR DEFINITION OF CUT GENERATION REGIMES
+################################################################################
+"""
+Instead of directly defining a duality_regime and a state_approximation_regime
+in AlgoParams, we now allow to define so-called cut_generation_regimes first.
+Each cut_generation_regime from type CutGenerationRegime contains a specific
+duality_regime and a specific state_approximation_regime.
+AlgoParams then contains a Vector of CutGenerationRegime.
+This allows for generating different types of cuts in each iteration
+(e.g. Lagrangian cuts and (strengthened) Benders cuts) instead of just one
+of them. The additional parameters of cut_generation_regime allow to restrict
+the corresponding regime to a subset of iterations.
+"""
+
+mutable struct CutGenerationRegime
+    state_approximation_regime::AbstractStateApproximationRegime
+    duality_regime::AbstractDualityRegime
+    iteration_to_start::Int64
+    iteration_to_stop::Union{Int64,Float64}
+    gap_to_start::Float64
+    gap_to_stop::Float64
+    cut_away_approach::Bool
+
+    function AlgoParams(;
+        state_approximation_regime = BinaryApproximation(),
+        duality_regime = LagrangianDuality(),
+        iteration_to_start = 0,
+        iteration_to_stop = Inf,
+        gap_to_start = Inf,
+        gap_to_stop = 0.0,
+        cut_away_approach = false,
+    )
+        return new(
+            state_approximation_regime,
+            duality_regime,
+            iteration_to_start,
+            iteration_to_stop,
+            gap_to_start,
+            gap_to_stop,
+            cut_away_approach,
+        )
+    end
+end
+
+
+"""
+iteration_to_start:     first iteration at which this regime is applied
+iteration_to_stop:      last iteration at which this regime is applied
+gap_to_start:           relative optimality gap at which this regime is first
+                        applied (tricky for stochastic case)
+gap_to_stop:            relative optimality gap at which this regime is last
+                        applied (tricky for stochastic case)
+cut_away_approach:      if true, a hierarchy of cuts is used, so that this
+                        regime is only used if the incumbent is not cut away
+                        by the previous cut already. This parameter should
+                        not be true for the first CutGenerationRegime in
+                        AlgoParams.
+"""
+
+################################################################################
 # DEFINING STRUCT FOR CONFIGURATION OF ALGORITHM PARAMETERS
 ################################################################################
 """
@@ -441,11 +501,10 @@ choices the DynamicSDDiP algorithm will not work.
 
 mutable struct AlgoParams
     stopping_rules::Vector{SDDP.AbstractStoppingRule}
-    state_approximation_regime::AbstractStateApproximationRegime
     regularization_regime::AbstractRegularizationRegime
-    duality_regime::AbstractDualityRegime
     cut_aggregation_regime::AbstractCutAggregationRegime
     cut_selection_regime::AbstractCutSelectionRegime
+    cut_generation_regimes::Vector{CutGenerationRegime}
     ############################################################################
     risk_measure::SDDP.AbstractRiskMeasure
     forward_pass::SDDP.AbstractForwardPass
@@ -466,11 +525,10 @@ mutable struct AlgoParams
 
     function AlgoParams(;
         stopping_rules = [DeterministicStopping()],
-        state_approximation_regime = BinaryApproximation(),
         regularization_regime = Regularization(),
-        duality_regime = LagrangianDuality(),
         cut_aggregation_regime = SingleCutRegime(),
         cut_selection_regime = CutSelection(),
+        cut_generation_regimes = [CutGenerationRegime()],
         risk_measure = SDDP.Expectation(),
         forward_pass = SDDP.DefaultForwardPass(),
         sampling_scheme = SDDP.InSampleMonteCarlo(),
@@ -489,11 +547,10 @@ mutable struct AlgoParams
     )
         return new(
             stopping_rules,
-            state_approximation_regime,
             regularization_regime,
-            duality_regime,
             cut_aggregation_regime,
             cut_selection_regime,
+            cut_generation_regimes,
             risk_measure,
             forward_pass,
             sampling_scheme,

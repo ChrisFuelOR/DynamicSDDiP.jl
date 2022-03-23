@@ -124,7 +124,14 @@ end
 """
 Regularizing the backward pass problem in binary space if regularization is used.
 """
-function regularize_binary!(node::SDDP.Node, node_index::Int64, subproblem::JuMP.Model, algo_params::DynamicSDDiP.AlgoParams, regularization_regime::DynamicSDDiP.Regularization)
+function regularize_binary!(
+    node::SDDP.Node,
+    node_index::Int64,
+    subproblem::JuMP.Model,
+    algo_params::DynamicSDDiP.AlgoParams,
+    regularization_regime::DynamicSDDiP.Regularization,
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation
+    )
 
     bw_data = node.ext[:backward_data]
     binary_states = bw_data[:bin_states]
@@ -153,7 +160,7 @@ function regularize_binary!(node::SDDP.Node, node_index::Int64, subproblem::JuMP
 
         # determine and store the corresponding weight
         associated_original_state = node.ext[:backward_data][:bin_x_names][name]
-    	beta = algo_params.state_approximation_regime.binary_precision[associated_original_state]
+    	beta = state_approximation_regime.binary_precision[associated_original_state]
     	associated_k = node.ext[:backward_data][:bin_k][name]
         push!(reg_data[:weights], 2^(associated_k-1) * beta)
     end
@@ -201,7 +208,14 @@ end
 Trivial regularization of the backward pass problem in binary space
 if no regularization is used.
 """
-function regularize_binary!(node::SDDP.Node, node_index::Int64, subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.NoRegularization)
+function regularize_binary!(
+    node::SDDP.Node,
+    node_index::Int64,
+    subproblem::JuMP.Model,
+    algo_params::DynamicSDDiP.AlgoParams,
+    regularization_regime::DynamicSDDiP.NoRegularization,
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation
+    )
 
     return
 end
@@ -264,7 +278,7 @@ function regularize_bw!(node::SDDP.Node, node_index::Int64,
     algo_params::DynamicSDDiP.AlgoParams,
     state_approximation_regime::DynamicSDDiP.BinaryApproximation)
 
-    regularize_binary!(node, node_index, subproblem, algo_params, regularization_regime)
+    regularize_binary!(node, node_index, subproblem, algo_params, regularization_regime, state_approximation_regime)
 
     return
 end
@@ -290,7 +304,7 @@ function regularize_bw!(node::SDDP.Node, node_index::Int64,
     algo_params::DynamicSDDiP.AlgoParams,
     state_approximation_regime::DynamicSDDiP.NoStateApproximation)
 
-    regularize_binary!(node, node_index, subproblem, regularization_regime)
+    regularize_binary!(node, node_index, subproblem, regularization_regime, state_approximation_regime)
 
     return
 end

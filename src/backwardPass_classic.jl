@@ -14,6 +14,7 @@ function backward_pass_node(
     epi_states::Vector{Float64},
     scenario_path,
     algo_params::DynamicSDDiP.AlgoParams,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     duality_regime::Union{DynamicSDDiP.LagrangianDuality, DynamicSDDiP.LinearDuality, DynamicSDDiP.StrengthenedDuality},
     cut_aggregation_regime::Union{DynamicSDDiP.SingleCutRegime, DynamicSDDiP.MultiCutRegime}
@@ -35,6 +36,7 @@ function backward_pass_node(
         algo_params.backward_sampling_scheme,
         scenario_path[1:index],
         algo_params,
+        cut_generation_regime,
         applied_solvers
     )
 
@@ -58,6 +60,7 @@ function backward_pass_node(
     epi_states::Vector{Float64},
     scenario_path,
     algo_params::DynamicSDDiP.AlgoParams,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     duality_regime::DynamicSDDiP.UnifiedLagrangianDuality,
     cut_aggregation_regime::DynamicSDDiP.MultiCutRegime,
@@ -79,6 +82,7 @@ function backward_pass_node(
         algo_params.backward_sampling_scheme,
         scenario_path[1:index],
         algo_params,
+        cut_generation_regime,
         applied_solvers
     )
 
@@ -102,6 +106,7 @@ function solve_all_children(
     backward_sampling_scheme::SDDP.AbstractBackwardSamplingScheme,
     scenario_path,
     algo_params::DynamicSDDiP.AlgoParams,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
 ) where {T}
     length_scenario_path = length(scenario_path)
@@ -151,6 +156,7 @@ function solve_all_children(
                         noise.term,
                         scenario_path,
                         algo_params,
+                        cut_generation_regime,
                         applied_solvers
                     )
                 end
@@ -194,6 +200,7 @@ function solve_subproblem_backward(
     noise,
     scenario_path::Vector{Tuple{T,S}},
     algo_params::DynamicSDDiP.AlgoParams,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     applied_solvers::DynamicSDDiP.AppliedSolvers;
 ) where {T,S}
 
@@ -216,7 +223,7 @@ function solve_subproblem_backward(
     # CHANGE STATE SPACE IF BINARY APPROXIMATION IS USED
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "space_change" begin
-        changeStateSpace!(node, subproblem, state, algo_params.state_approximation_regime)
+        changeStateSpace!(node, subproblem, state, cut_generation_regime.state_approximation_regime)
     end
 
     ############################################################################
@@ -224,14 +231,14 @@ function solve_subproblem_backward(
     ############################################################################
     # Solve dual and return a dict with the multipliers of the copy constraints.
     TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_dual" begin
-        dual_results = get_dual_solution(node, node_index, epi_state, algo_params, applied_solvers, algo_params.duality_regime)
+        dual_results = get_dual_solution(node, node_index, epi_state, algo_params, cut_generation_regime, applied_solvers, cut_generation_regime.duality_regime)
     end
 
     ############################################################################
     # REGAIN ORIGINAL MODEL IF BINARY APPROXIMATION IS USED
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "space_change" begin
-        rechangeStateSpace!(node, subproblem, state, algo_params.state_approximation_regime)
+        rechangeStateSpace!(node, subproblem, state, cut_generation_regime.state_approximation_regime)
     end
 
     @infiltrate algo_params.infiltrate_state in [:all]
