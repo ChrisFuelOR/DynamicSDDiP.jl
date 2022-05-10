@@ -43,6 +43,7 @@ Kelley's method to solve unified Lagrangian dual
 function solve_unified_lagrangian_dual(
     node::SDDP.Node,
     node_index::Int64,
+    i::Int64,
     epi_state::Float64,
     primal_obj::Float64,
     π_k::Vector{Float64},
@@ -53,6 +54,8 @@ function solve_unified_lagrangian_dual(
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     dual_solution_regime::DynamicSDDiP.Kelley
 )
+
+    @infiltrate
 
     ############################################################################
     # INITIALIZATION
@@ -148,7 +151,7 @@ function solve_unified_lagrangian_dual(
             cut_generation_regime.duality_regime)
 
         # Add dual space restriction (span of earlier multipliers)
-        dual_space_restriction!(node, approx_model, cut_generation_regime.duality_regime.dual_space_regime)
+        dual_space_restriction!(node, approx_model, i, cut_generation_regime.state_approximation_regime, cut_generation_regime.duality_regime.dual_space_regime)
 
         # Add normalization constraint depending on abstract normalization regime
         add_normalization_constraint!(node, approx_model, number_of_states, cut_generation_regime.duality_regime.normalization_regime)
@@ -401,7 +404,15 @@ function add_normalization_constraint!(
     normalization_regime::DynamicSDDiP.ChenLuedtke
 )
 
-    # TODO
+    @assert :span_variable in keys(object_dictionary(approx_model))
+
+    span_variable = approx_model[:span_variable]
+    π₀ = approx_model[:π₀]
+
+    abs_span_variable = JuMP.@variable(approx_model, abs_span_variable[1:length(span_variable)])
+    JuMP.@constraint(approx_model, π₀ + sum(abs_span_variable[i] for i in 1:length(span_variable)) <= 1)
+    JuMP.@constraint(approx_model, abs_span_1[i=1:length(span_variable)], -abs_span_variable[i] <= span_variable[i])
+    JuMP.@constraint(approx_model, abs_span_2[i=1:length(span_variable)], abs_span_variable[i] >= span_variable[i])
 
     return
 end
@@ -409,10 +420,48 @@ end
 function dual_space_restriction!(
     node::SDDP.Node,
     approx_model::JuMP.Model,
+    i::Int64,
+    state_approximation_regime::Union{DynamicSDDiP.BinaryApproximation,DynamicSDDiP.NoStateApproximation},
     dual_space_regime::DynamicSDDiP.BendersSpanSpaceRestriction
 )
 
-    # TODO
+    policy_graph = node.subproblem.ext[:sddp_policy_graph]
+    ancestor_node = policy_graph.nodes[node.index-1]
+
+    # Step 1: Get last K elements from Benders cuts
+    ############################################################################
+    K = dual_space_regime.K
+    results = get_Benders_list!(ancestor_node, K, state_approximation_regime)
+    Benders_list = results.Benders_list
+    number_of_Benders_cuts = results.number_of_Benders_cuts
+
+    # Step 2: Introduce a span variable
+    ############################################################################
+    span_variable = JuMP.@variable(approx_model, span_variable[1:number_of_Benders_cuts])
+
+    # Step 3: Create span expression
+    ############################################################################
+    expr = JuMP.@expression(approx_model, 0)
+
+    for k in 1:number_of_Benders_cuts
+        coefficient = 0
+        index = Benders_list[k][1]
+        if Benders_list[k][2] == :single_cut
+            coefficients = ancestor_node.bellman_function.global_theta.cuts[index].coefficients
+        elseif Benders_list[k][2] == :multi_cut
+            coefficients = ancestor_node.bellman_function.local_thetas[i].cuts[index].coefficients
+        end
+        coefficients_vector = zeros(length(coefficients))
+        for (j, (key,value)) in enumerate(coefficients)
+            coefficients_vector[j] = value
+        end
+        expr = JuMP.@expression(approx_model, expr .+ span_variable[k] * coefficients_vector)
+    end
+
+    # Step 4: Introduce a new constraint to restrict the dual space
+    ############################################################################
+    π = approx_model[:π]
+    span_constraint = JuMP.@constraint(approx_model, π .== expr)
 
     return
 end
@@ -420,6 +469,8 @@ end
 function dual_space_restriction!(
     node::SDDP.Node,
     approx_model::JuMP.Model,
+    i::Int64,
+    state_approximation_regime::Union{DynamicSDDiP.BinaryApproximation, DynamicSDDiP.NoStateApproximation},
     dual_space_regime::DynamicSDDiP.NoDualSpaceRestriction
 )
 
@@ -433,6 +484,7 @@ Level Bundle method to solve unified Lagrangian dual
 function solve_lagrangian_dual(
     node::SDDP.Node,
     node_index::Int64,
+    i::Int64,
     epi_state::Float64,
     primal_obj::Float64,
     π_k::Vector{Float64},
@@ -545,7 +597,7 @@ function solve_lagrangian_dual(
             cut_generation_regime.duality_regime)
 
         # Add dual space restriction (span of earlier multipliers)
-        dual_space_restriction!(node, approx_model, cut_generation_regime.duality_regime.dual_space_regime)
+        dual_space_restriction!(node, approx_model, i, cut_generation_regime.duality_regime.dual_space_regime)
 
         # Add normalization constraint depending on abstract normalization regime
         add_normalization_constraint!(node, approx_model, number_of_states, cut_generation_regime.duality_regime.normalization_regime)
@@ -749,5 +801,45 @@ function solve_lagrangian_dual(
     π0_k = π0_star
 
     return (llag_obj = s * L_star, iterations = iter, lag_status = lag_status, dual_0_var = π0_k)
+
+end
+
+function get_Benders_list!(
+    node::SDDP.Node,
+    K::Int64,
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation,
+    )
+
+    number_of_Benders_cuts = length(node.ext[:Benders_cuts_binary])
+
+    if number_of_Benders_cuts == 0
+            @error("Dual space restriction attempt, but no Benders cuts have been generated.")
+    elseif  number_of_Benders_cuts <= K
+            Benders_list = node.ext[:Benders_cuts_binary]
+    else
+            Benders_list = node.ext[:Benders_cuts_binary][number_of_Benders_cuts-K:number_of_Benders_cuts]
+    end
+
+    return (Benders_list = Benders_list, number_of_Benders_cuts = number_of_Benders_cuts)
+
+end
+
+function get_Benders_list!(
+    node::SDDP.Node,
+    K::Int64,
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation,
+    )
+
+    number_of_Benders_cuts = length(node.ext[:Benders_cuts_original])
+
+    if number_of_Benders_cuts == 0
+            @error("Dual space restriction attempt, but no Benders cuts have been generated.")
+    elseif  number_of_Benders_cuts <= K
+            Benders_list = node.ext[:Benders_cuts_original]
+    else
+            Benders_list = node.ext[:Benders_cuts_original][number_of_Benders_cuts-K:number_of_Benders_cuts]
+    end
+
+    return (Benders_list = Benders_list, number_of_Benders_cuts = number_of_Benders_cuts)
 
 end

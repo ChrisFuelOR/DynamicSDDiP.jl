@@ -22,6 +22,7 @@ Solving the dual problem to obtain cut information - using LP relaxation
 function get_dual_solution(
     node::SDDP.Node,
     node_index::Int64,
+    i::Int64,
     epi_state::Float64,
     algo_params::DynamicSDDiP.AlgoParams,
     cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
@@ -125,6 +126,7 @@ and strengthening by Lagrangian relaxation
 function get_dual_solution(
     node::SDDP.Node,
     node_index::Int64,
+    i::Int64,
     epi_state::Float64,
     algo_params::DynamicSDDiP.AlgoParams,
     cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
@@ -192,6 +194,7 @@ Solving the dual problem to obtain cut information - using Lagrangian dual
 function get_dual_solution(
     node::SDDP.Node,
     node_index::Int64,
+    i::Int64,
     epi_state::Float64,
     algo_params::DynamicSDDiP.AlgoParams,
     cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
@@ -318,6 +321,7 @@ in the unified framework with multi-cuts
 function get_dual_solution(
     node::SDDP.Node,
     node_index::Int64,
+    i::Int64,
     epi_state::Float64,
     algo_params::DynamicSDDiP.AlgoParams,
     cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
@@ -393,12 +397,14 @@ function get_dual_solution(
             results = solve_unified_lagrangian_dual(
                         node,
                         node_index,
+                        i,
                         epi_state,
                         primal_obj,
                         dual_vars,
                         dual_0_var,
                         bound_results,
                         algo_params,
+                        cut_generation_regime,
                         applied_solvers,
                         duality_regime.dual_solution_regime
                         )

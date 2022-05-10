@@ -365,6 +365,7 @@ mutable struct UnifiedLagrangianDuality <: AbstractDualityRegime
     dual_status_regime::AbstractDualStatusRegime
     normalization_regime::AbstractNormalizationRegime
     dual_space_regime::AbstractDualSpaceRegime
+    copy_regime::AbstractCopyRegime
     function UnifiedLagrangianDuality(;
         atol = 1e-8,
         rtol = 1e-8,
@@ -375,11 +376,12 @@ mutable struct UnifiedLagrangianDuality <: AbstractDualityRegime
         dual_status_regime = Rigorous(),
         normalization_regime = L₁_Deep(),
         dual_space_regime = NoDualSpaceRestriction(),
+        copy_regime = ConvexHull(),
     )
         return new(atol, rtol, iteration_limit,
             dual_initialization_regime, dual_bound_regime,
             dual_solution_regime, dual_status_regime,
-            normalization_regime, dual_space_regime)
+            normalization_regime, dual_space_regime, copy_regime)
     end
 end
 

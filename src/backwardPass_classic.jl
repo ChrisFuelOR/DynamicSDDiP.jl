@@ -154,6 +154,7 @@ function solve_all_children(
                         outgoing_state,
                         epi_state,
                         noise.term,
+                        i,
                         scenario_path,
                         algo_params,
                         cut_generation_regime,
@@ -198,6 +199,7 @@ function solve_subproblem_backward(
     state::Dict{Symbol,Float64},
     epi_state::Float64,
     noise,
+    i::Int64,
     scenario_path::Vector{Tuple{T,S}},
     algo_params::DynamicSDDiP.AlgoParams,
     cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
@@ -231,7 +233,7 @@ function solve_subproblem_backward(
     ############################################################################
     # Solve dual and return a dict with the multipliers of the copy constraints.
     TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_dual" begin
-        dual_results = get_dual_solution(node, node_index, epi_state, algo_params, cut_generation_regime, applied_solvers, cut_generation_regime.duality_regime)
+        dual_results = get_dual_solution(node, node_index, i, epi_state, algo_params, cut_generation_regime, applied_solvers, cut_generation_regime.duality_regime)
     end
 
     ############################################################################

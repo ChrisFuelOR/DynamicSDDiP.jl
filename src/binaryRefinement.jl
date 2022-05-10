@@ -150,6 +150,13 @@ function binary_refinement_execution(
         end
     end
 
+    # Re-set the list of stored Benders coefficients for all nodes
+    for (key, node) in model.nodes
+        if key != model.root_node
+            node.ext[:Benders_cuts_binary] = Tuple{Int64, Symbol}[]
+        end
+    end
+
     # Check refinement status
     if 0 in all_refined
         if 1 in all_refined

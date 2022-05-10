@@ -78,9 +78,9 @@ function backward_pass(
                 # but also to store them together with the symbol/name of the variable.
                 node.ext[:binary_state_values] = Dict{Symbol, Float64}()
 
-                ########################################################################
+                ################################################################
                 # Solve backward pass problems for all realizations depending on framework
-                ########################################################################
+                ################################################################
                 backward_pass_node(
                     model,
                     node,
@@ -99,15 +99,15 @@ function backward_pass(
                     algo_params.cut_aggregation_regime,
                 )
 
-                ########################################################################
+                ################################################################
                 # RECONSTRUCT ANCHOR POINTS IN BACKWARD PASS
-                ########################################################################
+                ################################################################
                 anchor_state = determine_anchor_state(node, outgoing_state, cut_generation_regime.state_approximation_regime)
                 @infiltrate algo_params.infiltrate_state in [:all]
 
-                ########################################################################
+                ################################################################
                 # REFINE BELLMAN FUNCTION BY ADDING CUTS
-                ########################################################################
+                ################################################################
                 """
                 Note that for all backward openings, bin_state is the same,
                 so we can just use bin_state[1] in the following.
@@ -134,8 +134,26 @@ function backward_pass(
                         applied_solvers
                     )
                 end
+
+                ################################################################
+                #NOTE: I did not include the similar node thing from SDDP.jl.
+                #Not really sure what it means anyway.
+
+                ################################################################
+                # UPDATE LIST OF BENDERS CUTS FOR CHEN & LUEDTKE APPROACH
+                ################################################################
+                """ Note that we store the indices for all Benders cuts instead
+                of only the last K, since it is not known here which value K has."""
+
+                if isa(cut_generation_regime.duality_regime, DynamicSDDiP.LinearDuality)
+                    update_Benders_cut_list!(node, algo_params.cut_aggregation_regime, cut_generation_regime.state_approximation_regime)
+                end
+                # TODO: A similar approach can be used for Lagrangian cuts
                 @infiltrate
 
+                ################################################################
+                # LOGGING
+                ################################################################
                 # Logging of lag_iterations and lag_status
                 lag_status_string = ""
                 for i in items.lag_status
@@ -147,9 +165,7 @@ function backward_pass(
                 #TODO: lag_status and lag_iterations have to be stored for each
                 #cut_generation_regime separately.
 
-                ########################################################################
-                #NOTE: I did not include the similar node thing from SDDP.jl.
-                #Not really sure what it means anyway.
+
             end
         end
 
@@ -267,4 +283,66 @@ function solve_first_stage_problem(
         stage_objective = stage_objective,
         problem_size = problem_size
     )
+end
+
+
+"""
+Updating the list of Benders cuts for the approach by Chen & Luedtke
+for current cut_generation_regime without state approximation
+and for SingleCutRegime.
+"""
+function update_Benders_cut_list!(
+    node::SDDP.Node,
+    cut_aggregation_regime::DynamicSDDiP.SingleCutRegime,
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation,
+    )
+
+    cut_index = lastindex(node.bellman_function.global_theta.cuts)
+    push!(node.ext[:Benders_cuts_original], (cut_index, :single_cut))
+end
+
+"""
+Updating the list of Benders cuts for the approach by Chen & Luedtke
+for current cut_generation_regime without state approximation
+and for MultiCutRegime.
+"""
+function update_Benders_cut_list!(
+    node::SDDP.Node,
+    cut_aggregation_regime::DynamicSDDiP.MultiCutRegime,
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation,
+    )
+
+    # we use local_thetas[1] here, but any other index would work as well
+    cut_index = lastindex(node.bellman_function.local_thetas[1].cuts)
+    push!(node.ext[:Benders_cuts_original], (cut_index, :multi_cut))
+end
+
+"""
+Updating the list of Benders cuts for the approach by Chen & Luedtke
+for current cut_generation_regime with binary state approximation
+and for SingleCutRegime.
+"""
+function update_Benders_cut_list!(
+    node::SDDP.Node,
+    cut_aggregation_regime::DynamicSDDiP.SingleCutRegime,
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation,
+    )
+
+    cut_index = lastindex(node.bellman_function.global_theta.cuts)
+    push!(node.ext[:Benders_cuts_binary], (cut_index, :single_cut))
+end
+
+"""
+Updating the list of Benders cuts for the approach by Chen & Luedtke
+for current cut_generation_regime with binary state approximation
+and for MultiCutRegime.
+"""
+function update_Benders_cut_list!(
+    node::SDDP.Node,
+    cut_aggregation_regime::DynamicSDDiP.MultiCutRegime,
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation,
+    )
+
+    cut_index = lastindex(node.bellman_function.local_thetas[1].cuts)
+    push!(node.ext[:Benders_cuts_binary], (cut_index, :multi_cut))
 end

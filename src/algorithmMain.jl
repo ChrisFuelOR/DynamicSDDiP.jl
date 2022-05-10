@@ -160,6 +160,10 @@ function solve(
                 end
             end
 
+            # Set-up counter for Benders cuts (Chen & Luedtke approach)
+            node.ext[:Benders_cuts_original] = Tuple{Int64, Symbol}[]
+            node.ext[:Benders_cuts_binary] = Tuple{Int64, Symbol}[]
+
         end
     end
 

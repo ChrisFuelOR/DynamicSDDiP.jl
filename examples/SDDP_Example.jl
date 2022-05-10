@@ -25,34 +25,35 @@ function model_config()
     dual_bound_regime = DynamicSDDiP.BothBounds()
     dual_status_regime = DynamicSDDiP.Lax()
     dual_choice_regime = DynamicSDDiP.StandardChoice()
-    normalization_regime = DynamicSDDiP.L∞_Deep()
-    dual_space_regime = DynamicSDDiP.NoDualSpaceRestriction()
+    normalization_regime = DynamicSDDiP.ChenLuedtke()
+    dual_space_regime = DynamicSDDiP.BendersSpanSpaceRestriction(10, :multi_cut)
     copy_regime = DynamicSDDiP.ConvexHullCopy()
 
-    # duality_regime = DynamicSDDiP.UnifiedLagrangianDuality(
-    #     atol = 1e-4,
-    #     rtol = 1e-4,
-    #     iteration_limit = 1000,
-    #     dual_initialization_regime = dual_initialization_regime,
-    #     dual_bound_regime = dual_bound_regime,
-    #     dual_solution_regime = dual_solution_regime,
-    #     #dual_choice_regime = dual_choice_regime,
-    #     dual_status_regime = dual_status_regime,
-    #     normalization_regime = normalization_regime,
-    #     dual_space_regime = dual_space_regime
-    # )
+    duality_regime_2 = DynamicSDDiP.UnifiedLagrangianDuality(
+        atol = 1e-4,
+        rtol = 1e-4,
+        iteration_limit = 1000,
+        dual_initialization_regime = dual_initialization_regime,
+        dual_bound_regime = dual_bound_regime,
+        dual_solution_regime = dual_solution_regime,
+        #dual_choice_regime = dual_choice_regime,
+        dual_status_regime = dual_status_regime,
+        normalization_regime = normalization_regime,
+        dual_space_regime = dual_space_regime,
+        copy_regime = copy_regime,
+    )
 
-    duality_regime_2 = DynamicSDDiP.LagrangianDuality(
-         atol = 1e-4,
-         rtol = 1e-4,
-         iteration_limit = 1000,
-         dual_initialization_regime = dual_initialization_regime,
-         dual_bound_regime = dual_bound_regime,
-         dual_solution_regime = dual_solution_regime,
-         dual_choice_regime = dual_choice_regime,
-         dual_status_regime = dual_status_regime,
-         copy_regime = copy_regime,
-     )
+    # duality_regime_2 = DynamicSDDiP.LagrangianDuality(
+    #      atol = 1e-4,
+    #      rtol = 1e-4,
+    #      iteration_limit = 1000,
+    #      dual_initialization_regime = dual_initialization_regime,
+    #      dual_bound_regime = dual_bound_regime,
+    #      dual_solution_regime = dual_solution_regime,
+    #      dual_choice_regime = dual_choice_regime,
+    #      dual_status_regime = dual_status_regime,
+    #      copy_regime = copy_regime,
+    #  )
 
     #duality_regime = DynamicSDDiP.LinearDuality()
     #duality_regime = DynamicSDDiP.StrengthenedDuality()
@@ -84,7 +85,7 @@ function model_config()
     regularization_regime = DynamicSDDiP.NoRegularization()
 
     # Cut aggregation regime
-    cut_aggregation_regime = DynamicSDDiP.SingleCutRegime()
+    cut_aggregation_regime = DynamicSDDiP.MultiCutRegime()
 
     cut_type = SDDP.SINGLE_CUT
     if isa(cut_aggregation_regime,DynamicSDDiP.MultiCutRegime)
