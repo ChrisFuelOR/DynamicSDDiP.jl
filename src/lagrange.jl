@@ -247,6 +247,7 @@ function solve_lagrangian_dual(
             lag_status = :iter
         end
     end
+    @infiltrate
 
     ############################################################################
     # APPLY MINIMAL NORM CHOICE APPROACH IF INTENDED

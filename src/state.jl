@@ -76,7 +76,7 @@ function get_variable_info(state::JuMP.VariableRef)
         variable_info.upper_bound = JuMP.upper_bound(state)
     end
     if JuMP.is_fixed(state)
-        variable_info.has_fix = true
+        variable_info.fixed = true
         variable_info.fixed_value = JuMP.fix_value(state)
     end
     if JuMP.is_binary(state)

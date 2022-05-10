@@ -14,13 +14,13 @@
 ################################################################################
 
 """
-Trivial cut selection function if no cut selection is used.
+Trivial cut selection function if no cut selection is used for nonlinear cuts.
 """
 # Internal function: update the Level-One datastructures inside `bellman_function`.
 function _cut_selection_update(
     node::SDDP.Node,
     V::DynamicSDDiP.CutApproximation,
-    cut::Union{DynamicSDDiP.NonlinearCut,DynamicSDDiP.LinearCut},
+    cut::DynamicSDDiP.NonlinearCut,
     anchor_state::Dict{Symbol,Float64},
     trial_state::Dict{Symbol,Float64},
     applied_solvers::DynamicSDDiP.AppliedSolvers,
@@ -35,10 +35,45 @@ function _cut_selection_update(
     ############################################################################
     sampled_state_anchor = DynamicSDDiP.SampledState(anchor_state, cut, NaN)
     sampled_state_anchor.best_objective = _eval_height(node, cut, sampled_state_anchor, applied_solvers, algo_params)
-    sampled_state_trial = DynamicSDDiP.SampledState(anchor_state, cut, NaN)
+    sampled_state_trial = DynamicSDDiP.SampledState(trial_state, cut, NaN)
     sampled_state_trial.best_objective = _eval_height(node, cut, sampled_state_trial, applied_solvers, algo_params)
 
     push!(V.sampled_states, sampled_state_anchor)
+    push!(V.sampled_states, sampled_state_trial)
+
+    push!(V.cuts, cut)
+
+    ############################################################################
+    # DETERMINE NUMBER OF CUTS FOR LOGGING
+    ############################################################################
+    count_cuts(node, V)
+
+    return
+end
+
+"""
+Trivial cut selection function if no cut selection is used for linear cuts.
+"""
+# Internal function: update the Level-One datastructures inside `bellman_function`.
+function _cut_selection_update(
+    node::SDDP.Node,
+    V::DynamicSDDiP.CutApproximation,
+    cut::DynamicSDDiP.LinearCut,
+    anchor_state::Dict{Symbol,Float64},
+    trial_state::Dict{Symbol,Float64},
+    applied_solvers::DynamicSDDiP.AppliedSolvers,
+    algo_params::DynamicSDDiP.AlgoParams,
+    infiltrate_state::Symbol,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
+    cut_selection_regime::DynamicSDDiP.NoCutSelection
+)
+
+    ############################################################################
+    # ADD CUTS AND STATES TO THE ORACLE
+    ############################################################################
+    sampled_state_trial = DynamicSDDiP.SampledState(trial_state, cut, NaN)
+    sampled_state_trial.best_objective = _eval_height(node, cut, sampled_state_trial, applied_solvers, algo_params)
+
     push!(V.sampled_states, sampled_state_trial)
 
     push!(V.cuts, cut)
