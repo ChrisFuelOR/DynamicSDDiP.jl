@@ -74,7 +74,7 @@ function solve(
                 else
                     ub = JuMP.upper_bound(state_comp.out)
                     lb = 0.0 # all states are assumed to satisfy non-negativity constraints
-                    regime.binary_precision[name] = (ub-lb)/3.0
+                    regime.binary_precision[name] = (ub-lb)/7.0
                 end
             end
         end

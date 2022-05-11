@@ -203,15 +203,26 @@ This method is the counterpart to prepare_state_fixing!().
 
 It makes sure that if a state variable is unfixed (e.g. during the regularization
 or binarization process), the bounds and integer type associated with this
-state originally are reintroduced.
+state originally are reintroduced if required.
+
+In the forward pass, we can decide on this using the copy_regime in the
+regularization_regime. In the backward_pass, the original state variables are
+just relaxed without any bounds, integrality constraints etc. Those constraints
+are only required for the (relaxed) binary variables.
 """
-function follow_state_unfixing!(state::SDDP.State, variable_info::DynamicSDDiP.VariableInfo)
+function follow_state_unfixing!(state::SDDP.State, variable_info::DynamicSDDiP.VariableInfo, copy_regime::DynamicSDDiP.StateSpaceCopy)
 
     if variable_info.has_lb
         JuMP.set_lower_bound(state.in, variable_info.lower_bound)
+    else
+        # avoid unboundedness
+        JuMP.set_lower_bound(state.in, -1e9)
     end
     if variable_info.has_ub
         JuMP.set_upper_bound(state.in, variable_info.upper_bound)
+    else
+        # avoid unboundedness
+        JuMP.set_upper_bound(state.in, 1e9)
     end
     if variable_info.binary
         JuMP.set_binary(state.in)
@@ -222,7 +233,43 @@ function follow_state_unfixing!(state::SDDP.State, variable_info::DynamicSDDiP.V
     return
 end
 
-function follow_state_unfixing_binary!(state::JuMP.VariableRef)
+function follow_state_unfixing!(state::SDDP.State, variable_info::DynamicSDDiP.VariableInfo, copy_regime::DynamicSDDiP.ConvexHullCopy)
+
+    if variable_info.has_lb
+        JuMP.set_lower_bound(state.in, variable_info.lower_bound)
+    end
+    if variable_info.has_ub
+        JuMP.set_upper_bound(state.in, variable_info.upper_bound)
+    end
+
+    return
+end
+
+function follow_state_unfixing!(state::SDDP.State, variable_info::DynamicSDDiP.VariableInfo, copy_regime::DynamicSDDiP.NoBoundsCopy)
+
+    return
+end
+
+"""
+This method is the counterpart to prepare_state_fixing!(), but for variables
+in the lifted binary space.
+
+It makes sure that if a state variable is unfixed (e.g. during the regularization
+or binarization process), the bounds and integer type associated with this
+state originally are reintroduced if required.
+
+We can decide using the copy_regime parameter in the duality_regime, whether
+all constraints, only bounds or no constraints are imposed.
+"""
+
+function follow_state_unfixing_binary!(state::JuMP.VariableRef, copy_regime::DynamicSDDiP.StateSpaceCopy)
+
+    JuMP.set_binary(state)
+
+    return
+end
+
+function follow_state_unfixing_binary!(state::JuMP.VariableRef, copy_regime::DynamicSDDiP.ConvexHullCopy)
 
     JuMP.set_lower_bound(state, 0)
     JuMP.set_upper_bound(state, 1)
@@ -230,21 +277,17 @@ function follow_state_unfixing_binary!(state::JuMP.VariableRef)
     return
 end
 
-################################################################################
+function follow_state_unfixing_binary!(state::JuMP.VariableRef, copy_regime::DynamicSDDiP.NoBoundsCopy)
 
-"""
-Struct to store information on the [0,1] (or binary) variables created
-in the backward pass in case of BinaryApproximation.
+    # Aim: Impose no constraints for the state variable.
+    # However, we have to set some bounds to ensure feasibility.
+    JuMP.set_lower_bound(state, 0)
+    JuMP.set_upper_bound(state, 1e9)
 
-value:  the value of the original state (which has been unfixed)
-x_name: the name of the original state, the BinaryState is associated with
-k:      the number of components of the [0,1] variable
-"""
-struct BinaryState
-    value::Float64
-    x_name::Symbol
-    k::Int64
+    return
 end
+
+
 
 ################################################################################
 

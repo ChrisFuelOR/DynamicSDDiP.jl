@@ -23,7 +23,7 @@ function model_config()
     dual_initialization_regime = DynamicSDDiP.ZeroDuals()
     dual_solution_regime = DynamicSDDiP.Kelley()
     dual_bound_regime = DynamicSDDiP.BothBounds()
-    dual_status_regime = DynamicSDDiP.Lax()
+    dual_status_regime = DynamicSDDiP.Rigorous()
     dual_choice_regime = DynamicSDDiP.StandardChoice()
     copy_regime = DynamicSDDiP.ConvexHullCopy()
 
@@ -56,7 +56,7 @@ function model_config()
 
     # Regularization configuration
     #regularization_regime = DynamicSDDiP.NoRegularization()
-    regularization_regime = DynamicSDDiP.Regularization(sigma=[0.0,3.0], sigma_factor=5.0)
+    regularization_regime = DynamicSDDiP.Regularization(sigma=[0.0,2.0], sigma_factor=5.0)
 
     # Cut aggregation regime
     cut_aggregation_regime = DynamicSDDiP.SingleCutRegime()

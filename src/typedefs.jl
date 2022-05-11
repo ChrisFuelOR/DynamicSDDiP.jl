@@ -19,6 +19,23 @@ import JuMP
 import Revise
 
 ################################################################################
+# BINARY STATE
+################################################################################
+"""
+Struct to store information on the [0,1] (or binary) variables created
+in the backward pass in case of BinaryApproximation.
+
+value:  the value of the original state (which has been unfixed)
+x_name: the name of the original state, the BinaryState is associated with
+k:      the number of components of the [0,1] variable
+"""
+struct BinaryState
+    value::Float64
+    x_name::Symbol
+    k::Int64
+end
+
+################################################################################
 # STOPPING RULES
 ################################################################################
 """
@@ -212,37 +229,6 @@ end
 mutable struct NoStateApproximation <: AbstractStateApproximationRegime end
 
 ################################################################################
-# REGULARIZATION
-################################################################################
-abstract type AbstractRegularizationRegime end
-
-mutable struct Regularization <: AbstractRegularizationRegime
-    sigma :: Vector{Float64}
-    sigma_factor :: Float64
-    function Regularization(;
-        sigma = Float64[],
-        sigma_factor = 5.0
-    )
-        return new(sigma, sigma_factor)
-    end
-end
-
-mutable struct NoRegularization <: AbstractRegularizationRegime end
-
-"""
-Regularization means that in the forward pass some regularized value functions
-    are considered. It also implies that a sigma test is conducted once the
-    stopping criterion is satisfied. Furthermore, it can be exploited in combination
-    with bounding the dual variables.
-NoRegularization means that no regularization is used. This may be detrimental
-    w.r.t. convergence. Note that it also makes it difficult to bound the
-    dual multipliers and the bigM parameters appropriately.
-    For bigM so far 1e4 is used. For dual multipliers no bound is applied
-    even if BothBounds is chosen.
-Default is Regularization.
-"""
-
-################################################################################
 # DUAL NORMALIZATION
 ################################################################################
 abstract type AbstractNormalizationRegime end
@@ -343,7 +329,7 @@ mutable struct LagrangianDuality <: AbstractDualityRegime
         dual_solution_regime = Kelley(),
         dual_choice_regime = MinimalNormChoice(),
         dual_status_regime = Rigorous(),
-        copy_regime = ConvexHull(),
+        copy_regime = ConvexHullCopy(),
     )
         return new(atol, rtol, iteration_limit,
             dual_initialization_regime, dual_bound_regime,
@@ -376,7 +362,7 @@ mutable struct UnifiedLagrangianDuality <: AbstractDualityRegime
         dual_status_regime = Rigorous(),
         normalization_regime = L₁_Deep(),
         dual_space_regime = NoDualSpaceRestriction(),
-        copy_regime = ConvexHull(),
+        copy_regime = ConvexHullCopy(),
     )
         return new(atol, rtol, iteration_limit,
             dual_initialization_regime, dual_bound_regime,
@@ -493,6 +479,65 @@ cut_away_approach:      if true, a hierarchy of cuts is used, so that this
                         not be true for the first CutGenerationRegime in
                         AlgoParams.
 """
+
+################################################################################
+# REGULARIZATION
+################################################################################
+abstract type AbstractNorm end
+
+mutable struct L₁ <: AbstractNorm end
+mutable struct L∞ <: AbstractNorm end
+
+abstract type AbstractRegularizationRegime end
+
+mutable struct Regularization <: AbstractRegularizationRegime
+    sigma :: Vector{Float64}
+    sigma_factor :: Float64
+    norm :: AbstractNorm
+    norm_lifted :: AbstractNorm
+    copy_regime :: AbstractCopyRegime
+
+    function Regularization(;
+        sigma = Float64[],
+        sigma_factor = 5.0,
+        norm = L₁(),
+        norm_lifted = L₁(),
+        copy_regime = ConvexHullCopy(),
+    )
+        return new(sigma, sigma_factor, norm, norm_lifted, copy_regime)
+    end
+end
+
+mutable struct NoRegularization <: AbstractRegularizationRegime end
+
+"""
+Regularization means that in the forward pass some regularized value functions
+    are considered. It also implies that a sigma test is conducted once the
+    stopping criterion is satisfied. Furthermore, it can be exploited in combination
+    with bounding the dual variables.
+NoRegularization means that no regularization is used. This may be detrimental
+    w.r.t. convergence. Note that it also makes it difficult to bound the
+    dual multipliers and the bigM parameters appropriately.
+    For bigM so far 1e4 is used. For dual multipliers no bound is applied
+    even if BothBounds is chosen.
+Default is Regularization.
+
+Note that if a regularization is used, it is used in the forward and backward
+    pass (in the latter to compute primal_obj and bound the dual variables).
+
+sigma is the regularization parameter.
+sigma_factor is a factor with which the regularization parameter is increased
+    if required.
+norm is the norm that is used as regularization function.
+norm_lifted is the norm that is used as regularization function (in a weighted)
+    form if a BinaryApproximation of the states is used in the cut generation
+    process.
+copy_regime defines the constraints that the copy variable z of the state x has
+    to satisfy in the forward pass (or backward pass if no state approximation
+    is used). For the backward pass with BinaryApproximation, this is separately
+    defined by the duality_regime.
+"""
+#TODO: Maybe define the copy_regime one time in a completeley separate way.
 
 ################################################################################
 # DEFINING STRUCT FOR CONFIGURATION OF ALGORITHM PARAMETERS

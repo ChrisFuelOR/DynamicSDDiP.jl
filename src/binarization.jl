@@ -98,8 +98,12 @@ function rechangeStateSpace!(
     for (state_name, value) in state
         state_comp = node.states[state_name]
 
-        JuMP.delete_lower_bound(state_comp.in)
-        JuMP.delete_upper_bound(state_comp.in)
+        if JuMP.has_lower_bound(state_comp.in)
+            JuMP.delete_lower_bound(state_comp.in)
+        end
+        if  JuMP.has_upper_bound(state_comp.in)
+            JuMP.delete_upper_bound(state_comp.in)
+        end
 
         # unset binary or integer type
         if JuMP.is_binary(state_comp.in)
@@ -213,7 +217,7 @@ function setup_state_binarization!(
         ########################################################################
         # Unfix the original state
         JuMP.unfix(state_comp.in)
-        follow_state_unfixing!(state_comp, variable_info)
+        follow_state_unfixing!(state_comp, variable_info, DynamicSDDiP.NoBoundsCopy())
 
     else
         if !isfinite(variable_info.upper_bound) || !variable_info.has_ub
@@ -276,7 +280,7 @@ function setup_state_binarization!(
             ####################################################################
             # Unfix the original state
             JuMP.unfix(state_comp.in)
-            follow_state_unfixing!(state_comp, variable_info)
+            follow_state_unfixing!(state_comp, variable_info, DynamicSDDiP.NoBoundsCopy())
 
         else
             ####################################################################
@@ -336,7 +340,7 @@ function setup_state_binarization!(
             ####################################################################
             # Unfix the original state
             JuMP.unfix(state_comp.in)
-            follow_state_unfixing!(state_comp, variable_info)
+            follow_state_unfixing!(state_comp, variable_info, DynamicSDDiP.NoBoundsCopy())
         end
     end
 

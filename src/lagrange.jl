@@ -247,6 +247,8 @@ function solve_lagrangian_dual(
         end
     end
 
+    @infiltrate
+
     ############################################################################
     # APPLY MINIMAL NORM CHOICE APPROACH IF INTENDED
     ############################################################################
@@ -285,7 +287,7 @@ function relax_copy_constraints!(
     x_in_value::Vector{Float64},
     h_expr::Vector{JuMP.GenericAffExpr{Float64,JuMP.VariableRef}},
     state_approximation_regime::DynamicSDDiP.BinaryApproximation,
-    copy_regime::DynamicSDDiP.StateSpaceCopy,
+    copy_regime::DynamicSDDiP.AbstractCopyRegime,
     )
 
     for (i, (_, state)) in enumerate(node.ext[:backward_data][:bin_states])
@@ -296,71 +298,23 @@ function relax_copy_constraints!(
         # Relax copy constraint (i.e. z does not have to take the value of ̄x anymore)
         JuMP.unfix(state)
 
-        # Set constraint for copy variable. Here it has to be binary.
-        JuMP.set_binary(state)
+        # Set bounds and integer constraints based on copy_regime
+        follow_state_unfixing_binary!(state, copy_regime)
     end
 
     return
 end
 
-function relax_copy_constraints!(
-    node::SDDP.Node,
-    x_in_value::Vector{Float64},
-    h_expr::Vector{JuMP.GenericAffExpr{Float64,JuMP.VariableRef}},
-    state_approximation_regime::DynamicSDDiP.BinaryApproximation,
-    copy_regime::DynamicSDDiP.ConvexHullCopy,
-    )
-
-    for (i, (_, state)) in enumerate(node.ext[:backward_data][:bin_states])
-        # Store original value of ̄x, which z was fixed to
-        x_in_value[i] = JuMP.fix_value(state)
-        # Store expression for slack
-        h_expr[i] = JuMP.@expression(node.subproblem, state - x_in_value[i])
-        # Relax copy constraint (i.e. z does not have to take the value of ̄x anymore)
-        JuMP.unfix(state)
-
-        # Set constraint for copy variable. Here the copy has to be in [0,1].
-        JuMP.set_lower_bound(state, 0)
-        JuMP.set_upper_bound(state, 1)
-    end
-
-    return
-end
-
-function relax_copy_constraints!(
-    node::SDDP.Node,
-    x_in_value::Vector{Float64},
-    h_expr::Vector{JuMP.GenericAffExpr{Float64,JuMP.VariableRef}},
-    state_approximation_regime::DynamicSDDiP.BinaryApproximation,
-    copy_regime::DynamicSDDiP.NoBoundsCopy,
-    )
-
-    for (i, (_, state)) in enumerate(node.ext[:backward_data][:bin_states])
-        # Store original value of ̄x, which z was fixed to
-        x_in_value[i] = JuMP.fix_value(state)
-        # Store expression for slack
-        h_expr[i] = JuMP.@expression(node.subproblem, state - x_in_value[i])
-        # Relax copy constraint (i.e. z does not have to take the value of ̄x anymore)
-        JuMP.unfix(state)
-
-        # Aim: Impose no constraints for the state variable.
-        # However, we have to set some bounds to ensure feasibility.
-        JuMP.set_lower_bound(state, 0)
-        JuMP.set_upper_bound(state, 1e9)
-    end
-
-    return
-end
 
 function relax_copy_constraints!(
     node::SDDP.Node,
     x_in_value::Vector{Float64},
     h_expr::Vector{JuMP.GenericAffExpr{Float64,JuMP.VariableRef}},
     state_approximation_regime::DynamicSDDiP.NoStateApproximation,
-    copy_regime::DynamicSDDiP.StateSpaceCopy,
+    copy_regime::DynamicSDDiP.AbstractCopyRegime,
     )
 
-    for (i, (_, state)) in enumerate(node.states)
+    for (i, (name, state)) in enumerate(node.states)
         # Store original value of ̄x, which z was fixed to
         x_in_value[i] = JuMP.fix_value(state.in)
         # Store expression for slack
@@ -368,87 +322,13 @@ function relax_copy_constraints!(
         # Relax copy constraint (i.e. z does not have to take the value of ̄x anymore)
         JuMP.unfix(state.in)
 
-        # Set constraint for copy variable. Here we use the state space bounds
-        # but relax integer requirements.
-        if JuMP.is_binary(state.out)
-            JuMP.set_binary(state.in)
-            lb = 0
-            ub = 1
-        elseif JuMP.is_integer(state.out)
-            JuMP.set_integer(state.in)
-            lb = has_lower_bound(state.out) ? lower_bound(state.out) : -1e9
-            ub = has_upper_bound(state.out) ? upper_bound(state.out) : 1e9
-        else
-            lb = has_lower_bound(state.out) ? lower_bound(state.out) : -1e9
-            ub = has_upper_bound(state.out) ? upper_bound(state.out) : 1e9
-        end
-        JuMP.set_lower_bound(state.in, lb)
-        JuMP.set_upper_bound(state.in, ub)
+        # Set bounds and integer constraints based on copy_regime
+        variable_info = node.ext[:state_info_storage][name].in
+        follow_state_unfixing!(state, variable_info, copy_regime)
     end
 
     return
 end
-
-function relax_copy_constraints!(
-    node::SDDP.Node,
-    x_in_value::Vector{Float64},
-    h_expr::Vector{JuMP.GenericAffExpr{Float64,JuMP.VariableRef}},
-    state_approximation_regime::DynamicSDDiP.NoStateApproximation,
-    copy_regime::DynamicSDDiP.ConvexHullCopy,
-    )
-
-    for (i, (_, state)) in enumerate(node.states)
-        # Store original value of ̄x, which z was fixed to
-        x_in_value[i] = JuMP.fix_value(state.in)
-        # Store expression for slack
-        h_expr[i] = JuMP.@expression(node.subproblem, state.in - x_in_value[i])
-        # Relax copy constraint (i.e. z does not have to take the value of ̄x anymore)
-        JuMP.unfix(state.in)
-
-        # Set constraint for copy variable. Here we use the state space bounds
-        # but relax integer requirements.
-        if JuMP.is_binary(state.out)
-            lb = 0
-            ub = 1
-        elseif JuMP.is_integer(state.out)
-            lb = has_lower_bound(state.out) ? lower_bound(state.out) : -1e9
-            ub = has_upper_bound(state.out) ? upper_bound(state.out) : 1e9
-        else
-            lb = has_lower_bound(state.out) ? lower_bound(state.out) : -1e9
-            ub = has_upper_bound(state.out) ? upper_bound(state.out) : 1e9
-        end
-        JuMP.set_lower_bound(state.in, lb)
-        JuMP.set_upper_bound(state.in, ub)
-    end
-
-    return
-end
-
-function relax_copy_constraints!(
-    node::SDDP.Node,
-    x_in_value::Vector{Float64},
-    h_expr::Vector{JuMP.GenericAffExpr{Float64,JuMP.VariableRef}},
-    state_approximation_regime::DynamicSDDiP.NoStateApproximation,
-    copy_regime::DynamicSDDiP.NoBoundsCopy,
-    )
-
-    for (i, (_, state)) in enumerate(node.states)
-        # Store original value of ̄x, which z was fixed to
-        x_in_value[i] = JuMP.fix_value(state.in)
-        # Store expression for slack
-        h_expr[i] = JuMP.@expression(node.subproblem, state.in - x_in_value[i])
-        # Relax copy constraint (i.e. z does not have to take the value of ̄x anymore)
-        JuMP.unfix(state.in)
-
-        # Aim: Impose no constraints for the state variable.
-        # However, we have to set some bounds to ensure feasibility.
-        JuMP.set_lower_bound(state.in, 0)
-        JuMP.set_upper_bound(state.in, 1e9)
-    end
-
-    return
-end
-
 
 function restore_copy_constraints!(
     node::SDDP.Node,
@@ -485,23 +365,47 @@ function set_objective_bound!(approx_model::JuMP.Model, s::Int, obj_bound::Float
     return
 end
 
+function determine_weights!(node::SDDP.Node, approx_model::JuMP.Model,
+    number_of_states::Int, regularization_regime::DynamicSDDiP.Regularization,
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation)
+
+    weights = ones(number_of_states)
+
+    for (i, (key, value)) in enumerate(node.ext[:backward_data][:bin_states])
+        associated_original_state = node.ext[:backward_data][:bin_x_names][key]
+    	beta = state_approximation_regime.binary_precision[associated_original_state]
+    	associated_k = node.ext[:backward_data][:bin_k][key]
+        weights[i] = 2^(associated_k-1) * beta
+    end
+
+    return weights
+end
+
+function determine_weights!(node::SDDP.Node, approx_model::JuMP.Model,
+    number_of_states::Int, regularization_regime::DynamicSDDiP.NoRegularization,
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation)
+
+    weights = ones(number_of_states)
+    return weights
+end
+
+function determine_weights!(node::SDDP.Node, approx_model::JuMP.Model,
+    number_of_states::Int, regularization_regime::Union{DynamicSDDiP.NoRegularization,DynamicSDDiP.Regularization},
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation)
+
+    weights = ones(number_of_states)
+    return weights
+end
+
+
 function set_multiplier_bounds!(node::SDDP.Node, approx_model::JuMP.Model,
     number_of_states::Int, dual_bound::Float64,
     regularization_regime::DynamicSDDiP.Regularization,
     state_approximation_regime::DynamicSDDiP.BinaryApproximation,
     duality_regime::DynamicSDDiP.LagrangianDuality)
 
-    π⁺ = approx_model[:π⁺]
-    π⁻ = approx_model[:π⁻]
-
-    for (i, (key, value)) in enumerate(node.ext[:backward_data][:bin_states])
-    	associated_original_state = node.ext[:backward_data][:bin_x_names][key]
-    	beta = state_approximation_regime.binary_precision[associated_original_state]
-    	associated_k = node.ext[:backward_data][:bin_k][key]
-    	bound = dual_bound * 2^(associated_k-1) * beta
-    	JuMP.set_upper_bound(π⁺[i], bound)
-        JuMP.set_upper_bound(π⁻[i], bound)
-	end
+    weights = determine_weights!(node, approx_model, number_of_states, regularization_regime, state_approximation_regime)
+    add_norm_constraints!(node, approx_model, weights, dual_bound, number_of_states, regularization_regime.norm_lifted)
 end
 
 function set_multiplier_bounds!(node::SDDP.Node, approx_model::JuMP.Model,
@@ -510,25 +414,55 @@ function set_multiplier_bounds!(node::SDDP.Node, approx_model::JuMP.Model,
     state_approximation_regime::DynamicSDDiP.BinaryApproximation,
     duality_regime::DynamicSDDiP.LagrangianDuality)
 
-    set_multiplier_bounds!(node, approx_model, number_of_states, dual_bound,
-        algo_params, DynamicSDDiP.NoRegularization, DynamicSDDiP.NoStateApproximation,
-        DynamicSDDiP.LagrangianDuality)
+    weights = determine_weights!(node, approx_model, number_of_states, regularization_regime, state_approximation_regime)
+    add_norm_constraints!(node, approx_model, weights, dual_bound, number_of_states, DynamicSDDiP.L₁)
 end
 
 function set_multiplier_bounds!(node::SDDP.Node, approx_model::JuMP.Model,
     number_of_states::Int, dual_bound::Float64,
-    regularization_regime::Union{DynamicSDDiP.NoRegularization,DynamicSDDiP.Regularization},
+    regularization_regime::DynamicSDDiP.Regularization,
     state_approximation_regime::DynamicSDDiP.NoStateApproximation,
     duality_regime::DynamicSDDiP.LagrangianDuality)
+
+    weights = determine_weights!(node, approx_model, number_of_states, regularization_regime, state_approximation_regime)
+    add_norm_constraints!(node, approx_model, weights, dual_bound, number_of_states, regularization_regime.norm_lifted)
+end
+
+function set_multiplier_bounds!(node::SDDP.Node, approx_model::JuMP.Model,
+    number_of_states::Int, dual_bound::Float64,
+    regularization_regime::DynamicSDDiP.NoRegularization,
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation,
+    duality_regime::DynamicSDDiP.LagrangianDuality)
+
+    weights = determine_weights!(node, approx_model, number_of_states, regularization_regime, state_approximation_regime)
+    add_norm_constraints!(node, approx_model, weights, dual_bound, number_of_states, DynamicSDDiP.L₁)
+end
+
+function add_norm_constraints!(node::SDDP.Node, approx_model::JuMP.Model,
+    weights::Vector{Float64}, dual_bound::Float64, number_of_states::Int,
+    norm_lifted::DynamicSDDiP.L₁)
 
     π⁺ = approx_model[:π⁺]
     π⁻ = approx_model[:π⁻]
 
+    # This means that the supremum norm is bounded in the dual
     for i in 1:number_of_states
-        JuMP.set_upper_bound(π⁺[i], dual_bound)
-        JuMP.set_upper_bound(π⁻[i], dual_bound)
+        JuMP.set_upper_bound(π⁺[i], dual_bound * weights[i])
+        JuMP.set_upper_bound(π⁻[i], dual_bound * weights[i])
     end
 end
+
+function add_norm_constraints!(node::SDDP.Node, approx_model::JuMP.Model,
+    weights::Vector{Float64}, dual_bound::Float64, number_of_states::Int,
+    norm_lifted::DynamicSDDiP.L∞)
+
+    π⁺ = approx_model[:π⁺]
+    π⁻ = approx_model[:π⁻]
+
+    # This means that the 1-norm is bounded in the dual
+    JuMP.@constraint(approx_model, sum(weights[i] * (π⁺[i] + π⁻[i]) for i in 1:number_of_states) <= dual_bound)
+end
+
 
 """
 Given the optimal dual objective value from the Kelley's method, try to find

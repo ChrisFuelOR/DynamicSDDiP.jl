@@ -24,8 +24,8 @@ using Statistics
 using Infiltrator
 
 # Write your package code here.
-include("state.jl")
 include("typedefs.jl")
+include("state.jl")
 #include("JuMP.jl")
 
 include("logging.jl")
