@@ -214,7 +214,6 @@ function solve_lagrangian_dual(
         t_k = JuMP.objective_value(approx_model)
         π_k .= JuMP.value.(π)
         @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
-        #@infiltrate
 
         ########################################################################
         if L_star > t_k + atol/10.0
@@ -247,7 +246,6 @@ function solve_lagrangian_dual(
             lag_status = :iter
         end
     end
-    @infiltrate
 
     ############################################################################
     # APPLY MINIMAL NORM CHOICE APPROACH IF INTENDED
@@ -459,7 +457,7 @@ function restore_copy_constraints!(
     )
 
     for (i, (_, bin_state)) in enumerate(node.ext[:backward_data][:bin_states])
-        prepare_state_fixing!(node, bin_state)
+        prepare_state_fixing_binary!(node, bin_state)
         JuMP.fix(bin_state, x_in_value[i], force = true)
     end
 

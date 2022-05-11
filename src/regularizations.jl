@@ -198,6 +198,7 @@ function regularize_binary!(
     append!(reg_data[:reg_constraints], const_minus)
 
     const_norm = JuMP.@constraint(subproblem, v >= sum(reg_data[:weights][i] * alpha[i] for i in 1:number_of_states))
+    #const_norm = JuMP.@constraint(subproblem, v >= sum(2*alpha[i] for i in 1:number_of_states))
     push!(reg_data[:reg_constraints], const_norm)
 
     return
@@ -273,10 +274,9 @@ Regularization caller for backward pass if BinaryApproximation is used
 """
 function regularize_bw!(node::SDDP.Node, node_index::Int64,
     subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.Regularization,
-    algo_params::DynamicSDDiP.AlgoParams,
     state_approximation_regime::DynamicSDDiP.BinaryApproximation)
 
-    regularize_binary!(node, node_index, subproblem, algo_params, regularization_regime, state_approximation_regime)
+    regularize_binary!(node, node_index, subproblem, regularization_regime, state_approximation_regime)
 
     return
 end
@@ -286,7 +286,6 @@ Regularization caller for backward pass if NoStateApproximation is used
 """
 function regularize_bw!(node::SDDP.Node, node_index::Int64,
     subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.Regularization,
-    algo_params::DynamicSDDiP.AlgoParams,
     state_approximation_regime::DynamicSDDiP.NoStateApproximation)
 
     regularize_subproblem!(node, node_index, subproblem, regularization_regime)
@@ -299,7 +298,6 @@ Regularization caller if no regularization is used
 """
 function regularize_bw!(node::SDDP.Node, node_index::Int64,
     subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.NoRegularization,
-    algo_params::DynamicSDDiP.AlgoParams,
     state_approximation_regime::DynamicSDDiP.BinaryApproximation)
 
     regularize_binary!(node, node_index, subproblem, regularization_regime, state_approximation_regime)
@@ -312,7 +310,6 @@ Regularization caller if no regularization is used
 """
 function regularize_bw!(node::SDDP.Node, node_index::Int64,
     subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.NoRegularization,
-    algo_params::DynamicSDDiP.AlgoParams,
     state_approximation_regime::DynamicSDDiP.NoStateApproximation)
 
     regularize_subproblem!(node, node_index, subproblem, regularization_regime)

@@ -74,7 +74,7 @@ function solve(
                 else
                     ub = JuMP.upper_bound(state_comp.out)
                     lb = 0.0 # all states are assumed to satisfy non-negativity constraints
-                    regime.binary_precision[name] = (ub-lb)/7.0
+                    regime.binary_precision[name] = (ub-lb)/3.0
                 end
             end
         end
@@ -511,17 +511,17 @@ function iteration(
     solution_check = true
     binary_refinement = :none
 
-    TimerOutputs.@timeit DynamicSDDiP_TIMER "bin_refinement" begin
-        binary_refinement = DynamicSDDiP.binary_refinement(
-            model,
-            previous_solution,
-            forward_trajectory.sampled_states,
-            algo_params,
-            solution_check,
-            binary_refinement,
-            bound_check
-        )
-    end
+    # TimerOutputs.@timeit DynamicSDDiP_TIMER "bin_refinement" begin
+    #     binary_refinement = DynamicSDDiP.binary_refinement(
+    #         model,
+    #         previous_solution,
+    #         forward_trajectory.sampled_states,
+    #         algo_params,
+    #         solution_check,
+    #         binary_refinement,
+    #         bound_check
+    #     )
+    # end
 
     # bound_check = true
     @infiltrate algo_params.infiltrate_state in [:all]

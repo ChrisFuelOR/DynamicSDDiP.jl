@@ -234,7 +234,7 @@ function get_dual_solution(
     ############################################################################
     # REGULARIZE PROBLEM IF REGULARIZATION IS USED
     node.ext[:regularization_data] = Dict{Symbol,Any}()
-    regularize_bw!(node, node_index, subproblem, algo_params.regularization_regime, algo_params, cut_generation_regime.state_approximation_regime)
+    regularize_bw!(node, node_index, subproblem, algo_params.regularization_regime, cut_generation_regime.state_approximation_regime)
 
     # RESET SOLVER (as it may have been changed in between for some reason)
     DynamicSDDiP.set_solver!(subproblem, algo_params, applied_solvers, :backward_pass)
@@ -247,7 +247,6 @@ function get_dual_solution(
     # Maybe attempt numerical recovery as in SDDP
     primal_obj = JuMP.objective_value(subproblem)
     @assert JuMP.termination_status(subproblem) == MOI.OPTIMAL
-    @infiltrate
 
     # DEREGULARIZE PROBLEM IF REQUIRED
     deregularize_bw!(node, subproblem, algo_params.regularization_regime, cut_generation_regime.state_approximation_regime)
@@ -364,7 +363,7 @@ function get_dual_solution(
 
     # REGULARIZE PROBLEM IF REGULARIZATION IS USED
     node.ext[:regularization_data] = Dict{Symbol,Any}()
-    regularize_bw!(node, node_index, subproblem, algo_params.regularization_regime, algo_params, cut_generation_regime.state_approximation_regime)
+    regularize_bw!(node, node_index, subproblem, algo_params.regularization_regime, cut_generation_regime.state_approximation_regime)
 
     # RESET SOLVER (as it may have been changed in between for some reason)
     DynamicSDDiP.set_solver!(subproblem, algo_params, applied_solvers, :backward_pass)

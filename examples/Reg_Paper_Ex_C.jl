@@ -23,8 +23,8 @@ function model_config()
     dual_initialization_regime = DynamicSDDiP.ZeroDuals()
     dual_solution_regime = DynamicSDDiP.Kelley()
     dual_bound_regime = DynamicSDDiP.BothBounds()
-    dual_status_regime = DynamicSDDiP.Lax()
-    dual_choice_regime = DynamicSDDiP.StandardChoice()
+    dual_status_regime = DynamicSDDiP.Rigorous()
+    dual_choice_regime = DynamicSDDiP.MinimalNormChoice()
     copy_regime = DynamicSDDiP.ConvexHullCopy()
 
     duality_regime = DynamicSDDiP.LagrangianDuality(
@@ -40,11 +40,14 @@ function model_config()
      )
 
     # State approximation and cut projection configuration
-    #cut_projection_regime = DynamicSDDiP.BigM()
-    #binary_precision = Dict{Symbol, Float64}()
+    cut_projection_regime = DynamicSDDiP.BigM()
+    binary_precision = Dict{Symbol, Float64}()
 
     # State approximation and cut projection configuration
-    state_approximation_regime = DynamicSDDiP.NoStateApproximation()
+    #state_approximation_regime = DynamicSDDiP.NoStateApproximation()
+    state_approximation_regime = DynamicSDDiP.BinaryApproximation(
+                                    binary_precision = binary_precision,
+                                    cut_projection_regime = cut_projection_regime)
 
     # Cut generation regimes
     cut_generation_regime = DynamicSDDiP.CutGenerationRegime(
@@ -56,7 +59,7 @@ function model_config()
 
     # Regularization configuration
     #regularization_regime = DynamicSDDiP.NoRegularization()
-    regularization_regime = DynamicSDDiP.Regularization(sigma=[0.0,3.0], sigma_factor=5.0)
+    regularization_regime = DynamicSDDiP.Regularization(sigma=[0.0,1.0], sigma_factor=5.0)
 
     # Cut aggregation regime
     cut_aggregation_regime = DynamicSDDiP.SingleCutRegime()
@@ -141,32 +144,30 @@ function model_definition()
         # DEFINE STAGE-t MODEL
         ########################################################################
         # State variables
-        JuMP.@variable(subproblem, 0.0 <= x <= 1.0, SDDP.State, Bin, initial_value = 0)
+        JuMP.@variable(subproblem, 0.0 <= b <= 2.0, SDDP.State, initial_value = 0)
 
         if t == 1
 
             # Constraints
-            x = subproblem[:x]
-            JuMP.@constraint(subproblem, x.out >= x.in)
-            #JuMP.@constraint(subproblem, x.out <= 0.5)
+            b = subproblem[:b]
+            JuMP.@constraint(subproblem, b.out == 1.2 + b.in)
 
             # Stage objective
-            SDDP.@stageobjective(subproblem, -x.out)
+            SDDP.@stageobjective(subproblem, 1)
 
         else
             # Local variables
-            JuMP.@variable(subproblem, 0.0 <= y[i=1:2])
-            JuMP.set_integer(y[1])
-            JuMP.set_upper_bound(y[1], 2)
-            JuMP.set_upper_bound(y[2], 3)
+            JuMP.@variable(subproblem, 0.0 <= x[i=1:4])
+            JuMP.set_integer(x[1])
+            JuMP.set_integer(x[2])
 
             # Constraints
-            x = subproblem[:x]
-            JuMP.@constraint(subproblem, x.out == 0)
-            JuMP.@constraint(subproblem, con, 2*y[1] + y[2] >= 3*x.in)
+            b = subproblem[:b]
+            JuMP.@constraint(subproblem, b.out == 0)
+            JuMP.@constraint(subproblem, con, 1.25*x[1] - x[2] + 0.5*x[3] + 1/3*x[4] == b.in)
 
             # Stage objective
-            SDDP.@stageobjective(subproblem, y[1] + y[2])
+            SDDP.@stageobjective(subproblem, x[1] - 0.75*x[2] + 0.75*x[3] + 2.5*x[4])
 
         end
 

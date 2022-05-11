@@ -51,9 +51,9 @@ function binary_refinement(
         # This is done for all cut_generation_regimes with BinaryApproximation
         # and for all stages.
         if solution_check || bound_check
-            for cut_generation_regime in algo_params.cut_generation_regime
-                if isa(cut_generation_regime.state_approximation_regime)
-                    binary_refinement = DynamicSDDiP.binary_refinement(
+            for cut_generation_regime in algo_params.cut_generation_regimes
+                if isa(cut_generation_regime.state_approximation_regime, DynamicSDDiP.BinaryApproximation)
+                    binary_refinement = DynamicSDDiP.binary_refinement_execution(
                         model,
                         cut_generation_regime.state_approximation_regime.binary_precision,
                         binary_refinement_status,
@@ -136,6 +136,7 @@ function binary_refinement_execution(
             ub = variable_info.upper_bound
             K = SDDP._bitsrequired(round(Int, ub / current_prec))
             new_prec = ub / sum(2^(k-1) for k in 1:K+1)
+            @infiltrate
 
             # Only apply refinement if int64 is appropriate to represent this number
             if ub / new_prec > 2^63 - 1
