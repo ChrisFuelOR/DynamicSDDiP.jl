@@ -375,7 +375,8 @@ function determine_weights!(node::SDDP.Node, approx_model::JuMP.Model,
         associated_original_state = node.ext[:backward_data][:bin_x_names][key]
     	beta = state_approximation_regime.binary_precision[associated_original_state]
     	associated_k = node.ext[:backward_data][:bin_k][key]
-        weights[i] = 2^(associated_k-1) * beta
+        weights[i] = 2
+        #weights[i] = 2^(associated_k-1) * beta
     end
 
     return weights

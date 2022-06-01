@@ -23,7 +23,7 @@ function model_config()
     dual_initialization_regime = DynamicSDDiP.ZeroDuals()
     dual_solution_regime = DynamicSDDiP.Kelley()
     dual_bound_regime = DynamicSDDiP.BothBounds()
-    dual_status_regime = DynamicSDDiP.Lax()
+    dual_status_regime = DynamicSDDiP.Rigorous()
     dual_choice_regime = DynamicSDDiP.MinimalNormChoice()
     copy_regime = DynamicSDDiP.ConvexHullCopy()
 
@@ -59,7 +59,7 @@ function model_config()
 
     # Regularization configuration
     #regularization_regime = DynamicSDDiP.NoRegularization()
-    regularization_regime = DynamicSDDiP.Regularization(sigma=[0.0,5.0], sigma_factor=5.0, norm_lifted=DynamicSDDiP.L∞())
+    regularization_regime = DynamicSDDiP.Regularization(sigma=[0.0,5.0], sigma_factor=5.0, norm_lifted=DynamicSDDiP.L₁())
 
     # Cut aggregation regime
     cut_aggregation_regime = DynamicSDDiP.SingleCutRegime()
@@ -73,7 +73,7 @@ function model_config()
     cut_selection_regime = DynamicSDDiP.NoCutSelection()
 
     # File for logging
-    log_file = "C:/Users/cg4102/Documents/julia_logs/Reg_Paper_Ex_A.log"
+    log_file = "C:/Users/cg4102/Documents/julia_logs/Reg_Paper_Ex_C.log"
 
     # Suppress solver output
     silent = false
@@ -150,7 +150,7 @@ function model_definition()
 
             # Constraints
             b = subproblem[:b]
-            JuMP.@constraint(subproblem, b.out == 1.2 + b.in)
+            JuMP.@constraint(subproblem, b.out == 1.249 + b.in)
 
             # Stage objective
             SDDP.@stageobjective(subproblem, 1)
