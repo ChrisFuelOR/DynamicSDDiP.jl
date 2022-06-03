@@ -235,6 +235,7 @@ function get_dual_solution(
     # REGULARIZE PROBLEM IF REGULARIZATION IS USED
     node.ext[:regularization_data] = Dict{Symbol,Any}()
     regularize_bw!(node, node_index, subproblem, cut_generation_regime, algo_params.regularization_regime, cut_generation_regime.state_approximation_regime)
+    #regularize_bw!(node, node_index, subproblem, cut_generation_regime, DynamicSDDiP.NoRegularization(), cut_generation_regime.state_approximation_regime)
 
     # RESET SOLVER (as it may have been changed in between for some reason)
     DynamicSDDiP.set_solver!(subproblem, algo_params, applied_solvers, :backward_pass)
@@ -250,6 +251,7 @@ function get_dual_solution(
 
     # DEREGULARIZE PROBLEM IF REQUIRED
     deregularize_bw!(node, subproblem, algo_params.regularization_regime, cut_generation_regime.state_approximation_regime)
+    #deregularize_bw!(node, subproblem, DynamicSDDiP.NoRegularization(), cut_generation_regime.state_approximation_regime)
 
     @infiltrate algo_params.infiltrate_state in [:all]
 

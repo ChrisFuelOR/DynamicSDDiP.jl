@@ -58,6 +58,7 @@ function _solve_Lagrangian_relaxation!(
 
     # Set the Lagrangian relaxation of the objective in the primal model
     old_obj = JuMP.objective_function(model)
+
     JuMP.set_objective_function(model, JuMP.@expression(model, old_obj - π_k' * h_expr))
 
     # Optimization
@@ -75,6 +76,96 @@ function _solve_Lagrangian_relaxation!(
 
     return L_k
 end
+
+
+"""
+Considering an augmented Lagrangian relaxation problem, i.e. the inner problem of the
+Lagrangian dual using the 1-norm
+"""
+
+function _augmented_Lagrangian_relaxation!(
+    node::SDDP.Node,
+    node_index::Int64,
+    π_k::Vector{Float64},
+    h_expr::Vector{JuMP.GenericAffExpr{Float64,JuMP.VariableRef}},
+    h_k::Vector{Float64},
+    regularization_regime::DynamicSDDiP.NoRegularization,
+    update_subgradients::Bool = true,
+)
+    L_k = _solve_Lagrangian_relaxation!(node, π_k, h_expr, h_k, true)
+
+    return L_k
+end
+
+function _augmented_Lagrangian_relaxation!(
+    node::SDDP.Node,
+    node_index::Int64,
+    π_k::Vector{Float64},
+    h_expr::Vector{JuMP.GenericAffExpr{Float64,JuMP.VariableRef}},
+    h_k::Vector{Float64},
+    regularization_regime::DynamicSDDiP.Regularization,
+    update_subgradients::Bool = true,
+)
+    rho = regularization_regime.sigma[node_index]
+
+    L_k = _solve_augmented_Lagrangian_relaxation!(node, π_k, h_expr, h_k, rho, true)
+
+    return L_k
+end
+
+"""
+Solving the augmented Lagrangian relaxation problem, i.e. the inner problem of the
+Lagrangian dual using the 1-norm
+"""
+
+function _solve_augmented_Lagrangian_relaxation!(
+    node::SDDP.Node,
+    π_k::Vector{Float64},
+    h_expr::Vector{JuMP.GenericAffExpr{Float64,JuMP.VariableRef}},
+    h_k::Vector{Float64},
+    rho::Float64,
+    update_subgradients::Bool = true,
+)
+    model = node.subproblem
+
+    # Set the Lagrangian relaxation of the objective in the primal model
+    old_obj = JuMP.objective_function(model)
+
+    # Get number of states
+    number_of_states = length(h_k)
+
+    # Add new variable
+    omega = JuMP.@variable(model, [1:number_of_states])
+
+    # Adapt objective function
+    JuMP.set_objective_function(model, JuMP.@expression(model, old_obj - π_k' * h_expr + rho * sum(omega[i] for i in 1:number_of_states)))
+
+    # Add norm constraints
+    norm_1 = JuMP.@constraint(model, [i=1:number_of_states], -omega[i] <= h_expr[i])
+    norm_2 = JuMP.@constraint(model, [i=1:number_of_states], omega[i] >= h_expr[i])
+
+    # Optimization
+    JuMP.optimize!(model)
+    @assert JuMP.termination_status(model) == MOI.OPTIMAL
+
+    # Update the correct values
+    L_k = JuMP.objective_value(model)
+    if update_subgradients
+        h_k .= -JuMP.value.(h_expr)
+    end
+
+    # Reset old objective
+    JuMP.set_objective_function(model, old_obj)
+
+    # Delete augmentation constraints and variables
+    JuMP.delete(model, norm_1)
+    JuMP.delete(model, norm_2)
+    JuMP.delete(model, omega)
+
+    return L_k
+end
+
+
 
 
 """
@@ -123,6 +214,10 @@ function solve_lagrangian_dual(
     # Set solver for inner problem
     #---------------------------------------------------------------------------
     set_solver!(node.subproblem, algo_params, applied_solvers, :lagrange_relax)
+
+    # Augmented Lagrangian dual using 1-norm?
+    #---------------------------------------------------------------------------
+    augmented = cut_generation_regime.duality_regime.augmented
 
     ############################################################################
     # RELAXING THE COPY CONSTRAINTS
@@ -183,7 +278,11 @@ function solve_lagrangian_dual(
         ########################################################################
         # Evaluate the inner problem and determine a subgradient
         TimerOutputs.@timeit DynamicSDDiP_TIMER "inner_sol" begin
-            L_k = _solve_Lagrangian_relaxation!(node, π_k, h_expr, h_k, true)
+            if !augmented
+                L_k = _solve_Lagrangian_relaxation!(node, π_k, h_expr, h_k, true)
+            else
+                L_k = _augmented_Lagrangian_relaxation!(node, node_index, π_k, h_expr, h_k, algo_params.regularization_regime, true)
+            end
         end
 
         @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
@@ -246,15 +345,14 @@ function solve_lagrangian_dual(
             lag_status = :iter
         end
     end
-
     @infiltrate
 
     ############################################################################
     # APPLY MINIMAL NORM CHOICE APPROACH IF INTENDED
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "magnanti_wong" begin
-        minimal_norm_choice!(node, approx_model, π_k, π_star, t_k, h_expr, h_k, s, L_star,
-            iteration_limit, atol, rtol, cut_generation_regime.duality_regime.dual_choice_regime, iter)
+        minimal_norm_choice!(node, node_index, approx_model, π_k, π_star, t_k, h_expr, h_k, s, L_star,
+            iteration_limit, atol, rtol, cut_generation_regime.duality_regime.dual_choice_regime, iter, augmented, algo_params)
     end
 
     ############################################################################
@@ -275,7 +373,7 @@ function solve_lagrangian_dual(
     # print_helper(print_lag_iteration, lag_log_file_handle, iter, t_k, L_star, L_k)
 
     # Set dual_vars (here π_k) to the optimal solution
-    π_k = π_star
+    π_k .= π_star
 
     return (lag_obj = s * L_star, iterations = iter, lag_status = lag_status)
 
@@ -475,6 +573,7 @@ achieved in total.
 
 function minimal_norm_choice!(
     node::SDDP.Node,
+    node_index::Int64,
     approx_model::JuMP.Model,
     π_k::Vector{Float64},
     π_star::Vector{Float64},
@@ -488,6 +587,8 @@ function minimal_norm_choice!(
     rtol::Float64,
     dual_choice_regime::DynamicSDDiP.MinimalNormChoice,
     iter::Int,
+    augmented::Bool,
+    algo_params::DynamicSDDiP.AlgoParams,
     )
 
     π⁺ = approx_model[:π⁺]
@@ -506,12 +607,17 @@ function minimal_norm_choice!(
         JuMP.optimize!(approx_model)
         @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
         π_k .= value.(π)
-        L_k = _solve_Lagrangian_relaxation!(node, π_k, h_expr, h_k, true)
+
+        if !augmented
+            L_k = _solve_Lagrangian_relaxation!(node, π_k, h_expr, h_k, true)
+        else
+            L_k = _augmented_Lagrangian_relaxation!(node, node_index, π_k, h_expr, h_k, algo_params.regularization_regime, true)
+        end
         if isapprox(L_star, L_k, atol = atol, rtol = rtol)
             # At this point we tried the smallest ‖π‖ from the cutting plane
             # problem, and it returned the optimal dual objective value. No
             # other optimal dual vector can have a smaller norm.
-            π_star = π_k
+            π_star .= π_k
             return
         end
         JuMP.@constraint(approx_model, t <= s * (L_k + h_k' * (π .- π_k)))
@@ -524,6 +630,7 @@ end
 
 function minimal_norm_choice!(
     node::SDDP.Node,
+    node_index::Int64,
     approx_model::JuMP.Model,
     π_k::Vector{Float64},
     π_star::Vector{Float64},
@@ -537,6 +644,8 @@ function minimal_norm_choice!(
     rtol::Float64,
     dual_choice_regime::DynamicSDDiP.StandardChoice,
     iter::Int,
+    augmented::Bool,
+    algo_params::DynamicSDDiP.AlgoParams,
     )
 
     return

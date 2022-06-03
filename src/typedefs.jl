@@ -320,6 +320,7 @@ mutable struct LagrangianDuality <: AbstractDualityRegime
     dual_choice_regime::AbstractDualChoiceRegime
     dual_status_regime::AbstractDualStatusRegime
     copy_regime::AbstractCopyRegime
+    augmented::Bool
     function LagrangianDuality(;
         atol = 1e-8,
         rtol = 1e-8,
@@ -330,11 +331,12 @@ mutable struct LagrangianDuality <: AbstractDualityRegime
         dual_choice_regime = MinimalNormChoice(),
         dual_status_regime = Rigorous(),
         copy_regime = ConvexHullCopy(),
+        augmented = false,
     )
         return new(atol, rtol, iteration_limit,
             dual_initialization_regime, dual_bound_regime,
             dual_solution_regime, dual_choice_regime, dual_status_regime,
-            copy_regime)
+            copy_regime, augmented)
     end
 end
 

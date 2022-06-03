@@ -20,11 +20,12 @@ function model_config()
     stopping_rules = [DynamicSDDiP.DeterministicStopping()]
 
     # Duality / Cut computation configuration
-    dual_initialization_regime = DynamicSDDiP.ZeroDuals()
+    dual_initialization_regime = DynamicSDDiP.LPDuals()
     dual_solution_regime = DynamicSDDiP.Kelley()
-    dual_bound_regime = DynamicSDDiP.BothBounds()
+    dual_bound_regime = DynamicSDDiP.ValueBound()
     dual_status_regime = DynamicSDDiP.Rigorous()
-    dual_choice_regime = DynamicSDDiP.MinimalNormChoice()
+    dual_choice_regime = DynamicSDDiP.StandardChoice()
+    #dual_choice_regime = DynamicSDDiP.MinimalNormChoice()
     copy_regime = DynamicSDDiP.ConvexHullCopy()
 
     duality_regime = DynamicSDDiP.LagrangianDuality(
@@ -37,6 +38,7 @@ function model_config()
          dual_choice_regime = dual_choice_regime,
          dual_status_regime = dual_status_regime,
          copy_regime = copy_regime,
+         augmented = true,
      )
 
     # State approximation and cut projection configuration
@@ -44,10 +46,10 @@ function model_config()
     binary_precision = Dict{Symbol, Float64}()
 
     # State approximation and cut projection configuration
-    #state_approximation_regime = DynamicSDDiP.NoStateApproximation()
-    state_approximation_regime = DynamicSDDiP.BinaryApproximation(
-                                    binary_precision = binary_precision,
-                                    cut_projection_regime = cut_projection_regime)
+    state_approximation_regime = DynamicSDDiP.NoStateApproximation()
+    # state_approximation_regime = DynamicSDDiP.BinaryApproximation(
+    #                                 binary_precision = binary_precision,
+    #                                 cut_projection_regime = cut_projection_regime)
 
     # Cut generation regimes
     cut_generation_regime = DynamicSDDiP.CutGenerationRegime(
@@ -150,7 +152,7 @@ function model_definition()
 
             # Constraints
             b = subproblem[:b]
-            JuMP.@constraint(subproblem, b.out == 1.249 + b.in)
+            JuMP.@constraint(subproblem, b.out == 1.2 + b.in)
 
             # Stage objective
             SDDP.@stageobjective(subproblem, 1)
