@@ -114,9 +114,11 @@ Preparation of fixing a state variable with three different types of argument.
 
 Note that this differentiation is required since we use the term "state" for
 different things. One time for the dict of SDDP.States in our model, each
-basically containing two variable references. Another time for a current state
-(incoming_state, outgoing_state) like the trial point that we are in. This is
-a Dict{Symbol,Float64} then.
+basically containing two variable references (.in and .out).
+Another time for a current state (incoming_state, outgoing_state), which is
+a specific allocation of values to one of these variables (e.g. representing
+the current trial point). This is a Dict{Symbol,Float64} then. The third case
+is used for binary approximations of the state space.
 
 The first method with the symbol is used for setting the incoming state, since
 there we loop over all states getting the state_name (::Symbol) and the
@@ -124,12 +126,9 @@ value (::Float64) from the current state dict (which is the incoming_state_value
 dict, actually).
 
 The second method with the SDDP.State is used for resetting the model after
-a regularization (or a Lagrangian relaxation). In this case, we reset the
+a regularization or a (Lagrangian) relaxation. In this case, we reset the
 integer and binary type of the relaxed variables and the bounds and then fix
 them again to their originally fixed values.
-Note that for the Lagrangian dual (or the binarization) this is not used so far,
-since we do not use binary, but continuous [0,1] variables there, and thus
-the variables are not integer or binary anyway.
 
 The third one is used for the binary case.
 """

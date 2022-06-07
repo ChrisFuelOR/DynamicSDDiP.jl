@@ -44,10 +44,13 @@ include("algorithmMain.jl")
 include("forwardPass.jl")
 include("backwardPass.jl")
 include("duals.jl")
+include("lagrange_preparation.jl")
+include("lagrange_augmented.jl")
 include("lagrange.jl")
 
 include("backwardPass_classic.jl")
 include("backwardPass_unified_single.jl")
+include("lagrange_unified_preparation.jl")
 include("lagrange_unified.jl")
 
 end

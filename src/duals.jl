@@ -355,13 +355,15 @@ function get_dual_solution(
     end
 
     # Initialize π₀ as 1 (0 is not suitable for relatively complete recourse)
-    dual_0_var = 0.0
+    dual_0_var = 1.0
 
     ############################################################################
-    # GET PRIMAL SOLUTION TO BOUND LAGRANGIAN DUAL, TRACK CONVERGENCE AND DEBUGGING
+    # GET PRIMAL SOLUTION, TRACK CONVERGENCE AND DEBUGGING
     ############################################################################
     """ Note that we also solve the primal problem if we generate cuts in
-    the unified framework to allow for a possible tightness check."""
+    the unified framework to allow for a possible tightness check.
+    However, we cannot use the obtained value to bound the Lagrangian dual
+    problem. """
 
     # REGULARIZE PROBLEM IF REGULARIZATION IS USED
     node.ext[:regularization_data] = Dict{Symbol,Any}()
@@ -460,7 +462,8 @@ if ValueBound is used.
 
 Note that we always solve the primal problem, even if we do not use its
 objective value as the objective bound, as this is more convenient for
-debugging purposes.
+debugging purposes, and does not take much time compared to solving the
+Lagrangian dual.
 """
 function get_dual_bounds(
     node::SDDP.Node,
@@ -480,10 +483,6 @@ end
 """
 Determining objective and/or variable bounds for the Lagrangian dual
 if NormBound is used.
-
-Note that we always solve the primal problem, even if we do not use its
-objective value as the objective bound, as this is more convenient for
-debugging purposes.
 """
 function get_dual_bounds(
     node::SDDP.Node,
@@ -511,10 +510,6 @@ end
 """
 Determining objective and/or variable bounds for the Lagrangian dual
 if BothBound is used.
-
-Note that we always solve the primal problem, even if we do not use its
-objective value as the objective bound, as this is more convenient for
-debugging purposes.
 """
 function get_dual_bounds(
     node::SDDP.Node,

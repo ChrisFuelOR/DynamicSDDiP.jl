@@ -118,10 +118,8 @@ abstract type AbstractDualBoundRegime end
 
 """
 ValueBound means that the optimal value of the Lagrangian dual is bounded from
-    the beginning using the optimal value of the primal problem (as in the
-    SDDP package). However, the dual multipliers are not bounded.
-    This may result in infinitely steep cuts.
-    Still, this has resulted in relatively good cuts in the NCNBD case.
+    the start using the optimal value of the primal problem (as in SDDP.jl).
+    However, the dual multipliers are not bounded.
 NormBound means that the dual multipliers in the Lagrangian dual are bounded
     in their norm. This makes most sense when using a regularization and choosing
     a dual bound related to the regularization parameter sigma.
@@ -236,6 +234,7 @@ abstract type AbstractNormalizationRegime end
 mutable struct L₁_Deep <: AbstractNormalizationRegime end
 mutable struct L₂_Deep <: AbstractNormalizationRegime end
 mutable struct L∞_Deep <: AbstractNormalizationRegime end
+mutable struct L₁∞_Deeo <: AbstractNormalizationRegime end
 mutable struct Brandenberg <: AbstractNormalizationRegime end
 mutable struct Fischetti <: AbstractNormalizationRegime end
 mutable struct ChenLuedtke <: AbstractNormalizationRegime end
@@ -246,9 +245,11 @@ L_1_Deep means that a normalization is used in the Lagrangian dual such that
     to approaches by Fischetti et al. and Chen & Luedtke if copy constraints
     are used.
 L_2_Deep means that a normalization is used in the Lagrangian dual such that
-        deepest cuts w.r.t. to the 2-norm are generated.
+    deepest cuts w.r.t. to the 2-norm are generated.
 L_Inf_Deep means that a normalization is used in the Lagrangian dual such that
     deepest cuts w.r.t. to the supremum norm are generated.
+L_1_Inf_Deep means that a normalization is used in the Lagrangian dual that
+    is a linear combination of the 1-norm and sup-norm.
 Brandenberg means that a normalization is used in the Lagrangian dual such that
     Pareto-optimal and likely also facet-defining cuts are generated. This
     approach can be interpreted as optimizing over the reverse polar set.
@@ -386,7 +387,7 @@ Default is LagrangianDuality.
 The new addition UnifiedLagrangianDuality allows to determine cuts using the
 unified framework originally proposed by Fischetti et al. (2010) and also used
 by Chen & Luedtke (2021) for Lagrangian cuts in 2-stage stochastic programming.
-This regime supports different choices for cut separation, e.g. deepest cuts,
+This regime supports different choices for cut selection, e.g. deepest cuts,
 facet-defining/Pareto-optimal cuts or the standard normalization by Fischetti
 et al. It can be used in a multi-cut or a single-cut setting.
 """
@@ -531,8 +532,9 @@ sigma is the regularization parameter.
 sigma_factor is a factor with which the regularization parameter is increased
     if required.
 norm is the norm that is used as regularization function.
-norm_lifted is the norm that is used as regularization function (in a weighted)
-    form if a BinaryApproximation of the states is used in the cut generation
+norm_lifted is the norm that is used as regularization function (in a weighted
+    form) in the backward pass to bound the dual multipliers if a
+    BinaryApproximation of the states is used in the cut generation
     process.
 copy_regime defines the constraints that the copy variable z of the state x has
     to satisfy in the forward pass (or backward pass if no state approximation

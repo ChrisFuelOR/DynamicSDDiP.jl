@@ -57,6 +57,9 @@ function backward_pass(
         # Boolean variable to check if current incumbent was cut away already.
         cut_away = false
 
+        ########################################################################
+        # ITERATE OVER CUT GENERATION REGIMES
+        ########################################################################
         for cut_generation_regime in algo_params.cut_generation_regimes
 
             # New cuts for cut_generation regime are only added if we do not

@@ -79,96 +79,6 @@ end
 
 
 """
-Considering an augmented Lagrangian relaxation problem, i.e. the inner problem of the
-Lagrangian dual using the 1-norm
-"""
-
-function _augmented_Lagrangian_relaxation!(
-    node::SDDP.Node,
-    node_index::Int64,
-    π_k::Vector{Float64},
-    h_expr::Vector{JuMP.GenericAffExpr{Float64,JuMP.VariableRef}},
-    h_k::Vector{Float64},
-    regularization_regime::DynamicSDDiP.NoRegularization,
-    update_subgradients::Bool = true,
-)
-    L_k = _solve_Lagrangian_relaxation!(node, π_k, h_expr, h_k, true)
-
-    return L_k
-end
-
-function _augmented_Lagrangian_relaxation!(
-    node::SDDP.Node,
-    node_index::Int64,
-    π_k::Vector{Float64},
-    h_expr::Vector{JuMP.GenericAffExpr{Float64,JuMP.VariableRef}},
-    h_k::Vector{Float64},
-    regularization_regime::DynamicSDDiP.Regularization,
-    update_subgradients::Bool = true,
-)
-    rho = regularization_regime.sigma[node_index]
-
-    L_k = _solve_augmented_Lagrangian_relaxation!(node, π_k, h_expr, h_k, rho, true)
-
-    return L_k
-end
-
-"""
-Solving the augmented Lagrangian relaxation problem, i.e. the inner problem of the
-Lagrangian dual using the 1-norm
-"""
-
-function _solve_augmented_Lagrangian_relaxation!(
-    node::SDDP.Node,
-    π_k::Vector{Float64},
-    h_expr::Vector{JuMP.GenericAffExpr{Float64,JuMP.VariableRef}},
-    h_k::Vector{Float64},
-    rho::Float64,
-    update_subgradients::Bool = true,
-)
-    model = node.subproblem
-
-    # Set the Lagrangian relaxation of the objective in the primal model
-    old_obj = JuMP.objective_function(model)
-
-    # Get number of states
-    number_of_states = length(h_k)
-
-    # Add new variable
-    omega = JuMP.@variable(model, [1:number_of_states])
-
-    # Adapt objective function
-    JuMP.set_objective_function(model, JuMP.@expression(model, old_obj - π_k' * h_expr + rho * sum(omega[i] for i in 1:number_of_states)))
-
-    # Add norm constraints
-    norm_1 = JuMP.@constraint(model, [i=1:number_of_states], -omega[i] <= h_expr[i])
-    norm_2 = JuMP.@constraint(model, [i=1:number_of_states], omega[i] >= h_expr[i])
-
-    # Optimization
-    JuMP.optimize!(model)
-    @assert JuMP.termination_status(model) == MOI.OPTIMAL
-
-    # Update the correct values
-    L_k = JuMP.objective_value(model)
-    if update_subgradients
-        h_k .= -JuMP.value.(h_expr)
-    end
-
-    # Reset old objective
-    JuMP.set_objective_function(model, old_obj)
-
-    # Delete augmentation constraints and variables
-    JuMP.delete(model, norm_1)
-    JuMP.delete(model, norm_2)
-    JuMP.delete(model, omega)
-
-    return L_k
-end
-
-
-
-
-"""
 Kelley's method to solve Lagrangian dual
 """
 function solve_lagrangian_dual(
@@ -380,189 +290,6 @@ function solve_lagrangian_dual(
 end
 
 
-function relax_copy_constraints!(
-    node::SDDP.Node,
-    x_in_value::Vector{Float64},
-    h_expr::Vector{JuMP.GenericAffExpr{Float64,JuMP.VariableRef}},
-    state_approximation_regime::DynamicSDDiP.BinaryApproximation,
-    copy_regime::DynamicSDDiP.AbstractCopyRegime,
-    )
-
-    for (i, (_, state)) in enumerate(node.ext[:backward_data][:bin_states])
-        # Store original value of ̄x, which z was fixed to
-        x_in_value[i] = JuMP.fix_value(state)
-        # Store expression for slack
-        h_expr[i] = JuMP.@expression(node.subproblem, state - x_in_value[i])
-        # Relax copy constraint (i.e. z does not have to take the value of ̄x anymore)
-        JuMP.unfix(state)
-
-        # Set bounds and integer constraints based on copy_regime
-        follow_state_unfixing_binary!(state, copy_regime)
-    end
-
-    return
-end
-
-
-function relax_copy_constraints!(
-    node::SDDP.Node,
-    x_in_value::Vector{Float64},
-    h_expr::Vector{JuMP.GenericAffExpr{Float64,JuMP.VariableRef}},
-    state_approximation_regime::DynamicSDDiP.NoStateApproximation,
-    copy_regime::DynamicSDDiP.AbstractCopyRegime,
-    )
-
-    for (i, (name, state)) in enumerate(node.states)
-        # Store original value of ̄x, which z was fixed to
-        x_in_value[i] = JuMP.fix_value(state.in)
-        # Store expression for slack
-        h_expr[i] = JuMP.@expression(node.subproblem, state.in - x_in_value[i])
-        # Relax copy constraint (i.e. z does not have to take the value of ̄x anymore)
-        JuMP.unfix(state.in)
-
-        # Set bounds and integer constraints based on copy_regime
-        variable_info = node.ext[:state_info_storage][name].in
-        follow_state_unfixing!(state, variable_info, copy_regime)
-    end
-
-    return
-end
-
-function restore_copy_constraints!(
-    node::SDDP.Node,
-    x_in_value::Vector{Float64},
-    state_approximation_regime::DynamicSDDiP.BinaryApproximation,
-    )
-
-    for (i, (_, bin_state)) in enumerate(node.ext[:backward_data][:bin_states])
-        prepare_state_fixing_binary!(node, bin_state)
-        JuMP.fix(bin_state, x_in_value[i], force = true)
-    end
-
-    return
-end
-
-function restore_copy_constraints!(
-    node::SDDP.Node,
-    x_in_value::Vector{Float64},
-    state_approximation_regime::DynamicSDDiP.NoStateApproximation,
-    )
-
-    for (i, (_, state)) in enumerate(node.states)
-        prepare_state_fixing!(node, state)
-        JuMP.fix(state.in, x_in_value[i], force = true)
-    end
-
-    return
-end
-
-function set_objective_bound!(approx_model::JuMP.Model, s::Int, obj_bound::Float64)
-
-    JuMP.set_upper_bound(approx_model[:t], s * obj_bound)
-
-    return
-end
-
-function determine_weights!(node::SDDP.Node, approx_model::JuMP.Model,
-    number_of_states::Int, regularization_regime::DynamicSDDiP.Regularization,
-    state_approximation_regime::DynamicSDDiP.BinaryApproximation)
-
-    weights = ones(number_of_states)
-
-    for (i, (key, value)) in enumerate(node.ext[:backward_data][:bin_states])
-        associated_original_state = node.ext[:backward_data][:bin_x_names][key]
-    	beta = state_approximation_regime.binary_precision[associated_original_state]
-    	associated_k = node.ext[:backward_data][:bin_k][key]
-        weights[i] = 2
-        #weights[i] = 2^(associated_k-1) * beta
-    end
-
-    return weights
-end
-
-function determine_weights!(node::SDDP.Node, approx_model::JuMP.Model,
-    number_of_states::Int, regularization_regime::DynamicSDDiP.NoRegularization,
-    state_approximation_regime::DynamicSDDiP.BinaryApproximation)
-
-    weights = ones(number_of_states)
-    return weights
-end
-
-function determine_weights!(node::SDDP.Node, approx_model::JuMP.Model,
-    number_of_states::Int, regularization_regime::Union{DynamicSDDiP.NoRegularization,DynamicSDDiP.Regularization},
-    state_approximation_regime::DynamicSDDiP.NoStateApproximation)
-
-    weights = ones(number_of_states)
-    return weights
-end
-
-
-function set_multiplier_bounds!(node::SDDP.Node, approx_model::JuMP.Model,
-    number_of_states::Int, dual_bound::Float64,
-    regularization_regime::DynamicSDDiP.Regularization,
-    state_approximation_regime::DynamicSDDiP.BinaryApproximation,
-    duality_regime::DynamicSDDiP.LagrangianDuality)
-
-    weights = determine_weights!(node, approx_model, number_of_states, regularization_regime, state_approximation_regime)
-    add_norm_constraints!(node, approx_model, weights, dual_bound, number_of_states, regularization_regime.norm_lifted)
-end
-
-function set_multiplier_bounds!(node::SDDP.Node, approx_model::JuMP.Model,
-    number_of_states::Int, dual_bound::Float64,
-    regularization_regime::DynamicSDDiP.NoRegularization,
-    state_approximation_regime::DynamicSDDiP.BinaryApproximation,
-    duality_regime::DynamicSDDiP.LagrangianDuality)
-
-    weights = determine_weights!(node, approx_model, number_of_states, regularization_regime, state_approximation_regime)
-    add_norm_constraints!(node, approx_model, weights, dual_bound, number_of_states, DynamicSDDiP.L₁)
-end
-
-function set_multiplier_bounds!(node::SDDP.Node, approx_model::JuMP.Model,
-    number_of_states::Int, dual_bound::Float64,
-    regularization_regime::DynamicSDDiP.Regularization,
-    state_approximation_regime::DynamicSDDiP.NoStateApproximation,
-    duality_regime::DynamicSDDiP.LagrangianDuality)
-
-    weights = determine_weights!(node, approx_model, number_of_states, regularization_regime, state_approximation_regime)
-    add_norm_constraints!(node, approx_model, weights, dual_bound, number_of_states, regularization_regime.norm_lifted)
-end
-
-function set_multiplier_bounds!(node::SDDP.Node, approx_model::JuMP.Model,
-    number_of_states::Int, dual_bound::Float64,
-    regularization_regime::DynamicSDDiP.NoRegularization,
-    state_approximation_regime::DynamicSDDiP.NoStateApproximation,
-    duality_regime::DynamicSDDiP.LagrangianDuality)
-
-    weights = determine_weights!(node, approx_model, number_of_states, regularization_regime, state_approximation_regime)
-    add_norm_constraints!(node, approx_model, weights, dual_bound, number_of_states, DynamicSDDiP.L₁)
-end
-
-function add_norm_constraints!(node::SDDP.Node, approx_model::JuMP.Model,
-    weights::Vector{Float64}, dual_bound::Float64, number_of_states::Int,
-    norm_lifted::DynamicSDDiP.L₁)
-
-    π⁺ = approx_model[:π⁺]
-    π⁻ = approx_model[:π⁻]
-
-    # This means that the supremum norm is bounded in the dual
-    for i in 1:number_of_states
-        JuMP.set_upper_bound(π⁺[i], dual_bound * weights[i])
-        JuMP.set_upper_bound(π⁻[i], dual_bound * weights[i])
-    end
-end
-
-function add_norm_constraints!(node::SDDP.Node, approx_model::JuMP.Model,
-    weights::Vector{Float64}, dual_bound::Float64, number_of_states::Int,
-    norm_lifted::DynamicSDDiP.L∞)
-
-    π⁺ = approx_model[:π⁺]
-    π⁻ = approx_model[:π⁻]
-
-    # This means that the 1-norm is bounded in the dual
-    JuMP.@constraint(approx_model, sum(weights[i] * (π⁺[i] + π⁻[i]) for i in 1:number_of_states) <= dual_bound)
-end
-
-
 """
 Given the optimal dual objective value from the Kelley's method, try to find
 the optimal dual multipliers with the smallest L1-norm.
@@ -703,6 +430,10 @@ function solve_lagrangian_dual(
     #---------------------------------------------------------------------------
     level_factor = dual_solution_regime.level_factor
 
+    # Augmented Lagrangian dual using 1-norm?
+    #---------------------------------------------------------------------------
+    augmented = cut_generation_regime.duality_regime.augmented
+
     ############################################################################
     # RELAXING THE COPY CONSTRAINTS
     ############################################################################
@@ -738,7 +469,10 @@ function solve_lagrangian_dual(
         JuMP.@variable(approx_model, π⁺[1:number_of_states] >= 0)
         JuMP.@variable(approx_model, π⁻[1:number_of_states] >= 0)
         JuMP.@expression(approx_model, π, π⁺ .- π⁻) # not required to be a constraint
-        set_multiplier_bounds!(approx_model, number_of_states, bound_results.dual_bound, algo_params)
+        set_multiplier_bounds!(node, approx_model, number_of_states, bound_results.dual_bound,
+            algo_params.regularization_regime, cut_generation_regime.state_approximation_regime,
+            cut_generation_regime.duality_regime)
+
     end
 
     ############################################################################
@@ -748,7 +482,8 @@ function solve_lagrangian_dual(
     lag_status = :none
 
     # set up optimal value of approx_model (former f_approx)
-    t_k = 0
+    t_k = 0 # why zero?
+    #-inf is not possible, since then the while loop would not start at all
 
     while iter < iteration_limit && !isapprox(L_star, t_k, atol = atol, rtol = rtol)
         iter += 1
@@ -758,7 +493,11 @@ function solve_lagrangian_dual(
         ########################################################################
         # Evaluate the inner problem and determine a subgradient
         TimerOutputs.@timeit DynamicSDDiP_TIMER "inner_sol" begin
-            L_k = _solve_Lagrangian_relaxation!(node, π_k, h_expr, h_k, true)
+            if !augmented
+                L_k = _solve_Lagrangian_relaxation!(node, π_k, h_expr, h_k, true)
+            else
+                L_k = _augmented_Lagrangian_relaxation!(node, node_index, π_k, h_expr, h_k, algo_params.regularization_regime, true)
+            end
         end
         @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
         #@infiltrate
@@ -923,8 +662,9 @@ function solve_lagrangian_dual(
     # APPLY MINIMAL NORM CHOICE APPROACH IF INTENDED
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "magnanti_wong" begin
-        minimal_norm_choice!(node, approx_model, π_k, π_star, t_k, h_expr, h_k, s, L_star,
-            iteration_limit, atol, rtol, cut_generation_regime.duality_regime.dual_choice_regime, iter)
+        minimal_norm_choice!(node, node_index, approx_model, π_k, π_star, t_k, h_expr, h_k, s, L_star,
+            iteration_limit, atol, rtol, cut_generation_regime.duality_regime.dual_choice_regime, iter,
+            augmented, algo_params)
     end
 
     ############################################################################
@@ -945,7 +685,7 @@ function solve_lagrangian_dual(
     # print_helper(print_lag_iteration, lag_log_file_handle, iter, t_k, L_star, L_k)
 
     # Set dual_vars (here π_k) to the optimal solution
-    π_k = π_star
+    π_k .= π_star
 
     return (lag_obj = s * L_star, iterations = iter, lag_status = lag_status)
 
