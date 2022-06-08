@@ -100,6 +100,8 @@ function add_norm_constraint!(
 
     constraints_norm = JuMP.@constraint(subproblem, [i=1:number_of_states], v >= alpha[i])
     append!(reg_data[:reg_constraints], constraints_norm)
+
+    return
 end
 
 """
@@ -107,6 +109,7 @@ Trivial modification of the forward pass problem if no regularization is used.
 """
 function regularize_subproblem!(node::SDDP.Node, node_index::Int64,
     subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.NoRegularization)
+
     return
 end
 
@@ -132,10 +135,10 @@ function deregularize_subproblem!(node::SDDP.Node, subproblem::JuMP.Model, regul
 
     # DELETE ALL REGULARIZATION-BASED VARIABLES AND CONSTRAINTS
     ############################################################################
-    delete(subproblem, reg_data[:reg_variables])
+    JuMP.delete(subproblem, reg_data[:reg_variables])
 
     for constraint in reg_data[:reg_constraints]
-        delete(subproblem, constraint)
+        JuMP.delete(subproblem, constraint)
     end
 
     delete!(node.ext, :regularization_data)
@@ -147,6 +150,7 @@ end
 Trivial modification of the forward pass problem if no regularization is used.
 """
 function deregularize_subproblem!(node::SDDP.Node, subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.NoRegularization)
+
     return
 end
 
@@ -250,6 +254,8 @@ function add_norm_constraint_binary!(
 
     constraint_norm = JuMP.@constraint(subproblem, v >= sum(reg_data[:weights][i] * alpha[i] for i in 1:number_of_states))
     push!(reg_data[:reg_constraints], constraint_norm)
+
+    return
 end
 
 function add_norm_constraint_binary!(
@@ -263,6 +269,8 @@ function add_norm_constraint_binary!(
 
     constraints_norm = JuMP.@constraint(subproblem, [i=1:number_of_states], v >= reg_data[:weights][i] * alpha[i])
     append!(reg_data[:reg_constraints], constraints_norm)
+
+    return
 end
 
 

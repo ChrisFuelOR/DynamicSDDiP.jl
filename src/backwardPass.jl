@@ -35,7 +35,6 @@ function backward_pass(
     ############################################################################
     # INITIALIZATION
     ############################################################################
-
     # storage for data on solving Lagrangian dual
     model.ext[:lag_iterations] = Float64[]
     model.ext[:lag_status] = String[]
@@ -90,8 +89,6 @@ function backward_pass(
                     node_index,
                     index,
                     items,
-                    # belief_state,
-                    # objective_state,
                     outgoing_state,
                     epi_states_node,
                     scenario_path[1:index],
@@ -106,7 +103,7 @@ function backward_pass(
                 # RECONSTRUCT ANCHOR POINTS IN BACKWARD PASS
                 ################################################################
                 anchor_state = determine_anchor_state(node, outgoing_state, cut_generation_regime.state_approximation_regime)
-                @infiltrate algo_params.infiltrate_state in [:all]
+                Infiltrator.@infiltrate algo_params.infiltrate_state in [:all]
 
                 ################################################################
                 # REFINE BELLMAN FUNCTION BY ADDING CUTS
@@ -152,7 +149,7 @@ function backward_pass(
                     update_Benders_cut_list!(node, algo_params.cut_aggregation_regime, cut_generation_regime.state_approximation_regime)
                 end
                 # TODO: A similar approach can be used for Lagrangian cuts
-                @infiltrate
+                Infiltrator.@infiltrate
 
                 ################################################################
                 # LOGGING
@@ -167,7 +164,6 @@ function backward_pass(
 
                 #TODO: lag_status and lag_iterations have to be stored for each
                 #cut_generation_regime separately.
-
 
             end
         end

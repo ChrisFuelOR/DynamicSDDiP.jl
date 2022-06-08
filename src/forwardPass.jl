@@ -132,7 +132,7 @@ function solve_subproblem_forward(
     ############################################################################
     # SOLUTION
     ############################################################################
-    @infiltrate algo_params.infiltrate_state in [:all]
+    Infiltrator.@infiltrate algo_params.infiltrate_state in [:all]
     JuMP.optimize!(subproblem)
 
     # Maybe attempt numerical recovery as in SDDP
@@ -141,7 +141,7 @@ function solve_subproblem_forward(
     objective = JuMP.objective_value(subproblem)
     stage_objective = objective - JuMP.value(bellman_term(node.bellman_function))
     get_epi_states(node, epi_states_stage, algo_params.cut_aggregation_regime)
-    @infiltrate algo_params.infiltrate_state in [:all]
+    Infiltrator.@infiltrate algo_params.infiltrate_state in [:all]
 
     ############################################################################
     # DE-REGULARIZE SUBPROBLEM IF REQUIRED

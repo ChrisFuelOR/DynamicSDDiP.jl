@@ -55,7 +55,7 @@ function solve_unified_lagrangian_dual(
     dual_solution_regime::DynamicSDDiP.Kelley
 )
 
-    @infiltrate
+    Infiltrator.@infiltrate
 
     ############################################################################
     # INITIALIZATION
@@ -180,7 +180,7 @@ function solve_unified_lagrangian_dual(
         L_k = relax_results.L_k
         w_k = relax_results.w_k
 
-        @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
+        Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
         ########################################################################
         # UPDATE BEST FOUND SOLUTION SO FAR
@@ -209,7 +209,7 @@ function solve_unified_lagrangian_dual(
         t_k = JuMP.objective_value(approx_model)
         π_k .= JuMP.value.(π)
         π0_k = JuMP.value.(π₀)
-        @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
+        Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
         ########################################################################
         if L_star > t_k + atol/10.0
@@ -410,8 +410,8 @@ function solve_lagrangian_dual(
         L_k = relax_results.L_k
         w_k = relax_results.w_k
 
-        @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
-        #@infiltrate
+        Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
+        #Infiltrator.@infiltrate
 
         ########################################################################
         # UPDATE BEST FOUND SOLUTION SO FAR
@@ -448,7 +448,7 @@ function solve_lagrangian_dual(
         end
         @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
         t_k = JuMP.objective_value(approx_model)
-        @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
+        Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
         ########################################################################
         # COMPUTE GAP AND FORM A NEW LEVEL
@@ -536,7 +536,7 @@ function solve_lagrangian_dual(
 
         π_k .= JuMP.value.(π)
         π0_k = JuMP.value.(π₀)
-        @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
+        Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
         ########################################################################
         if L_star > t_k + atol/10.0

@@ -6,7 +6,7 @@ function backward_pass_node(
     model::SDDP.PolicyGraph{T},
     node::SDDP.Node{T},
     node_index::Int64,
-    index::Int64,
+    index::Int16,
     items::BackwardPassItems,
     # belief_state,
     # objective_state,
@@ -52,7 +52,7 @@ function backward_pass_node(
     model::SDDP.PolicyGraph{T},
     node::SDDP.Node{T},
     node_index::Int64,
-    index::Int64,
+    index::Int16,
     items::BackwardPassItems,
     # belief_state,
     # objective_state,
@@ -219,7 +219,7 @@ function solve_subproblem_backward(
     set_incoming_state!(node, state)
     parameterize(node, noise)
 
-    @infiltrate algo_params.infiltrate_state in [:all]
+    Infiltrator.@infiltrate algo_params.infiltrate_state in [:all]
 
     ############################################################################
     # CHANGE STATE SPACE IF BINARY APPROXIMATION IS USED
@@ -243,7 +243,7 @@ function solve_subproblem_backward(
         rechangeStateSpace!(node, subproblem, state, cut_generation_regime.state_approximation_regime)
     end
 
-    @infiltrate algo_params.infiltrate_state in [:all]
+    Infiltrator.@infiltrate algo_params.infiltrate_state in [:all]
 
     return (
         duals = dual_results.dual_values,

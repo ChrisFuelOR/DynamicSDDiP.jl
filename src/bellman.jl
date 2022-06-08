@@ -265,7 +265,7 @@ function _add_average_cut(
     cut_away::Bool,
     algo_params::DynamicSDDiP.AlgoParams,
     cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
-    iteration::Int64,
+    iteration::Int16,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
 )
 
@@ -352,7 +352,7 @@ function _add_multi_cut(
     cut_away::Bool,
     algo_params::DynamicSDDiP.AlgoParams,
     cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
-    iteration::Int64,
+    iteration::Int16,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
 )
 
@@ -418,7 +418,7 @@ function _add_multi_cut(
     bellman_function = node.bellman_function
 
     model = JuMP.owner_model(bellman_function.global_theta.theta)
-    cut_expr = @expression(
+    cut_expr = JuMP.@expression(
         model,
         sum(
             risk_adjusted_probability[i] *
@@ -428,9 +428,9 @@ function _add_multi_cut(
 
     if iteration == 1
         if JuMP.objective_sense(model) == MOI.MIN_SENSE
-            @constraint(model, bellman_function.global_theta.theta >= cut_expr)
+            JuMP.@constraint(model, bellman_function.global_theta.theta >= cut_expr)
         else
-            @constraint(model, bellman_function.global_theta.theta <= cut_expr)
+            JuMP.@constraint(model, bellman_function.global_theta.theta <= cut_expr)
         end
     end
 
@@ -466,7 +466,7 @@ function _add_cut(
     # obj_y::Union{Nothing,NTuple{N,Float64}},
     # belief_y::Union{Nothing,Dict{T,Float64}},
     sigma::Union{Nothing,Float64},
-    iteration::Int64,
+    iteration::Int16,
     cut_away::Bool,
     infiltrate_state::Symbol,
     algo_params::DynamicSDDiP.AlgoParams,
@@ -481,7 +481,7 @@ function _add_cut(
     for (key, λ) in λᵏ
         θᵏ -= πᵏ[key] * λᵏ[key].value
     end
-    @infiltrate infiltrate_state in [:bellman, :all]
+    Infiltrator.@infiltrate infiltrate_state in [:bellman, :all]
 
     if isnothing(sigma)
         sigma_use = nothing
@@ -650,7 +650,7 @@ function _add_cut_constraints_to_models(
 
     end
 
-    @infiltrate infiltrate_state in [:bellman, :all]
+    Infiltrator.@infiltrate infiltrate_state in [:bellman, :all]
 
     ############################################################################
     # MAKE SOME VALIDITY CHECKS
@@ -697,14 +697,14 @@ function represent_cut_projection_closure!(
     ########################################################
     state_comp::JuMP.VariableRef,
     state_name::Symbol,
-    state_index::Int64,
+    state_index::Int16,
     ########################################################
     coefficients::Dict{Symbol,Float64},
     binary_state::Dict{Symbol,BinaryState},
     sigma::Union{Nothing,Float64},
     cut_variables::Vector{JuMP.VariableRef},
     cut_constraints::Vector{JuMP.ConstraintRef},
-    iteration::Int64,
+    iteration::Int16,
     beta::Float64,
     ########################################################
     all_coefficients::Vector{Float64},
@@ -712,8 +712,8 @@ function represent_cut_projection_closure!(
     all_eta::Vector{JuMP.VariableRef},
     all_mu::Vector{JuMP.VariableRef},
     ########################################################
-    K::Int64,
-    K_tilde::Int64,
+    K::Int16,
+    K_tilde::Int16,
     ########################################################
     infiltrate_state::Symbol,
     ########################################################
@@ -819,12 +819,12 @@ function add_complementarity_constraints!(
     model::JuMP.Model,
     node::SDDP.Node,
     ########################################################################
-    state_index::Int64,
+    state_index::Int16,
     ########################################################################
     cut_variables::Vector{JuMP.VariableRef},
     cut_constraints::Vector{JuMP.ConstraintRef},
     sigma::Union{Nothing,Float64},
-    iteration::Int64,
+    iteration::Int16,
     beta::Float64,
     ########################################################################
     related_coefficients::Vector{Float64},
@@ -833,14 +833,14 @@ function add_complementarity_constraints!(
     μ::Vector{JuMP.VariableRef},
     ν::Vector{JuMP.VariableRef},
     ########################################################################
-    K::Int64,
+    K::Int16,
     ########################################################################
     infiltrate_state::Symbol,
     ########################################################################
     cut_projection_regime::DynamicSDDiP.KKT,
 )
 
-    @infiltrate infiltrate_state in [:bellman, :all]
+    Infiltrator.@infiltrate infiltrate_state in [:bellman, :all]
 
     ############################################################################
     # ADD COMPLEMENTARITY CONSTRAINTS
@@ -871,12 +871,12 @@ function add_complementarity_constraints!(
     model::JuMP.Model,
     node::SDDP.Node,
     ########################################################################
-    state_index::Int64,
+    state_index::Int16,
     ########################################################################
     cut_variables::Vector{JuMP.VariableRef},
     cut_constraints::Vector{JuMP.ConstraintRef},
     sigma::Union{Nothing,Float64},
-    iteration::Int64,
+    iteration::Int16,
     beta::Float64,
     ########################################################################
     related_coefficients::Vector{Float64},
@@ -885,14 +885,14 @@ function add_complementarity_constraints!(
     μ::Vector{JuMP.VariableRef},
     ν::Vector{JuMP.VariableRef},
     ########################################################################
-    K::Int64,
+    K::Int16,
     ########################################################################
     infiltrate_state::Symbol,
     ########################################################################
     cut_projection_regime::DynamicSDDiP.BigM,
 )
 
-    @infiltrate infiltrate_state in [:bellman, :all]
+    Infiltrator.@infiltrate infiltrate_state in [:bellman, :all]
 
     ############################################################################
     # ADD ADDITIONAL BINARY VARIABLES
@@ -948,7 +948,13 @@ end
 Determine a reasonable bigM value based on the maximum upper bound of all state
 components, sigma and beta. This could be improved later.
 """
-function get_bigM(node::SDDP.Node, sigma::Union{Nothing,Float64}, beta::Float64, related_coefficients::Vector{Float64}, K::Int64)
+function get_bigM(
+    node::SDDP.Node,
+    sigma::Union{Nothing,Float64},
+    beta::Float64,
+    related_coefficients::Vector{Float64},
+    K::Int16
+    )
 
     ############################################################################
     # DETERMINE U_MAX
@@ -992,12 +998,12 @@ function add_complementarity_constraints!(
     model::JuMP.Model,
     node::SDDP.Node,
     ########################################################################
-    state_index::Int64,
+    state_index::Int16,
     ########################################################################
     cut_variables::Vector{JuMP.VariableRef},
     cut_constraints::Vector{JuMP.ConstraintRef},
     sigma::Union{Nothing,Float64},
-    iteration::Int64,
+    iteration::Int16,
     beta::Float64,
     ########################################################################
     related_coefficients::Vector{Float64},
@@ -1006,14 +1012,14 @@ function add_complementarity_constraints!(
     μ::Vector{JuMP.VariableRef},
     ν::Vector{JuMP.VariableRef},
     ########################################################################
-    K::Int64,
+    K::Int16,
     ########################################################################
     infiltrate_state::Symbol,
     ########################################################################
     cut_projection_regime::DynamicSDDiP.SOS1,
 )
 
-    @infiltrate infiltrate_state in [:bellman, :all]
+    Infiltrator.@infiltrate infiltrate_state in [:bellman, :all]
 
     ############################################################################
     # AUXILIARY VARIABLE
@@ -1050,14 +1056,14 @@ function represent_cut_projection_closure!(
     ########################################################
     state_comp::JuMP.VariableRef,
     state_name::Symbol,
-    state_index::Int64,
+    state_index::Int16,
     ########################################################
     coefficients::Dict{Symbol,Float64},
     binary_state::Dict{Symbol,BinaryState},
     sigma::Union{Nothing,Float64},
     cut_variables::Vector{JuMP.VariableRef},
     cut_constraints::Vector{JuMP.ConstraintRef},
-    iteration::Int64,
+    iteration::Int16,
     beta::Float64,
     ########################################################
     all_coefficients::Vector{Float64},
@@ -1065,8 +1071,8 @@ function represent_cut_projection_closure!(
     all_eta::Vector{JuMP.VariableRef},
     all_mu::Vector{JuMP.VariableRef},
     ########################################################
-    K::Int64,
-    K_tilde::Int64,
+    K::Int16,
+    K_tilde::Int16,
     ########################################################
     infiltrate_state::Symbol,
     ########################################################
@@ -1145,7 +1151,7 @@ end
 function validity_checks!(
     cut::DynamicSDDiP.NonlinearCut,
     V::DynamicSDDiP.CutApproximation,
-    K_tilde::Int64,
+    K_tilde::Int16,
     all_lambda::Vector{JuMP.VariableRef},
     all_mu::Vector{JuMP.VariableRef},
     all_eta::Vector{JuMP.VariableRef},
@@ -1169,7 +1175,7 @@ end
 function validity_checks!(
     cut::DynamicSDDiP.NonlinearCut,
     V::DynamicSDDiP.CutApproximation,
-    K_tilde::Int64,
+    K_tilde::Int16,
     all_lambda::Vector{JuMP.VariableRef},
     all_mu::Vector{JuMP.VariableRef},
     all_eta::Vector{JuMP.VariableRef},
@@ -1299,7 +1305,7 @@ function _add_cut(
     # obj_y::Union{Nothing,NTuple{N,Float64}},
     # belief_y::Union{Nothing,Dict{T,Float64}},
     sigma::Union{Nothing,Float64},
-    iteration::Int64,
+    iteration::Int16,
     cut_away::Bool,
     infiltrate_state::Symbol,
     algo_params::DynamicSDDiP.AlgoParams,
@@ -1314,7 +1320,7 @@ function _add_cut(
     for (key, x) in xᵏ
         θᵏ -= πᵏ[key] * x
     end
-    @infiltrate infiltrate_state in [:bellman, :all]
+    Infiltrator.@infiltrate infiltrate_state in [:bellman, :all]
 
     if isnothing(sigma)
         sigma_use = nothing
@@ -1381,7 +1387,7 @@ function _add_cut_constraints_to_models(
     model = JuMP.owner_model(V.theta)
     @assert model == node.subproblem
 
-    @infiltrate infiltrate_state in [:bellman, :all]
+    Infiltrator.@infiltrate infiltrate_state in [:bellman, :all]
 
     ############################################################################
     # ADD THE LINEAR CUT CONSTRAINT

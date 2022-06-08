@@ -195,7 +195,7 @@ function solve_lagrangian_dual(
             end
         end
 
-        @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
+        Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
         ########################################################################
         # UPDATE BEST FOUND SOLUTION SO FAR
@@ -222,7 +222,7 @@ function solve_lagrangian_dual(
         @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
         t_k = JuMP.objective_value(approx_model)
         π_k .= JuMP.value.(π)
-        @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
+        Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
         ########################################################################
         if L_star > t_k + atol/10.0
@@ -255,7 +255,7 @@ function solve_lagrangian_dual(
             lag_status = :iter
         end
     end
-    @infiltrate
+    Infiltrator.@infiltrate
 
     ############################################################################
     # APPLY MINIMAL NORM CHOICE APPROACH IF INTENDED
@@ -499,8 +499,8 @@ function solve_lagrangian_dual(
                 L_k = _augmented_Lagrangian_relaxation!(node, node_index, π_k, h_expr, h_k, algo_params.regularization_regime, true)
             end
         end
-        @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
-        #@infiltrate
+        Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
+        #Infiltrator.@infiltrate
 
         ########################################################################
         # UPDATE BEST FOUND SOLUTION SO FAR
@@ -532,7 +532,7 @@ function solve_lagrangian_dual(
         end
         @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
         t_k = JuMP.objective_value(approx_model)
-        @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
+        Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
         #print("UB: ", f_approx, ", LB: ", f_actual)
         #println()
@@ -623,7 +623,7 @@ function solve_lagrangian_dual(
         #@assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
 
         π_k .= JuMP.value.(π)
-        #@infiltrate
+        #Infiltrator.@infiltrate
         #print(L_k, ", ", t_k, ", ", level)
 
         ########################################################################
@@ -730,7 +730,7 @@ function _getStrengtheningInformation(
     ########################################################################
     # Evaluate the inner problem and determine a subgradient
     lag_obj = _solve_Lagrangian_relaxation!(node, π_k, h_expr, h_k, false)
-    @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
+    Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
     ############################################################################
     # RESTORE THE COPY CONSTRAINT x.in = value(x.in) (̄x = z)

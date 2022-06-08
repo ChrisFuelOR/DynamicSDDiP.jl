@@ -55,7 +55,7 @@ function get_dual_solution(
     from 1.0 in the classical framework."""
     dual_0_var = 1.0
 
-    @infiltrate algo_params.infiltrate_state in [:all]
+    Infiltrator.@infiltrate algo_params.infiltrate_state in [:all]
 
     ############################################################################
     # SET DUAL VARIABLES AND STATES CORRECTLY FOR RETURN
@@ -159,7 +159,7 @@ function get_dual_solution(
     from 1.0 in the classical framework."""
     dual_0_var = 1.0
 
-    @infiltrate algo_params.infiltrate_state in [:all]
+    Infiltrator.@infiltrate algo_params.infiltrate_state in [:all]
 
     ############################################################################
     # GET STRENGTHENING INFORMATION
@@ -253,13 +253,13 @@ function get_dual_solution(
     deregularize_bw!(node, subproblem, algo_params.regularization_regime, cut_generation_regime.state_approximation_regime)
     #deregularize_bw!(node, subproblem, DynamicSDDiP.NoRegularization(), cut_generation_regime.state_approximation_regime)
 
-    @infiltrate algo_params.infiltrate_state in [:all]
+    Infiltrator.@infiltrate algo_params.infiltrate_state in [:all]
 
     ############################################################################
     # GET BOUNDS FOR LAGRANGIAN DUAL
     ############################################################################
     bound_results = get_dual_bounds(node, node_index, algo_params, primal_obj, duality_regime.dual_bound_regime)
-    @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
+    Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
     try
         ########################################################################
@@ -290,7 +290,7 @@ function get_dual_solution(
         # if status is not as intended, the algorithm terminates with an error
         lagrangian_status_check(lag_status, duality_regime.dual_status_regime)
 
-        @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
+        Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
     catch e
         #SDDP.write_subproblem_to_file(node, "subproblem.mof.json", throw_error = false)
@@ -384,13 +384,13 @@ function get_dual_solution(
     # DEREGULARIZE PROBLEM IF REQUIRED
     deregularize_bw!(node, subproblem, algo_params.regularization_regime, cut_generation_regime.state_approximation_regime)
 
-    @infiltrate algo_params.infiltrate_state in [:all]
+    Infiltrator.@infiltrate algo_params.infiltrate_state in [:all]
 
     ############################################################################
     # GET BOUNDS FOR LAGRANGIAN DUAL
     ############################################################################
     bound_results = get_dual_bounds(node, node_index, algo_params, primal_obj, duality_regime.dual_bound_regime)
-    @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
+    Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
     try
         ########################################################################
@@ -425,7 +425,7 @@ function get_dual_solution(
         # if status is not as intended, the algorithm terminates with an error
         lagrangian_status_check(lag_status, duality_regime.dual_status_regime)
 
-        @infiltrate algo_params.infiltrate_state in [:all, :lagrange]
+        Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
     catch e
         #SDDP.write_subproblem_to_file(node, "subproblem.mof.json", throw_error = false)
@@ -626,8 +626,11 @@ function initialize_duals(
 
 end
 
-function get_and_set_dual_values!(node::SDDP.Node, dual_vars_initial::Vector{Float64},
-    state_approximation_regime::DynamicSDDiP.BinaryApproximation)
+function get_and_set_dual_values!(
+    node::SDDP.Node,
+    dual_vars_initial::Vector{Float64},
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation
+    )
 
     for (i, name) in enumerate(keys(node.ext[:backward_data][:bin_states]))
        variable_name = node.ext[:backward_data][:bin_states][name]
@@ -638,20 +641,28 @@ function get_and_set_dual_values!(node::SDDP.Node, dual_vars_initial::Vector{Flo
     return
 end
 
-function get_and_set_dual_values!(node::SDDP.Node, dual_vars_initial::Vector{Float64},
-    state_approximation_regime::DynamicSDDiP.NoStateApproximation)
+function get_and_set_dual_values!(
+    node::SDDP.Node,
+    dual_vars_initial::Vector{Float64},
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation
+    )
 
     for (i, name) in enumerate(keys(node.states))
-        reference_to_constr = FixRef(node.subproblem[name].in)
+        reference_to_constr = JuMP.FixRef(node.subproblem[name].in)
         dual_vars_initial[i] = JuMP.dual(reference_to_constr)
     end
 
     return
 end
 
-function store_dual_values!(node::SDDP.Node, dual_values::Dict{Symbol, Float64},
-    dual_vars::Vector{Float64}, dual_0_var::Float64, bin_state::Dict{Symbol, BinaryState},
-    state_approximation_regime::DynamicSDDiP.BinaryApproximation)
+function store_dual_values!(
+    node::SDDP.Node,
+    dual_values::Dict{Symbol, Float64},
+    dual_vars::Vector{Float64},
+    dual_0_var::Float64,
+    bin_state::Dict{Symbol, BinaryState},
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation
+    )
 
     old_rhs = node.ext[:backward_data][:old_rhs]
 
@@ -667,9 +678,14 @@ function store_dual_values!(node::SDDP.Node, dual_values::Dict{Symbol, Float64},
     return
 end
 
-function store_dual_values!(node::SDDP.Node, dual_values::Dict{Symbol, Float64},
-    dual_vars::Vector{Float64}, dual_0_var::Float64, bin_state::Dict{Symbol, BinaryState},
-    state_approximation_regime::DynamicSDDiP.NoStateApproximation)
+function store_dual_values!(
+    node::SDDP.Node,
+    dual_values::Dict{Symbol, Float64},
+    dual_vars::Vector{Float64},
+    dual_0_var::Float64,
+    bin_state::Dict{Symbol, BinaryState},
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation
+    )
 
     for (i, name) in enumerate(keys(node.states))
         dual_values[name] = dual_vars[i] / dual_0_var
@@ -678,12 +694,18 @@ function store_dual_values!(node::SDDP.Node, dual_values::Dict{Symbol, Float64},
     return
 end
 
-function get_number_of_states(node::SDDP.Node, state_approximation_regime::DynamicSDDiP.BinaryApproximation)
+function get_number_of_states(
+    node::SDDP.Node,
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation
+    )
 
     return length(node.ext[:backward_data][:bin_states])
 end
 
-function get_number_of_states(node::SDDP.Node, state_approximation_regime::DynamicSDDiP.NoStateApproximation)
+function get_number_of_states(
+    node::SDDP.Node,
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation
+    )
 
     return length(node.states)
 end

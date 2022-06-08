@@ -77,21 +77,21 @@ function set_solver!(
     # SET THE CORRECT SOLVER WITH THE REQUIRED PROPERTIES
     ############################################################################
     if solver == "CPLEX"
-        set_optimizer(subproblem, optimizer_with_attributes(
+        JuMP.set_optimizer(subproblem, JuMP.optimizer_with_attributes(
             GAMS.Optimizer,
             "Solver"=>solver,
             "optcr"=>0.0,
             "numericalemphasis"=>numerical_focus)
             )
     elseif solver == "Gurobi"
-        set_optimizer(subproblem, optimizer_with_attributes(
+        JuMP.set_optimizer(subproblem, JuMP.optimizer_with_attributes(
             GAMS.Optimizer,
             "Solver"=>solver,
             "optcr"=>0.0,
             "NumericFocus"=>numerical_focus)
             )
     else
-    set_optimizer(subproblem, optimizer_with_attributes(
+    JuMP.set_optimizer(subproblem, JuMP.optimizer_with_attributes(
         GAMS.Optimizer,
         "Solver"=>solver,
         "optcr"=>0.0)

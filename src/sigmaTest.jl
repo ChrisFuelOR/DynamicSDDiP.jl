@@ -58,6 +58,7 @@ function forward_sigma_test(
                 incoming_state_value, # only values, no State struct!
                 noise,
                 scenario_path[1:depth],
+                Float64[],
                 algo_params,
                 algo_params.regularization_regime,
             )
@@ -74,6 +75,7 @@ function forward_sigma_test(
                 incoming_state_value, # only values, no State struct!
                 noise,
                 scenario_path[1:depth],
+                Float64[],
                 algo_params,
                 DynamicSDDiP.NoRegularization(),
             )

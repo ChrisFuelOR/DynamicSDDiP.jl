@@ -684,7 +684,7 @@ mutable struct NonlinearCut <: Cut
     ############################################################################
     non_dominated_count::Int
     ############################################################################
-    iteration::Int64
+    iteration::Int16
     ############################################################################
     aggregation_regime::DynamicSDDiP.AbstractCutAggregationRegime
     duality_regime::DynamicSDDiP.AbstractDualityRegime
@@ -731,7 +731,7 @@ mutable struct LinearCut <: Cut
     ############################################################################
     non_dominated_count::Int
     ############################################################################
-    iteration::Int64
+    iteration::Int16
     ############################################################################
     aggregation_regime::DynamicSDDiP.AbstractCutAggregationRegime
     duality_regime::DynamicSDDiP.AbstractDualityRegime

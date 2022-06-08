@@ -25,7 +25,7 @@ function solve(
     model::SDDP.PolicyGraph,
     algo_params::DynamicSDDiP.AlgoParams,
     applied_solvers::DynamicSDDiP.AppliedSolvers
-)
+    )
 
     ############################################################################
     # INITIALIZATION (SIMILAR TO SDDP.jl)
@@ -52,8 +52,9 @@ function solve(
     # Convert the vector to an AbstractStoppingRule. Otherwise if the user gives
     # something like stopping_rules = [SDDP.IterationLimit(100)], the vector
     # will be concretely typed and we can't add a TimeLimit.
-    #stopping_rules = algo_params.stopping_rules
-    #stopping_rules = convert(Vector{SDDP.AbstractStoppingRule}, stopping_rules)
+    # stopping_rules = algo_params.stopping_rules
+    # stopping_rules = convert(Vector{SDDP.AbstractStoppingRule}, stopping_rules)
+
     if length(algo_params.stopping_rules) == 0
         @warn(
             "You haven't specified a stopping rule! You can only terminate " *
@@ -161,8 +162,8 @@ function solve(
             end
 
             # Set-up counter for Benders cuts (Chen & Luedtke approach)
-            node.ext[:Benders_cuts_original] = Tuple{Int64, Symbol}[]
-            node.ext[:Benders_cuts_binary] = Tuple{Int64, Symbol}[]
+            node.ext[:Benders_cuts_original] = Tuple{Int16, Symbol}[]
+            node.ext[:Benders_cuts_binary] = Tuple{Int16, Symbol}[]
 
         end
     end
@@ -205,9 +206,13 @@ end
 Solves the `model` using DynamicSDDiP in a serial scheme.
 """
 
-function solve_DynamicSDDiP(parallel_scheme::SDDP.Serial, model::SDDP.PolicyGraph{T},
-    options::DynamicSDDiP.Options, algo_params::DynamicSDDiP.AlgoParams,
-    applied_solvers::DynamicSDDiP.AppliedSolvers) where {T}
+function solve_DynamicSDDiP(
+    parallel_scheme::SDDP.Serial,
+    model::SDDP.PolicyGraph{T},
+    options::DynamicSDDiP.Options,
+    algo_params::DynamicSDDiP.AlgoParams,
+    applied_solvers::DynamicSDDiP.AppliedSolvers
+    ) where {T}
 
     ############################################################################
     # SET UP STATE VARIABLE INFORMATION
@@ -240,7 +245,7 @@ function solve_DynamicSDDiP(parallel_scheme::SDDP.Serial, model::SDDP.PolicyGrap
 
     end
 
-    @infiltrate algo_params.infiltrate_state == :all
+    Infiltrator.@infiltrate algo_params.infiltrate_state == :all
 
     ############################################################################
     # LOG ITERATION HEADER
@@ -266,9 +271,13 @@ end
 Loop function of DynamicSDDiP.
 """
 
-function master_loop(parallel_scheme::SDDP.Serial, model::SDDP.PolicyGraph{T},
-    options::DynamicSDDiP.Options, algo_params::DynamicSDDiP.AlgoParams,
-    applied_solvers::DynamicSDDiP.AppliedSolvers) where {T}
+function master_loop(
+    parallel_scheme::SDDP.Serial,
+    model::SDDP.PolicyGraph{T},
+    options::DynamicSDDiP.Options,
+    algo_params::DynamicSDDiP.AlgoParams,
+    applied_solvers::DynamicSDDiP.AppliedSolvers
+    ) where {T}
 
     ############################################################################
     # INITIALIZE PARAMETERS REQUIRED FOR REFINEMENTS
@@ -300,7 +309,7 @@ function master_loop(parallel_scheme::SDDP.Serial, model::SDDP.PolicyGraph{T},
         sigma_increased = false
         bound_check = true
 
-        @infiltrate algo_params.infiltrate_state in [:all, :sigma]
+        Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :sigma]
 
         # check for convergence and if not achieved, update parameters
         convergence_results = convergence_handler(
@@ -337,13 +346,16 @@ Convergence handler if regularization is used.
 
 function convergence_handler(
     result::DynamicSDDiP.IterationResult,
-    model::SDDP.PolicyGraph{T}, options::DynamicSDDiP.Options,
+    model::SDDP.PolicyGraph{T},
+    options::DynamicSDDiP.Options,
     algo_params::DynamicSDDiP.AlgoParams,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
-    sigma_increased::Bool, bound_check::Bool,
+    sigma_increased::Bool,
+    bound_check::Bool,
     previous_solution::Union{Vector{Dict{Symbol,Float64}},Nothing},
     previous_bound::Union{Float64,Nothing},
-    regularization_regime::DynamicSDDiP.Regularization) where {T}
+    regularization_regime::DynamicSDDiP.Regularization
+    ) where {T}
 
     ############################################################################
     # IF CONVERGENCE IS ACHIEVED, COMPARE TRUE AND REGULARIZED PROBLEM
@@ -353,7 +365,7 @@ function convergence_handler(
             sigma_test_results = forward_sigma_test(model, options, algo_params, applied_solvers, result.scenario_path, sigma_increased)
         end
         sigma_increased = sigma_test_results.sigma_increased
-        @infiltrate algo_params.infiltrate_state in [:all, :sigma]
+        Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :sigma]
 
         if sigma_increased
             # reset previous values, as model is changed and convergence not achieved
@@ -425,13 +437,14 @@ function convergence_handler(
     sigma_increased::Bool, bound_check::Bool,
     previous_solution::Union{Vector{Dict{Symbol,Float64}},Nothing},
     previous_bound::Union{Float64,Nothing},
-    regularization_regime::DynamicSDDiP.NoRegularization) where {T}
+    regularization_regime::DynamicSDDiP.NoRegularization
+    ) where {T}
 
     ############################################################################
     # IF CONVERGENCE IS ACHIEVED, COMPARE TRUE AND REGULARIZED PROBLEM
     ############################################################################
     if result.has_converged
-        @infiltrate algo_params.infiltrate_state in [:all, :sigma]
+        Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :sigma]
         ########################################################################
         # THE ALGORITHM TERMINATES
         ########################################################################
@@ -503,8 +516,6 @@ function iteration(
         forward_trajectory = DynamicSDDiP.forward_pass(model, options, algo_params, applied_solvers, algo_params.forward_pass)
     end
 
-    #@infiltrate
-
     ############################################################################
     # BINARY REFINEMENT
     ############################################################################
@@ -524,7 +535,7 @@ function iteration(
     # end
 
     # bound_check = true
-    @infiltrate algo_params.infiltrate_state in [:all]
+    Infiltrator.@infiltrate algo_params.infiltrate_state in [:all]
 
     ############################################################################
     # BACKWARD PASS
@@ -543,7 +554,7 @@ function iteration(
         )
     end
 
-    @infiltrate
+    Infiltrator.@infiltrate
 
     ############################################################################
     # CALCULATE LOWER BOUND
@@ -614,7 +625,7 @@ function iteration(
     ############################################################################
     has_converged, status = convergence_test(model, options.log, algo_params.stopping_rules)
 
-    @infiltrate algo_params.infiltrate_state in [:all]
+    Infiltrator.@infiltrate algo_params.infiltrate_state in [:all]
 
     return DynamicSDDiP.IterationResult(
         bound,

@@ -6,22 +6,21 @@
 
 module DynamicSDDiP
 
-using JuMP
+import JuMP
+import MathOptInterface
 import SDDP
-#import Gurobi
 import Revise
 import TimerOutputs
 import GAMS
+#import Gurobi
 #import SCIP
-import MathOptInterface
-using Printf
-using Dates
-using Statistics
+import Printf
+import Dates
+import Statistics
+import Infiltrator
 
-#import Reexport
-#Reexport.@reexport using JuMP
+const MOI = MathOptInterface
 
-using Infiltrator
 
 # Write your package code here.
 include("typedefs.jl")

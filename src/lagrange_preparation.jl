@@ -133,6 +133,8 @@ function set_multiplier_bounds!(node::SDDP.Node, approx_model::JuMP.Model,
 
     weights = determine_weights!(node, approx_model, number_of_states, regularization_regime, state_approximation_regime)
     add_norm_constraints!(node, approx_model, weights, dual_bound, number_of_states, DynamicSDDiP.L₁, duality_regime)
+
+    return
 end
 
 function set_multiplier_bounds!(node::SDDP.Node, approx_model::JuMP.Model,
@@ -143,6 +145,8 @@ function set_multiplier_bounds!(node::SDDP.Node, approx_model::JuMP.Model,
 
     weights = determine_weights!(node, approx_model, number_of_states, regularization_regime, state_approximation_regime)
     add_norm_constraints!(node, approx_model, weights, dual_bound, number_of_states, regularization_regime.norm_lifted, duality_regime)
+
+    return
 end
 
 function set_multiplier_bounds!(node::SDDP.Node, approx_model::JuMP.Model,
@@ -153,6 +157,8 @@ function set_multiplier_bounds!(node::SDDP.Node, approx_model::JuMP.Model,
 
     weights = determine_weights!(node, approx_model, number_of_states, regularization_regime, state_approximation_regime)
     add_norm_constraints!(node, approx_model, weights, dual_bound, number_of_states, DynamicSDDiP.L₁, duality_regime)
+
+    return
 end
 
 function add_norm_constraints!(node::SDDP.Node, approx_model::JuMP.Model,
@@ -167,6 +173,8 @@ function add_norm_constraints!(node::SDDP.Node, approx_model::JuMP.Model,
         JuMP.set_upper_bound(π⁺[i], dual_bound * weights[i])
         JuMP.set_upper_bound(π⁻[i], dual_bound * weights[i])
     end
+
+    return
 end
 
 function add_norm_constraints!(node::SDDP.Node, approx_model::JuMP.Model,
@@ -178,4 +186,6 @@ function add_norm_constraints!(node::SDDP.Node, approx_model::JuMP.Model,
 
     # This means that the 1-norm is bounded in the dual
     JuMP.@constraint(approx_model, sum(weights[i] * (π⁺[i] + π⁻[i]) for i in 1:number_of_states) <= dual_bound)
+
+    return
 end
