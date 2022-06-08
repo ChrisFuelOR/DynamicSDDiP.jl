@@ -392,6 +392,13 @@ function get_dual_solution(
     bound_results = get_dual_bounds(node, node_index, algo_params, primal_obj, duality_regime.dual_bound_regime)
     Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
+    ############################################################################
+    # GET CORE POINT RESP. NORMALIZATION COEFFICIENTS
+    ############################################################################
+    """ If we do not use a normalization that requires a core point, we simply
+    return nothing """
+    core_point = get_core_point(node, number_of_states, cut_generation_regime.state_approximation_regime, duality_regime.normalization_regime)
+
     try
         ########################################################################
         # CALL SOLUTION METHOD
@@ -403,6 +410,7 @@ function get_dual_solution(
                         node_index,
                         i,
                         epi_state,
+                        core_point,
                         primal_obj,
                         dual_vars,
                         dual_0_var,

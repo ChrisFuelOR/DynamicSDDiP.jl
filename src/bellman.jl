@@ -265,7 +265,7 @@ function _add_average_cut(
     cut_away::Bool,
     algo_params::DynamicSDDiP.AlgoParams,
     cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
-    iteration::Int16,
+    iteration::Int64,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
 )
 
@@ -352,7 +352,7 @@ function _add_multi_cut(
     cut_away::Bool,
     algo_params::DynamicSDDiP.AlgoParams,
     cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
-    iteration::Int16,
+    iteration::Int64,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
 )
 
@@ -466,7 +466,7 @@ function _add_cut(
     # obj_y::Union{Nothing,NTuple{N,Float64}},
     # belief_y::Union{Nothing,Dict{T,Float64}},
     sigma::Union{Nothing,Float64},
-    iteration::Int16,
+    iteration::Int64,
     cut_away::Bool,
     infiltrate_state::Symbol,
     algo_params::DynamicSDDiP.AlgoParams,
@@ -697,14 +697,14 @@ function represent_cut_projection_closure!(
     ########################################################
     state_comp::JuMP.VariableRef,
     state_name::Symbol,
-    state_index::Int16,
+    state_index::Int64,
     ########################################################
     coefficients::Dict{Symbol,Float64},
     binary_state::Dict{Symbol,BinaryState},
     sigma::Union{Nothing,Float64},
     cut_variables::Vector{JuMP.VariableRef},
     cut_constraints::Vector{JuMP.ConstraintRef},
-    iteration::Int16,
+    iteration::Int64,
     beta::Float64,
     ########################################################
     all_coefficients::Vector{Float64},
@@ -712,8 +712,8 @@ function represent_cut_projection_closure!(
     all_eta::Vector{JuMP.VariableRef},
     all_mu::Vector{JuMP.VariableRef},
     ########################################################
-    K::Int16,
-    K_tilde::Int16,
+    K::Int64,
+    K_tilde::Int64,
     ########################################################
     infiltrate_state::Symbol,
     ########################################################
@@ -819,12 +819,12 @@ function add_complementarity_constraints!(
     model::JuMP.Model,
     node::SDDP.Node,
     ########################################################################
-    state_index::Int16,
+    state_index::Int64,
     ########################################################################
     cut_variables::Vector{JuMP.VariableRef},
     cut_constraints::Vector{JuMP.ConstraintRef},
     sigma::Union{Nothing,Float64},
-    iteration::Int16,
+    iteration::Int64,
     beta::Float64,
     ########################################################################
     related_coefficients::Vector{Float64},
@@ -833,7 +833,7 @@ function add_complementarity_constraints!(
     μ::Vector{JuMP.VariableRef},
     ν::Vector{JuMP.VariableRef},
     ########################################################################
-    K::Int16,
+    K::Int64,
     ########################################################################
     infiltrate_state::Symbol,
     ########################################################################
@@ -871,12 +871,12 @@ function add_complementarity_constraints!(
     model::JuMP.Model,
     node::SDDP.Node,
     ########################################################################
-    state_index::Int16,
+    state_index::Int64,
     ########################################################################
     cut_variables::Vector{JuMP.VariableRef},
     cut_constraints::Vector{JuMP.ConstraintRef},
     sigma::Union{Nothing,Float64},
-    iteration::Int16,
+    iteration::Int64,
     beta::Float64,
     ########################################################################
     related_coefficients::Vector{Float64},
@@ -885,7 +885,7 @@ function add_complementarity_constraints!(
     μ::Vector{JuMP.VariableRef},
     ν::Vector{JuMP.VariableRef},
     ########################################################################
-    K::Int16,
+    K::Int64,
     ########################################################################
     infiltrate_state::Symbol,
     ########################################################################
@@ -953,7 +953,7 @@ function get_bigM(
     sigma::Union{Nothing,Float64},
     beta::Float64,
     related_coefficients::Vector{Float64},
-    K::Int16
+    K::Int64
     )
 
     ############################################################################
@@ -998,12 +998,12 @@ function add_complementarity_constraints!(
     model::JuMP.Model,
     node::SDDP.Node,
     ########################################################################
-    state_index::Int16,
+    state_index::Int64,
     ########################################################################
     cut_variables::Vector{JuMP.VariableRef},
     cut_constraints::Vector{JuMP.ConstraintRef},
     sigma::Union{Nothing,Float64},
-    iteration::Int16,
+    iteration::Int64,
     beta::Float64,
     ########################################################################
     related_coefficients::Vector{Float64},
@@ -1012,7 +1012,7 @@ function add_complementarity_constraints!(
     μ::Vector{JuMP.VariableRef},
     ν::Vector{JuMP.VariableRef},
     ########################################################################
-    K::Int16,
+    K::Int64,
     ########################################################################
     infiltrate_state::Symbol,
     ########################################################################
@@ -1056,14 +1056,14 @@ function represent_cut_projection_closure!(
     ########################################################
     state_comp::JuMP.VariableRef,
     state_name::Symbol,
-    state_index::Int16,
+    state_index::Int64,
     ########################################################
     coefficients::Dict{Symbol,Float64},
     binary_state::Dict{Symbol,BinaryState},
     sigma::Union{Nothing,Float64},
     cut_variables::Vector{JuMP.VariableRef},
     cut_constraints::Vector{JuMP.ConstraintRef},
-    iteration::Int16,
+    iteration::Int64,
     beta::Float64,
     ########################################################
     all_coefficients::Vector{Float64},
@@ -1071,8 +1071,8 @@ function represent_cut_projection_closure!(
     all_eta::Vector{JuMP.VariableRef},
     all_mu::Vector{JuMP.VariableRef},
     ########################################################
-    K::Int16,
-    K_tilde::Int16,
+    K::Int64,
+    K_tilde::Int64,
     ########################################################
     infiltrate_state::Symbol,
     ########################################################
@@ -1151,7 +1151,7 @@ end
 function validity_checks!(
     cut::DynamicSDDiP.NonlinearCut,
     V::DynamicSDDiP.CutApproximation,
-    K_tilde::Int16,
+    K_tilde::Int64,
     all_lambda::Vector{JuMP.VariableRef},
     all_mu::Vector{JuMP.VariableRef},
     all_eta::Vector{JuMP.VariableRef},
@@ -1175,7 +1175,7 @@ end
 function validity_checks!(
     cut::DynamicSDDiP.NonlinearCut,
     V::DynamicSDDiP.CutApproximation,
-    K_tilde::Int16,
+    K_tilde::Int64,
     all_lambda::Vector{JuMP.VariableRef},
     all_mu::Vector{JuMP.VariableRef},
     all_eta::Vector{JuMP.VariableRef},
@@ -1305,7 +1305,7 @@ function _add_cut(
     # obj_y::Union{Nothing,NTuple{N,Float64}},
     # belief_y::Union{Nothing,Dict{T,Float64}},
     sigma::Union{Nothing,Float64},
-    iteration::Int16,
+    iteration::Int64,
     cut_away::Bool,
     infiltrate_state::Symbol,
     algo_params::DynamicSDDiP.AlgoParams,

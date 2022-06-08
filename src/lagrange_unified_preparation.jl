@@ -18,7 +18,7 @@ function set_multiplier_bounds!(node::SDDP.Node, approx_model::JuMP.Model,
     duality_regime::DynamicSDDiP.UnifiedLagrangianDuality)
 
 	weights = determine_weights!(node, approx_model, number_of_states, regularization_regime, state_approximation_regime)
-    add_norm_constraints!(node, approx_model, weights, dual_bound, number_of_states, DynamicSDDiP.L₁, DynamicSDDiP.LagrangianDuality())
+    add_norm_constraints!(node, approx_model, weights, dual_bound, number_of_states, DynamicSDDiP.L₁(), DynamicSDDiP.LagrangianDuality())
 
     return
 end
@@ -43,7 +43,7 @@ function set_multiplier_bounds!(node::SDDP.Node, approx_model::JuMP.Model,
     duality_regime::DynamicSDDiP.UnifiedLagrangianDuality)
 
 	weights = determine_weights!(node, approx_model, number_of_states, regularization_regime, state_approximation_regime)
-    add_norm_constraints!(node, approx_model, weights, dual_bound, number_of_states, DynamicSDDiP.L₁, DynamicSDDiP.LagrangianDuality())
+    add_norm_constraints!(node, approx_model, weights, dual_bound, number_of_states, DynamicSDDiP.L₁(), DynamicSDDiP.LagrangianDuality())
 
     return
 end
@@ -185,6 +185,7 @@ function add_normalization_constraint!(
     node::SDDP.Node,
     approx_model::JuMP.Model,
     number_of_states::Int,
+	core_point::Union{Nothing,NamedTuple{(:x, :theta),Tuple{Vector{Float64},Float64}}},
     normalization_regime::DynamicSDDiP.L₁_Deep
 )
 
@@ -201,6 +202,7 @@ function add_normalization_constraint!(
     node::SDDP.Node,
     approx_model::JuMP.Model,
     number_of_states::Int,
+	core_point::Union{Nothing,NamedTuple{(:x, :theta),Tuple{Vector{Float64},Float64}}},
     normalization_regime::DynamicSDDiP.L₂_Deep
 )
 
@@ -219,6 +221,7 @@ function add_normalization_constraint!(
     node::SDDP.Node,
     approx_model::JuMP.Model,
     number_of_states::Int,
+	core_point::Union{Nothing,NamedTuple{(:x, :theta),Tuple{Vector{Float64},Float64}}},
     normalization_regime::DynamicSDDiP.L∞_Deep
 )
 
@@ -239,6 +242,34 @@ function add_normalization_constraint!(
     node::SDDP.Node,
     approx_model::JuMP.Model,
     number_of_states::Int,
+	core_point::Union{Nothing,NamedTuple{(:x, :theta),Tuple{Vector{Float64},Float64}}},
+    normalization_regime::DynamicSDDiP.L₁∞_Deep
+)
+
+    π⁺ = approx_model[:π⁺]
+    π⁻ = approx_model[:π⁻]
+    π₀ = approx_model[:π₀]
+
+	l₁_norm_exp = JuMP.@expression(approx_model, π₀ + sum(π⁺[i] + π⁻[i] for i in 1:number_of_states))
+
+	sup_norm_var = JuMP.@variable(approx_model, sup_norm_aux)
+	for i in 1:number_of_states
+		JuMP.@constraint(approx_model, sup_norm_var >= π⁺)
+		JuMP.@constraint(approx_model, sup_norm_var >= π⁻)
+	end
+	JuMP.@constraint(approx_model, sup_norm_var >= π₀)
+
+    JuMP.@constraint(approx_model, 0.5 * l₁_norm_exp + 0.5 * sup_norm_var <= 1)
+
+    return
+end
+
+
+function add_normalization_constraint!(
+    node::SDDP.Node,
+    approx_model::JuMP.Model,
+    number_of_states::Int,
+	core_point::Union{Nothing,NamedTuple{(:x, :theta),Tuple{Vector{Float64},Float64}}},
     normalization_regime::DynamicSDDiP.Fischetti
 )
 
@@ -255,18 +286,7 @@ function add_normalization_constraint!(
     node::SDDP.Node,
     approx_model::JuMP.Model,
     number_of_states::Int,
-    normalization_regime::DynamicSDDiP.Brandenberg
-)
-
-    # TODO
-
-    return
-end
-
-function add_normalization_constraint!(
-    node::SDDP.Node,
-    approx_model::JuMP.Model,
-    number_of_states::Int,
+	core_point::Union{Nothing,NamedTuple{(:x, :theta),Tuple{Vector{Float64},Float64}}},
     normalization_regime::DynamicSDDiP.ChenLuedtke
 )
 
@@ -281,4 +301,279 @@ function add_normalization_constraint!(
     JuMP.@constraint(approx_model, abs_span_2[i=1:length(span_variable)], abs_span_variable[i] >= span_variable[i])
 
     return
+end
+
+"""
+This method determines the midpoint of the state space in the backward pass
+based on the StateApproximation approach. This midpoint is required for some
+approaches to determine core points and normalizations in the unified cut
+generation framework.
+"""
+function get_state_space_midpoint(
+    node::SDDP.Node,
+    number_of_states::Int,
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation
+    )
+
+    state_space_midpoint = 0.5 * ones(number_of_states)
+
+    return state_space_midpoint
+end
+
+function get_state_space_midpoint(
+    node::SDDP.Node,
+    number_of_states::Int,
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation
+    )
+
+    state_space_midpoint = Vector{Float64}(undef, number_of_states)
+
+	for (i, (name, state)) in enumerate(node.states)
+		variable_info = node.ext[:state_info_storage][name].in
+
+		if variable_info.has_ub  & variable_info.has_lb
+            state_space_midpoint[i] = variable_info.lower_bound + 0.5 * (variable_info.upper_bound - variable_info.lower_bound)
+        elseif variable_info.binary
+            state_space_midpoint[i] = 0.5
+        else
+            Error("All states require bounds to determine state space midpoint.")
+        end
+   end
+
+	return state_space_midpoint
+end
+
+"""
+Compute a core point based on the used StateApproximationRegime and the
+NormalizationRegime Core_Midpoint.
+"""
+function get_core_point(
+    node::SDDP.Node,
+    number_of_states::Int,
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation,
+	normalization_regime::DynamicSDDiP.Core_Midpoint,
+    )
+
+	# Get the midpoint of the state space
+	core_point_x = get_state_space_midpoint(node, number_of_states, state_approximation_regime)
+
+	# Get optimal value to core point
+	core_point_theta = evaluate_approx_value_function(node, core_point_x, number_of_states, state_approximation_regime)
+
+    return (x = core_point_x, theta = core_point_theta)
+end
+
+function get_core_point(
+    node::SDDP.Node,
+    number_of_states::Int,
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation,
+	normalization_regime::DynamicSDDiP.Core_Midpoint,
+    )
+
+	# Get the midpoint of the state space
+	core_point_x = get_state_space_midpoint(node, number_of_states, state_approximation_regime)
+
+	# Get optimal value to core point
+	core_point_theta = evaluate_approx_value_function(node, core_point_x, number_of_states, state_approximation_regime)
+
+    return (x = core_point_x, theta = core_point_theta)
+end
+
+"""
+Compute a core point based on the used StateApproximationRegime and the
+NormalizationRegime Core_Epsilon.
+"""
+function get_core_point(
+    node::SDDP.Node,
+    number_of_states::Int,
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation,
+	normalization_regime::DynamicSDDiP.Core_Epsilon,
+    )
+
+	# Get the current incumbent and perturb it with the predefined value
+	# into the interior of [0,1]
+	core_point_x = zeros(number_of_states)
+	for (i, (_, state)) in enumerate(node.ext[:backward_data][:bin_states])
+		incumbent = JuMP.fix_value(state)
+
+		if incumbent == 1
+			core_point_x[i] = incumbent - normalization_regime.perturb
+		elseif incumbent == 0
+			core_point_x[i] = incumbent + normalization_regime.perturb
+		end
+	end
+
+	# Get optimal value to core point
+	core_point_theta = evaluate_approx_value_function(node, core_point_x, number_of_states, state_approximation_regime)
+
+    return (x = core_point_x, theta = core_point_theta)
+end
+
+function get_core_point(
+    node::SDDP.Node,
+    number_of_states::Int,
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation,
+	normalization_regime::DynamicSDDiP.Core_Epsilon,
+    )
+
+	core_point_x = zeros(number_of_states)
+
+	# First get the midpoint of the state space
+	midpoint = get_state_space_midpoint(node, number_of_states, state_approximation_regime)
+
+	# Get the incumbent. Each component is (by choice) perturbed towards the
+	# midpoint
+	incumbent = zeros(number_of_states)
+	for (i, (_, state)) in enumerate(node.states)
+		incumbent = JuMP.fix_value(state.in)
+
+		if incumbent > midpoint[i]
+			core_point_x[i] = incumbent - normalization_regime.perturb
+		elseif incumbent < midpoint[i]
+			core_point_x[i] = incumbent + normalization_regime.perturb
+		else
+			core_point_x[i] = incumbent
+		end
+	end
+
+	# Get optimal value to core point
+	core_point_theta = evaluate_approx_value_function(node, core_point_x, number_of_states, state_approximation_regime)
+
+    return (x = core_point_x, theta = core_point_theta)
+end
+
+"""
+Compute a core point based on the used StateApproximationRegime and the
+NormalizationRegime Core_Epsilon.
+"""
+function get_core_point(
+    node::SDDP.Node,
+    number_of_states::Int,
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation,
+	normalization_regime::DynamicSDDiP.Core_In_Out,
+    )
+
+	core_point_x = zeros(number_of_states)
+
+	# Get the current iteration
+	policy_graph = node.subproblem.ext[:sddp_policy_graph]
+	iteration = policy_graph.ext[:iteration]
+
+	# Get the current incumbent.
+	incumbent = zeros(number_of_states)
+	for (i, (_, state)) in enumerate(node.ext[:backward_data][:bin_states])
+		incumbent .= JuMP.fix_value(state)
+	end
+
+	# Set the core point to the current incumbent in the first iteration,
+	# otherwise use a linear combination with the previous core point
+	if iteration == 1
+		core_point_x .= incumbent
+	else
+		core_point_x .= 0.5 * incumbent + 0.5 * node.ext[:last_core_point]
+	end
+
+	# Store core point for following iterations
+	node.ext[:last_core_point] = core_point_x
+
+	# Get optimal value to core point
+	core_point_theta = evaluate_approx_value_function(node, core_point_x, number_of_states, state_approximation_regime)
+
+	return (x = core_point_x, theta = core_point_theta)
+end
+
+function get_core_point(
+    node::SDDP.Node,
+    number_of_states::Int,
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation,
+	normalization_regime::DynamicSDDiP.Core_In_Out,
+    )
+
+	core_point_x = zeros(number_of_states)
+
+	# Get the current iteration
+	policy_graph = node.subproblem.ext[:sddp_policy_graph]
+	iteration = policy_graph.ext[:iteration]
+
+	# Get the current incumbent.
+	incumbent = zeros(number_of_states)
+	for (i, (_, state)) in enumerate(node.states)
+		incumbent .= JuMP.fix_value(state.in)
+	end
+
+	# Set the core point to the current incumbent in the first iteration,
+	# otherwise use a linear combination with the previous core point
+	if iteration == 1
+		core_point_x .= incumbent
+	else
+		core_point_x .= 0.5 * incumbent + 0.5 * node.ext[:last_core_point]
+	end
+
+	# Store core point for following iterations
+	node.ext[:last_core_point] = core_point_x
+
+	# Get optimal value to core point
+	core_point_theta = evaluate_approx_value_function(node, core_point_x, number_of_states, state_approximation_regime)
+
+	return (x = core_point_x, theta = core_point_theta)
+end
+
+"""
+Trivial case where no core point is required
+"""
+function get_core_point(
+    node::SDDP.Node,
+    number_of_states::Int,
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation,
+	normalization_regime::DynamicSDDiP.AbstractNormalizationRegime,
+    )
+
+	return
+end
+
+function get_core_point(
+    node::SDDP.Node,
+    number_of_states::Int,
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation,
+	normalization_regime::DynamicSDDiP.AbstractNormalizationRegime,
+    )
+
+	return
+end
+
+
+function evaluate_approx_value_function(
+	node::SDDP.Node,
+	core_point_x::Vector{Float64},
+	number_of_states::Int,
+	state_approximation_regime::DynamicSDDiP.NoStateApproximation,
+	)
+
+	subproblem = node.subproblem
+	original_state_values = Vector{Float64}(undef, number_of_states)
+
+	# Replace the currently fixed value with the one from the core point
+	# Store the original state value
+	for (i, (name, state_comp)) in enumerate(node.states)
+        #prepare_state_fixing!(node, state_comp)
+		original_state_values[i] = JuMP.fix_value(state_comp.in)
+        JuMP.fix(state_comp.in, core_point_x[i], force=true)
+    end
+
+	# Solve the subproblem
+	TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_core" begin
+        JuMP.optimize!(subproblem)
+    end
+
+    # Maybe attempt numerical recovery as in SDDP
+    core_obj = JuMP.objective_value(subproblem)
+    @assert JuMP.termination_status(subproblem) == MOI.OPTIMAL
+
+	# Restore the original state value
+	for (i, (name, state_comp)) in enumerate(node.states)
+        #prepare_state_fixing!(node, state_comp)
+        JuMP.fix(state_comp.in, original_state_values[i], force=true)
+    end
+
+	return core_obj
 end

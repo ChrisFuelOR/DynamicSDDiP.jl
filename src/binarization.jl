@@ -36,7 +36,7 @@ function changeStateSpace!(
     bw_data[:bin_constraints] = JuMP.ConstraintRef[]
     bw_data[:bin_states] = Dict{Symbol,JuMP.VariableRef}()
     bw_data[:bin_x_names] = Dict{Symbol,Symbol}()
-    bw_data[:bin_k] = Dict{Symbol,Int8}()
+    bw_data[:bin_k] = Dict{Symbol,Int64}()
 
     number_of_states = 0
     binary_precision = state_approximation_regime.binary_precision

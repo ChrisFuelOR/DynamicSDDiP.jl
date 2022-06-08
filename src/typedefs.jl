@@ -234,10 +234,22 @@ abstract type AbstractNormalizationRegime end
 mutable struct L₁_Deep <: AbstractNormalizationRegime end
 mutable struct L₂_Deep <: AbstractNormalizationRegime end
 mutable struct L∞_Deep <: AbstractNormalizationRegime end
-mutable struct L₁∞_Deeo <: AbstractNormalizationRegime end
-mutable struct Brandenberg <: AbstractNormalizationRegime end
-mutable struct Fischetti <: AbstractNormalizationRegime end
+mutable struct L₁∞_Deep <: AbstractNormalizationRegime end
+mutable struct Fischetti <: AbstractNormalizationRegime end #TODO
 mutable struct ChenLuedtke <: AbstractNormalizationRegime end
+mutable struct Core_Midpoint <: AbstractNormalizationRegime end
+mutable struct Core_In_Out <: AbstractNormalizationRegime end
+mutable struct Core_Optimal <: AbstractNormalizationRegime end
+mutable struct Core_Relint <: AbstractNormalizationRegime end
+
+mutable struct Core_Epsilon <: AbstractNormalizationRegime
+    perturb::Float64
+    function Core_Epsilon(;
+        perturb = 1e-6,
+    )
+        return new(perturb)
+    end
+end
 
 """
 L_1_Deep means that a normalization is used in the Lagrangian dual such that
@@ -684,7 +696,7 @@ mutable struct NonlinearCut <: Cut
     ############################################################################
     non_dominated_count::Int
     ############################################################################
-    iteration::Int16
+    iteration::Int64
     ############################################################################
     aggregation_regime::DynamicSDDiP.AbstractCutAggregationRegime
     duality_regime::DynamicSDDiP.AbstractDualityRegime
@@ -731,7 +743,7 @@ mutable struct LinearCut <: Cut
     ############################################################################
     non_dominated_count::Int
     ############################################################################
-    iteration::Int16
+    iteration::Int64
     ############################################################################
     aggregation_regime::DynamicSDDiP.AbstractCutAggregationRegime
     duality_regime::DynamicSDDiP.AbstractDualityRegime

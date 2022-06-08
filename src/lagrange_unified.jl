@@ -45,6 +45,7 @@ function solve_unified_lagrangian_dual(
     node_index::Int64,
     i::Int64,
     epi_state::Float64,
+    core_point::Union{Nothing,NamedTuple{(:x, :theta),Tuple{Vector{Float64},Float64}}},
     primal_obj::Float64,
     π_k::Vector{Float64},
     π0_k::Float64,
@@ -154,7 +155,7 @@ function solve_unified_lagrangian_dual(
         dual_space_restriction!(node, approx_model, i, cut_generation_regime.state_approximation_regime, cut_generation_regime.duality_regime.dual_space_regime)
 
         # Add normalization constraint depending on abstract normalization regime
-        add_normalization_constraint!(node, approx_model, number_of_states, cut_generation_regime.duality_regime.normalization_regime)
+        add_normalization_constraint!(node, approx_model, number_of_states, core_point, cut_generation_regime.duality_regime.normalization_regime)
 
     end
 
