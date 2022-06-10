@@ -45,7 +45,7 @@ function solve_unified_lagrangian_dual(
     node_index::Int64,
     i::Int64,
     epi_state::Float64,
-    core_point::Union{Nothing,NamedTuple{(:x, :theta),Tuple{Vector{Float64},Float64}}},
+    normalization_coeff::Union{Nothing,NamedTuple{(:ω, :ω₀),Tuple{Vector{Float64},Float64}}},
     primal_obj::Float64,
     π_k::Vector{Float64},
     π0_k::Float64,
@@ -55,8 +55,6 @@ function solve_unified_lagrangian_dual(
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     dual_solution_regime::DynamicSDDiP.Kelley
 )
-
-    Infiltrator.@infiltrate
 
     ############################################################################
     # INITIALIZATION
@@ -155,7 +153,7 @@ function solve_unified_lagrangian_dual(
         dual_space_restriction!(node, approx_model, i, cut_generation_regime.state_approximation_regime, cut_generation_regime.duality_regime.dual_space_regime)
 
         # Add normalization constraint depending on abstract normalization regime
-        add_normalization_constraint!(node, approx_model, number_of_states, core_point, cut_generation_regime.duality_regime.normalization_regime)
+        add_normalization_constraint!(node, approx_model, number_of_states, normalization_coeff, cut_generation_regime.duality_regime.normalization_regime)
 
     end
 
@@ -236,6 +234,16 @@ function solve_unified_lagrangian_dual(
             lag_status = :iter
         end
     end
+
+    Infiltrator.@infiltrate
+    ############################################################################
+    # APPLY MINIMAL NORM CHOICE APPROACH IF INTENDED
+    ############################################################################
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "minimal_norm" begin
+        minimal_norm_choice_unified!(node, node_index, approx_model, π_k, π_star, π0_k, π0_star, t_k, h_expr, h_k, w_expr, w_k, s, L_star,
+            iteration_limit, atol, rtol, cut_generation_regime.duality_regime.dual_choice_regime, iter, algo_params)
+    end
+    Infiltrator.@infiltrate
 
     ############################################################################
     # RESTORE THE COPY CONSTRAINT x.in = value(x.in) (̄x = z)
@@ -367,7 +375,7 @@ function solve_lagrangian_dual(
         JuMP.@objective(approx_model, Max, t)
         # We cannot use the primal_obj as an obj_bound in the unified framework,
         # so we use an arbitrarily chosen upper bound.
-        set_objective_bound!(approx_model, s, 1e9)
+        #set_objective_bound!(approx_model, s, 1e9)
 
         # Create the dual variables
         # Note that the real dual multipliers are split up into two non-negative
@@ -565,6 +573,14 @@ function solve_lagrangian_dual(
     end
 
     ############################################################################
+    # APPLY MINIMAL NORM CHOICE APPROACH IF INTENDED
+    ############################################################################
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "minimal_norm" begin
+        minimal_norm_choice_unified!(node, node_index, approx_model, π_k, π_star, π0_k, π0_star, t_k, h_expr, h_k, w_expr, w_k, s, L_star,
+            iteration_limit, atol, rtol, cut_generation_regime.duality_regime.dual_choice_regime, iter, algo_params)
+    end
+
+    ############################################################################
     # RESTORE THE COPY CONSTRAINT x.in = value(x.in) (̄x = z)
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "restore_copy" begin
@@ -587,4 +603,102 @@ function solve_lagrangian_dual(
 
     return (lag_obj = s * L_star, iterations = iter, lag_status = lag_status, dual_0_var = π0_k)
 
+end
+
+"""
+Given the optimal dual objective value from the Kelley's method, try to find
+the optimal dual multipliers with the smallest L1-norm.
+
+Note that this is only done until the maximum number of iterations is
+achieved in total.
+"""
+
+function minimal_norm_choice_unified!(
+    node::SDDP.Node,
+    node_index::Int64,
+    approx_model::JuMP.Model,
+    π_k::Vector{Float64},
+    π_star::Vector{Float64},
+    π0_k::Float64,
+    π0_star::Float64,
+    t_k::Float64,
+    h_expr::Vector{JuMP.GenericAffExpr{Float64,JuMP.VariableRef}},
+    h_k::Vector{Float64},
+    w_expr::JuMP.GenericAffExpr{Float64,JuMP.VariableRef},
+    w_k::Float64,
+    s::Int,
+    L_star::Float64,
+    iteration_limit::Int,
+    atol::Float64,
+    rtol::Float64,
+    dual_choice_regime::DynamicSDDiP.MinimalNormChoice,
+    iter::Int,
+    algo_params::DynamicSDDiP.AlgoParams,
+    )
+
+    π⁺ = approx_model[:π⁺]
+    π⁻ = approx_model[:π⁻]
+    t = approx_model[:t]
+    π = approx_model[:π]
+    π₀ = approx_model[:π₀]
+
+    # We actually would have to solve with the objective (π⁺ + π⁻)/π₀
+    # To avoid a nonlinear problem, we fix the scaling factor π₀ to its optimal
+    # value from the previous solution method.
+    JuMP.fix(π₀, π0_star, force=true)
+    π0_k = π0_star
+
+    # Reset objective
+    JuMP.@objective(approx_model, Min, sum(π⁺) + sum(π⁻))
+    JuMP.set_lower_bound(t, t_k)
+
+    # The worst-case scenario in this for-loop is that we run through the
+    # iterations without finding a new dual solution. However if that happens
+    # we can just keep our current λ_star.
+    for _ in (iter+1):iteration_limit
+        JuMP.optimize!(approx_model)
+        @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
+        π_k .= JuMP.value.(π)
+
+        relax_results = _solve_unified_Lagrangian_relaxation!(node, π_k, π0_k, h_expr, h_k, w_expr, w_k, true)
+        L_k = relax_results.L_k
+        w_k = relax_results.w_k
+
+        if isapprox(L_star, L_k, atol = atol, rtol = rtol)
+            # At this point we tried the smallest ‖π‖ from the cutting plane
+            # problem, and it returned the optimal dual objective value. No
+            # other optimal dual vector can have a smaller norm.
+            π_star .= π_k
+            return
+        end
+        JuMP.@constraint(approx_model, t <= s * (L_k + h_k' * (π .- π_k) + w_k * (π₀ - π0_k)))
+        # note that the last term is always zero, since π₀ is fixed
+
+    end
+
+    return
+end
+
+
+function minimal_norm_choice_unified!(
+    node::SDDP.Node,
+    node_index::Int64,
+    approx_model::JuMP.Model,
+    π_k::Vector{Float64},
+    π_star::Vector{Float64},
+    t_k::Float64,
+    h_expr::Vector{JuMP.GenericAffExpr{Float64,JuMP.VariableRef}},
+    h_k::Vector{Float64},
+    s::Int,
+    L_star::Float64,
+    iteration_limit::Int,
+    atol::Float64,
+    rtol::Float64,
+    dual_choice_regime::DynamicSDDiP.StandardChoice,
+    iter::Int,
+    augmented::Bool,
+    algo_params::DynamicSDDiP.AlgoParams,
+    )
+
+    return
 end

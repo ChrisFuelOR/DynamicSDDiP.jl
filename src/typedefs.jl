@@ -363,6 +363,7 @@ mutable struct UnifiedLagrangianDuality <: AbstractDualityRegime
     dual_initialization_regime::AbstractDualInitializationRegime
     dual_bound_regime::AbstractDualBoundRegime
     dual_solution_regime::AbstractDualSolutionRegime
+    dual_choice_regime::AbstractDualChoiceRegime
     dual_status_regime::AbstractDualStatusRegime
     normalization_regime::AbstractNormalizationRegime
     dual_space_regime::AbstractDualSpaceRegime
@@ -374,6 +375,7 @@ mutable struct UnifiedLagrangianDuality <: AbstractDualityRegime
         dual_initialization_regime = ZeroDuals(),
         dual_bound_regime = BothBounds(),
         dual_solution_regime = Kelley(),
+        dual_choice_regime = MinimalNormChoice(),
         dual_status_regime = Rigorous(),
         normalization_regime = L₁_Deep(),
         dual_space_regime = NoDualSpaceRestriction(),
@@ -381,7 +383,7 @@ mutable struct UnifiedLagrangianDuality <: AbstractDualityRegime
     )
         return new(atol, rtol, iteration_limit,
             dual_initialization_regime, dual_bound_regime,
-            dual_solution_regime, dual_status_regime,
+            dual_solution_regime, dual_choice_regime, dual_status_regime,
             normalization_regime, dual_space_regime, copy_regime)
     end
 end

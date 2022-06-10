@@ -397,7 +397,14 @@ function get_dual_solution(
     ############################################################################
     """ If we do not use a normalization that requires a core point, we simply
     return nothing """
-    core_point = get_core_point(node, number_of_states, cut_generation_regime.state_approximation_regime, duality_regime.normalization_regime)
+    normalization_coeff = get_normalization_coefficients(
+        node,
+        number_of_states,
+        epi_state,
+        cut_generation_regime.state_approximation_regime,
+        duality_regime.normalization_regime,
+        duality_regime.copy_regime
+    )
 
     try
         ########################################################################
@@ -410,7 +417,7 @@ function get_dual_solution(
                         node_index,
                         i,
                         epi_state,
-                        core_point,
+                        normalization_coeff,
                         primal_obj,
                         dual_vars,
                         dual_0_var,

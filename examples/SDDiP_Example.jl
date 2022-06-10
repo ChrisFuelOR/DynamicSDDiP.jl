@@ -24,8 +24,8 @@ function model_config()
     dual_solution_regime = DynamicSDDiP.Kelley()
     dual_bound_regime = DynamicSDDiP.BothBounds()
     dual_status_regime = DynamicSDDiP.Rigorous()
-    dual_choice_regime = DynamicSDDiP.StandardChoice()
-    normalization_regime = DynamicSDDiP.L₁_Deep()
+    dual_choice_regime = DynamicSDDiP.MinimalNormChoice()
+    normalization_regime = DynamicSDDiP.Core_In_Out()
     dual_space_regime = DynamicSDDiP.BendersSpanSpaceRestriction(10, :multi_cut)
     copy_regime = DynamicSDDiP.ConvexHullCopy()
 
@@ -36,7 +36,7 @@ function model_config()
         dual_initialization_regime = dual_initialization_regime,
         dual_bound_regime = dual_bound_regime,
         dual_solution_regime = dual_solution_regime,
-        #dual_choice_regime = dual_choice_regime,
+        dual_choice_regime = dual_choice_regime,
         dual_status_regime = dual_status_regime,
         normalization_regime = normalization_regime,
         dual_space_regime = dual_space_regime,

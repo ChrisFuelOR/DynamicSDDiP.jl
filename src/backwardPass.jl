@@ -149,7 +149,6 @@ function backward_pass(
                     update_Benders_cut_list!(node, algo_params.cut_aggregation_regime, cut_generation_regime.state_approximation_regime)
                 end
                 # TODO: A similar approach can be used for Lagrangian cuts
-                Infiltrator.@infiltrate
 
                 ################################################################
                 # LOGGING

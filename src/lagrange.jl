@@ -260,7 +260,7 @@ function solve_lagrangian_dual(
     ############################################################################
     # APPLY MINIMAL NORM CHOICE APPROACH IF INTENDED
     ############################################################################
-    TimerOutputs.@timeit DynamicSDDiP_TIMER "magnanti_wong" begin
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "minimal_norm" begin
         minimal_norm_choice!(node, node_index, approx_model, π_k, π_star, t_k, h_expr, h_k, s, L_star,
             iteration_limit, atol, rtol, cut_generation_regime.duality_regime.dual_choice_regime, iter, augmented, algo_params)
     end
@@ -661,7 +661,7 @@ function solve_lagrangian_dual(
     ############################################################################
     # APPLY MINIMAL NORM CHOICE APPROACH IF INTENDED
     ############################################################################
-    TimerOutputs.@timeit DynamicSDDiP_TIMER "magnanti_wong" begin
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "minimal_norm" begin
         minimal_norm_choice!(node, node_index, approx_model, π_k, π_star, t_k, h_expr, h_k, s, L_star,
             iteration_limit, atol, rtol, cut_generation_regime.duality_regime.dual_choice_regime, iter,
             augmented, algo_params)

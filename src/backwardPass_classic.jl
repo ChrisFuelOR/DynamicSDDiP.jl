@@ -236,8 +236,6 @@ function solve_subproblem_backward(
         dual_results = get_dual_solution(node, node_index, i, epi_state, algo_params, cut_generation_regime, applied_solvers, cut_generation_regime.duality_regime)
     end
 
-    Infiltrator.@infiltrate
-
     ############################################################################
     # REGAIN ORIGINAL MODEL IF BINARY APPROXIMATION IS USED
     ############################################################################
