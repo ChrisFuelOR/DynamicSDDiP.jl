@@ -165,6 +165,9 @@ function solve(
             node.ext[:Benders_cuts_original] = Tuple{Int64, Symbol}[]
             node.ext[:Benders_cuts_binary] = Tuple{Int64, Symbol}[]
 
+            # Identify constraints containing state variables and store them in node.ext[:state_constraints]
+            identify_state_constraints!(node)
+
         end
     end
 

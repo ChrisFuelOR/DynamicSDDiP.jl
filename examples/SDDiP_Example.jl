@@ -24,10 +24,11 @@ function model_config()
     dual_solution_regime = DynamicSDDiP.Kelley()
     dual_bound_regime = DynamicSDDiP.BothBounds()
     dual_status_regime = DynamicSDDiP.Rigorous()
-    dual_choice_regime = DynamicSDDiP.MinimalNormChoice()
-    normalization_regime = DynamicSDDiP.Core_In_Out()
-    dual_space_regime = DynamicSDDiP.BendersSpanSpaceRestriction(10, :multi_cut)
-    copy_regime = DynamicSDDiP.ConvexHullCopy()
+    dual_choice_regime = DynamicSDDiP.StandardChoice()
+    normalization_regime = DynamicSDDiP.Core_Relint()
+    #dual_space_regime = DynamicSDDiP.BendersSpanSpaceRestriction(10, :multi_cut)
+    dual_space_regime = DynamicSDDiP.NoDualSpaceRestriction()
+    copy_regime = DynamicSDDiP.StateSpaceCopy()
 
     duality_regime_2 = DynamicSDDiP.UnifiedLagrangianDuality(
         atol = 1e-4,

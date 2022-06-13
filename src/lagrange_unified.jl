@@ -220,7 +220,12 @@ function solve_unified_lagrangian_dual(
     # CONVERGENCE ANALYSIS
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "convergence_check" begin
-        if isapprox(L_star, t_k, atol = atol, rtol = rtol)
+        if isapprox(L_star, t_k, atol = atol, rtol = rtol) && L_star == 1e9
+            # UNBOUNDEDNESS DETECTED, which is only bounded by artificial
+            # objective bound 1e-9
+            # Leads still to a valid cut, but no vertex of the reverse polar set
+            lag_status = :unbounded
+        elseif isapprox(L_star, t_k, atol = atol, rtol = rtol)
             # CONVERGENCE ACHIEVED
             # it does not make sense to compare with primal_obj here
             lag_status = :opt
@@ -235,7 +240,6 @@ function solve_unified_lagrangian_dual(
         end
     end
 
-    Infiltrator.@infiltrate
     ############################################################################
     # APPLY MINIMAL NORM CHOICE APPROACH IF INTENDED
     ############################################################################
@@ -375,7 +379,7 @@ function solve_lagrangian_dual(
         JuMP.@objective(approx_model, Max, t)
         # We cannot use the primal_obj as an obj_bound in the unified framework,
         # so we use an arbitrarily chosen upper bound.
-        #set_objective_bound!(approx_model, s, 1e9)
+        set_objective_bound!(approx_model, s, 1e9)
 
         # Create the dual variables
         # Note that the real dual multipliers are split up into two non-negative
@@ -557,7 +561,12 @@ function solve_lagrangian_dual(
     # CONVERGENCE ANALYSIS
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "convergence_check" begin
-        if isapprox(L_star, t_k, atol = atol, rtol = rtol)
+        if isapprox(L_star, t_k, atol = atol, rtol = rtol) && L_star == 1e9
+            # UNBOUNDEDNESS DETECTED, which is only bounded by artificial
+            # objective bound 1e-9
+            # Leads still to a valid cut, but no vertex of the reverse polar set
+            lag_status = :unbounded
+        elseif isapprox(L_star, t_k, atol = atol, rtol = rtol)
             # CONVERGENCE ACHIEVED
             # it does not make sense to compare with primal_obj here
             lag_status = :opt
@@ -686,9 +695,13 @@ function minimal_norm_choice_unified!(
     approx_model::JuMP.Model,
     π_k::Vector{Float64},
     π_star::Vector{Float64},
+    π0_k::Float64,
+    π0_star::Float64,
     t_k::Float64,
     h_expr::Vector{JuMP.GenericAffExpr{Float64,JuMP.VariableRef}},
     h_k::Vector{Float64},
+    w_expr::JuMP.GenericAffExpr{Float64,JuMP.VariableRef},
+    w_k::Float64,
     s::Int,
     L_star::Float64,
     iteration_limit::Int,
@@ -696,7 +709,6 @@ function minimal_norm_choice_unified!(
     rtol::Float64,
     dual_choice_regime::DynamicSDDiP.StandardChoice,
     iter::Int,
-    augmented::Bool,
     algo_params::DynamicSDDiP.AlgoParams,
     )
 

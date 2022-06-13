@@ -565,6 +565,8 @@ function lagrangian_status_check(
         error("Lagrangian dual had subgradients zero without LB=UB.")
     elseif lag_status == :iter
         error("Solving Lagrangian dual exceeded iteration limit.")
+    elseif lag_status == :unbounded
+        error("Normalized Lagrangian dual unbounded.")
     end
 
     return

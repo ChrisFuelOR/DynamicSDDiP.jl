@@ -314,3 +314,43 @@ function set_up_state_in_info!(state_out_previous_stage::JuMP.VariableRef, state
 
     return
 end
+
+
+"""
+Function to identify which constraints contain the in-component of the state variables.
+Note that we consider mixed-integer linear programs, so this only includes affine
+constraints so far.
+"""
+function identify_state_constraints!(node::SDDP.Node)
+
+    node.ext[:state_constraints] = JuMP.ConstraintRef[]
+
+    for constraint in JuMP.all_constraints(node.subproblem, JuMP.AffExpr, MOI.GreaterThan{Float64})
+        check_constraint_for_state(node, constraint, node.ext[:state_constraints])
+    end
+
+    for constraint in JuMP.all_constraints(node.subproblem, JuMP.AffExpr, MOI.LessThan{Float64})
+        check_constraint_for_state(node, constraint, node.ext[:state_constraints])
+    end
+
+    for constraint in JuMP.all_constraints(node.subproblem, JuMP.AffExpr, MOI.EqualTo{Float64})
+        check_constraint_for_state(node, constraint, node.ext[:state_constraints])
+    end
+
+end
+
+
+function check_constraint_for_state(
+    node::SDDP.Node,
+    constraint::JuMP.ConstraintRef,
+    storage_vector::Vector{JuMP.ConstraintRef},
+    )
+
+    for (name, state) in node.states
+        if JuMP.normalized_coefficient(constraint, state.in) != 0.0
+            push!(storage_vector, constraint)
+            break
+        end
+    end
+
+end
