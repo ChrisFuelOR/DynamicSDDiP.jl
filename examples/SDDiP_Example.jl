@@ -100,7 +100,7 @@ function model_config()
     log_file = "C:/Users/cg4102/Documents/julia_logs/SDDiP_Example.log"
 
     # Suppress solver output
-    silent = false
+    silent = true
 
     # Infiltration for debugging
     infiltrate_state = :none

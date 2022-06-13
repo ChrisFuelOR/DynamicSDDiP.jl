@@ -256,7 +256,6 @@ function solve_lagrangian_dual(
             lag_status = :iter
         end
     end
-    Infiltrator.@infiltrate
 
     ############################################################################
     # APPLY MINIMAL NORM CHOICE APPROACH IF INTENDED
@@ -457,7 +456,7 @@ function solve_lagrangian_dual(
         # Optimizer is re-set anyway
         approx_model = JuMP.Model(GAMS.Optimizer)
         approx_model.ext[:sddp_policy_graph] = node.subproblem.ext[:sddp_policy_graph]
-        
+
         # Create the objective
         # Note that it is always formulated as a maximization problem, but that
         # s modifies the sense appropriately

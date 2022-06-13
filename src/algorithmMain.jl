@@ -557,7 +557,7 @@ function iteration(
         )
     end
 
-    Infiltrator.@infiltrate
+    #Infiltrator.@infiltrate
 
     ############################################################################
     # CALCULATE LOWER BOUND

@@ -136,7 +136,6 @@ function binary_refinement_execution(
             ub = variable_info.upper_bound
             K = SDDP._bitsrequired(round(Int, ub / current_prec))
             new_prec = ub / sum(2^(k-1) for k in 1:K+1)
-            Infiltrator.@infiltrate
 
             # Only apply refinement if int64 is appropriate to represent this number
             if ub / new_prec > 2^63 - 1

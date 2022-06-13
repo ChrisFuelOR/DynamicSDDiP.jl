@@ -85,20 +85,23 @@ function set_solver!(
             GAMS.Optimizer,
             "Solver"=>solver,
             "optcr"=>0.0,
-            "numericalemphasis"=>numerical_focus)
+            "numericalemphasis"=>numerical_focus);
+            add_bridges = false
             )
     elseif solver == "Gurobi"
         JuMP.set_optimizer(subproblem, JuMP.optimizer_with_attributes(
             GAMS.Optimizer,
             "Solver"=>solver,
             "optcr"=>0.0,
-            "NumericFocus"=>numerical_focus)
+            "NumericFocus"=>numerical_focus);
+            add_bridges = false
             )
     else
     JuMP.set_optimizer(subproblem, JuMP.optimizer_with_attributes(
         GAMS.Optimizer,
         "Solver"=>solver,
-        "optcr"=>0.0)
+        "optcr"=>0.0);
+        add_bridges = false
         )
 
         if numerical_focus == 1

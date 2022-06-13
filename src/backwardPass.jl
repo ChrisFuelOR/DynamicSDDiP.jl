@@ -158,8 +158,11 @@ function backward_pass(
                 for i in items.lag_status
                     lag_status_string = string(lag_status_string, i, ", ")
                 end
-                #push!(model.ext[:lag_status], lag_status_string)
-                #push!(model.ext[:lag_iterations], Statistics.mean(items.lag_iterations))
+
+                if isa(cut_generation_regime.duality_regime, Union{DynamicSDDiP.LagrangianDuality,DynamicSDDiP.UnifiedLagrangianDuality})
+                    push!(model.ext[:lag_status], lag_status_string)
+                    push!(model.ext[:lag_iterations], Statistics.mean(items.lag_iterations))
+                end
 
                 #TODO: lag_status and lag_iterations have to be stored for each
                 #cut_generation_regime separately.
