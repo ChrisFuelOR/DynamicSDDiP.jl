@@ -615,8 +615,6 @@ function get_normalization_coefficients(
 		ω[i] = core_point.x[i] - incumbent
 	end
 
-	Infiltrator.@infiltrate
-
 	return (ω = ω, ω₀ = ω₀)
 
 end

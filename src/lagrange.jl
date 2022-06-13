@@ -150,6 +150,7 @@ function solve_lagrangian_dual(
         # Approximation of Lagrangian dual by cutting planes
         # Optimizer is re-set anyway
         approx_model = JuMP.Model(GAMS.Optimizer)
+        approx_model.ext[:sddp_policy_graph] = node.subproblem.ext[:sddp_policy_graph]
         set_solver!(approx_model, algo_params, applied_solvers, :kelley)
 
         # Create the objective
@@ -455,7 +456,8 @@ function solve_lagrangian_dual(
         # Approximation of Lagrangian dual by cutting planes
         # Optimizer is re-set anyway
         approx_model = JuMP.Model(GAMS.Optimizer)
-
+        approx_model.ext[:sddp_policy_graph] = node.subproblem.ext[:sddp_policy_graph]
+        
         # Create the objective
         # Note that it is always formulated as a maximization problem, but that
         # s modifies the sense appropriately

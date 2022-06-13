@@ -123,6 +123,8 @@ function solve_unified_lagrangian_dual(
         # Approximation of Lagrangian dual by cutting planes
         # Optimizer is re-set anyway
         approx_model = JuMP.Model(GAMS.Optimizer)
+        approx_model.ext[:sddp_policy_graph] = node.subproblem.ext[:sddp_policy_graph]
+
         if isa(cut_generation_regime.duality_regime.normalization_regime, DynamicSDDiP.L₂_Deep)
             set_solver!(approx_model, algo_params, applied_solvers, :l₂)
         else
@@ -247,7 +249,6 @@ function solve_unified_lagrangian_dual(
         minimal_norm_choice_unified!(node, node_index, approx_model, π_k, π_star, π0_k, π0_star, t_k, h_expr, h_k, w_expr, w_k, s, L_star,
             iteration_limit, atol, rtol, cut_generation_regime.duality_regime.dual_choice_regime, iter, algo_params)
     end
-    Infiltrator.@infiltrate
 
     ############################################################################
     # RESTORE THE COPY CONSTRAINT x.in = value(x.in) (̄x = z)
@@ -364,6 +365,7 @@ function solve_lagrangian_dual(
         # Approximation of Lagrangian dual by cutting planes
         # Optimizer is re-set anyway
         approx_model = JuMP.Model(GAMS.Optimizer)
+        approx_model.ext[:sddp_policy_graph] = node.subproblem.ext[:sddp_policy_graph]
 
         if isa(cut_generation_regime.duality_regime.normalization_regime, DynamicSDDiP.L₂_Deep)
             set_solver!(approx_model, algo_params, applied_solvers, :l₂)

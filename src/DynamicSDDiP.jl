@@ -18,6 +18,7 @@ import Printf
 import Dates
 import Statistics
 import Infiltrator
+import PrettyTables
 
 const MOI = MathOptInterface
 
