@@ -15,6 +15,9 @@ function set_solver!(
     algorithmic_step::Symbol,
 )
 
+    model = subproblem.ext[:sddp_policy_graph]
+    iteration = model.ext[:iteration]
+
     # CHOOSE THE CORRECT TYPE OF SOLVER
     ########################################################################
     if algorithmic_step in [:level_bundle]
@@ -32,7 +35,8 @@ function set_solver!(
 
         for cut_generation_regime in algo_params.cut_generation_regimes
             # NON-CONVEX CUTS HAVE BEEN CREATED SO FAR
-            if isa(cut_generation_regime.state_approximation_regime, DynamicSDDiP.BinaryApproximation) #&& cut_generation_regime.iteration_to_start <= iteration
+            if isa(cut_generation_regime.state_approximation_regime, DynamicSDDiP.BinaryApproximation) && cut_generation_regime.iteration_to_start <= iteration
+
                 cut_projection_regime = cut_generation_regime.state_approximation_regime.cut_projection_regime
 
                 if algorithmic_step in [:forward_pass, :backward_pass]

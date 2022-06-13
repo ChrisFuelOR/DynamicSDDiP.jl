@@ -252,24 +252,56 @@ mutable struct Core_Epsilon <: AbstractNormalizationRegime
 end
 
 """
-L_1_Deep means that a normalization is used in the Lagrangian dual such that
-    deepest cuts w.r.t. to the 1-norm are generated. Note that this is equivalent
-    to approaches by Fischetti et al. and Chen & Luedtke if copy constraints
-    are used.
-L_2_Deep means that a normalization is used in the Lagrangian dual such that
-    deepest cuts w.r.t. to the 2-norm are generated.
-L_Inf_Deep means that a normalization is used in the Lagrangian dual such that
-    deepest cuts w.r.t. to the supremum norm are generated.
-L_1_Inf_Deep means that a normalization is used in the Lagrangian dual that
-    is a linear combination of the 1-norm and sup-norm.
-Brandenberg means that a normalization is used in the Lagrangian dual such that
-    Pareto-optimal and likely also facet-defining cuts are generated. This
-    approach can be interpreted as optimizing over the reverse polar set.
-    TODO: How does that work?
+This AbstractType allows to use different normalization in the Lagrangian dual
+problem if the unified Lagrangian framework is used.
+
+In the first group of normalization approaches, a norm of the dual multipliers
+is bounded.
+
+L_1_Deep means that a normalization is used such that deepest cuts w.r.t. to
+    the 1-norm are generated. This is equivalent to one normalization used
+    by Chen & Luedtke and related to the normalization by Fischetti et al.
+    if copy constraints are used.
+L_2_Deep means that a normalization is used such that deepest cuts w.r.t.
+    the 2-norm are generated.
+L_Inf_Deep means that a normalization is used such that deepest cuts w.r.t.
+    the supremum norm are generated.
+L_1_Inf_Deep means that a normalization is used such that deepest cuts w.r.t.
+    a linear combination of the 1-norm and sup-norm are generated. This can be
+    interpreted as a linear approximation of the 2-norm.
+ChenLuedtke means that the second normalization approach by Chen & Luedtke
+    is used. Here, the dual multipliers have to be restricted to the span
+    of Benders multipliers.
+
+In the second group of normalization approaches, a linear function of the dual
+multipliers (a linear pseudonorm) is bounded. In all but the first approach
+(Fischetti), the coefficients of the linear pseudonorm are determined as the
+direction between a core point in the epigraph and the current incumbent
+(see Brandenberg & Stursberg for some theory behind this approach).
+These approaches are also similar to the traditional strategy by Magnanti
+and Wong to compute Pareto-optimal cuts.
+
 Fischetti means that the classical normalization approach by Fischetti et al.
     (2010) is used for the Lagrangian dual.
-Chen & Luedtke means that a similar, but slightly different normalization
-    approach compared to Fischetti et al. is used.
+Core_Midpoint means that the normalization is based on a core point which is
+    the midpoint of the state space. This requires that all state variables
+    are bounded from below and above.
+Core_In_Out means that the normalization is based on a  core point which is
+    a convex combination of the previous core point and the current incumbent
+    (similar to the in-out-strategy for cutting-plane methods and the
+    core point updates by Papadakos).
+Core_Epsilon means that the normalization is based on a core point which is a
+    a slight perturbation of the current incumbent. This ideas is similar to the
+    approach by Sherali & Lunday to compute Pareto-optimal cuts.
+Core_Optimal means that the normalization is based on a core point which is the
+    optimal point of the current subproblem (with updated cuts and a non-fixed
+    state variable).
+Core_Relint means that the normalization is based on a core point which is
+    determined by solving a special feasibility problem, which guarantees
+    that the point lies in the relative interior of the epigraph of the
+    closed convex envelope of the value function. This approach is based on
+    a similar strategy by Conforti & Wolsey.
+
 Default is L_1_Deep.
 """
 
@@ -495,6 +527,9 @@ cut_away_approach:      if true, a hierarchy of cuts is used, so that this
                         by the previous cut already. This parameter should
                         not be true for the first CutGenerationRegime in
                         AlgoParams.
+
+Note that using gap_to_start and gap_to_stop for stochastic problems may be
+misleading as the upper bounds, and thus the gaps, are stochastic.
 """
 
 ################################################################################

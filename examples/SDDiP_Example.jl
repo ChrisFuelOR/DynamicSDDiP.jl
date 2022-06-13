@@ -28,7 +28,7 @@ function model_config()
     normalization_regime = DynamicSDDiP.Core_Relint()
     #dual_space_regime = DynamicSDDiP.BendersSpanSpaceRestriction(10, :multi_cut)
     dual_space_regime = DynamicSDDiP.NoDualSpaceRestriction()
-    copy_regime = DynamicSDDiP.StateSpaceCopy()
+    copy_regime = DynamicSDDiP.ConvexHullCopy()
 
     duality_regime_2 = DynamicSDDiP.UnifiedLagrangianDuality(
         atol = 1e-4,
