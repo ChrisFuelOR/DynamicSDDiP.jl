@@ -253,6 +253,8 @@ function get_dual_solution(
     deregularize_bw!(node, subproblem, algo_params.regularization_regime, cut_generation_regime.state_approximation_regime)
     #deregularize_bw!(node, subproblem, DynamicSDDiP.NoRegularization(), cut_generation_regime.state_approximation_regime)
 
+    Infiltrator.@infiltrate
+
     Infiltrator.@infiltrate algo_params.infiltrate_state in [:all]
 
     ############################################################################
@@ -651,7 +653,7 @@ function get_and_set_dual_values!(
 
     for (i, name) in enumerate(keys(node.ext[:backward_data][:bin_states]))
        variable_name = node.ext[:backward_data][:bin_states][name]
-       reference_to_constr = FixRef(variable_name)
+       reference_to_constr = JuMP.FixRef(variable_name)
        dual_vars_initial[i] = JuMP.dual(reference_to_constr)
     end
 
@@ -681,12 +683,13 @@ function store_dual_values!(
     state_approximation_regime::DynamicSDDiP.BinaryApproximation
     )
 
-    old_rhs = node.ext[:backward_data][:old_rhs]
+    #old_rhs = node.ext[:backward_data][:old_rhs]
 
     for (i, name) in enumerate(keys(node.ext[:backward_data][:bin_states]))
         dual_values[name] = dual_vars[i] / dual_0_var
 
-        value = old_rhs[i]
+        #value = old_rhs[i]
+        value = JuMP.fix_value(node.ext[:backward_data][:bin_states][name])
         x_name = node.ext[:backward_data][:bin_x_names][name]
         k = node.ext[:backward_data][:bin_k][name]
         bin_state[name] = BinaryState(value, x_name, k)

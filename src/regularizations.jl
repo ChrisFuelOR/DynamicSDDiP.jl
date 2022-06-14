@@ -196,8 +196,8 @@ function regularize_binary!(
         associated_original_state = node.ext[:backward_data][:bin_x_names][name]
     	beta = state_approximation_regime.binary_precision[associated_original_state]
     	associated_k = node.ext[:backward_data][:bin_k][name]
-        push!(reg_data[:weights], 2)
-        #push!(reg_data[:weights], 2^(associated_k-1) * beta)
+        #push!(reg_data[:weights], 2)
+        push!(reg_data[:weights], 2^(associated_k-1) * beta)
     end
 
     ############################################################################
@@ -316,10 +316,10 @@ function deregularize_binary!(node::SDDP.Node, subproblem::JuMP.Model, regulariz
     ############################################################################
     # DELETE ALL REGULARIZATION-BASED VARIABLES AND CONSTRAINTS
     ############################################################################
-    delete(subproblem, reg_data[:reg_variables])
+    JuMP.delete(subproblem, reg_data[:reg_variables])
 
     for constraint in reg_data[:reg_constraints]
-        delete(subproblem, constraint)
+        JuMP.delete(subproblem, constraint)
     end
 
     delete!(node.ext, :regularization_data)

@@ -195,7 +195,6 @@ function solve_lagrangian_dual(
                 L_k = _augmented_Lagrangian_relaxation!(node, node_index, π_k, h_expr, h_k, algo_params.regularization_regime, true)
             end
         end
-
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
         ########################################################################

@@ -228,6 +228,8 @@ function solve_subproblem_backward(
         changeStateSpace!(node, subproblem, state, cut_generation_regime.state_approximation_regime)
     end
 
+    Infiltrator.@infiltrate
+
     ############################################################################
     # SOLVE DUAL PROBLEM TO OBTAIN CUT INFORMATION
     ############################################################################

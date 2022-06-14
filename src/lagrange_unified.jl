@@ -279,11 +279,12 @@ end
 """
 Level Bundle method to solve unified Lagrangian dual
 """
-function solve_lagrangian_dual(
+function solve_unified_lagrangian_dual(
     node::SDDP.Node,
     node_index::Int64,
     i::Int64,
     epi_state::Float64,
+    normalization_coeff::Union{Nothing,NamedTuple{(:ω, :ω₀),Tuple{Vector{Float64},Float64}}},
     primal_obj::Float64,
     π_k::Vector{Float64},
     π0_k::Float64,
@@ -353,12 +354,6 @@ function solve_lagrangian_dual(
     w_expr = JuMP.@expression(node.subproblem, JuMP.objective_function(node.subproblem) - epi_state)
 
     ############################################################################
-    # LOGGING OF LAGRANGIAN DUAL
-    ############################################################################
-    #lag_log_file_handle = open("C:/Users/cg4102/Documents/julia_logs/Lagrange.log", "a")
-    #print_helper(print_lagrange_header, lag_log_file_handle)
-
-    ############################################################################
     # SET-UP THE APPROXIMATING CUTTING-PLANE MODEL
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "init_approx_model" begin
@@ -389,17 +384,16 @@ function solve_lagrangian_dual(
         JuMP.@variable(approx_model, π⁺[1:number_of_states] >= 0)
         JuMP.@variable(approx_model, π⁻[1:number_of_states] >= 0)
         JuMP.@expression(approx_model, π, π⁺ .- π⁻) # not required to be a constraint
-        JuMP.@expression(approx_model, π, π⁺ .- π⁻) # not required to be a constraint
         JuMP.@variable(approx_model, π₀ >= 0)
         set_multiplier_bounds!(node, approx_model, number_of_states, bound_results.dual_bound,
             algo_params.regularization_regime, cut_generation_regime.state_approximation_regime,
             cut_generation_regime.duality_regime)
 
         # Add dual space restriction (span of earlier multipliers)
-        dual_space_restriction!(node, approx_model, i, cut_generation_regime.duality_regime.dual_space_regime)
+        dual_space_restriction!(node, approx_model, i, cut_generation_regime.state_approximation_regime, cut_generation_regime.duality_regime.dual_space_regime)
 
         # Add normalization constraint depending on abstract normalization regime
-        add_normalization_constraint!(node, approx_model, number_of_states, cut_generation_regime.duality_regime.normalization_regime)
+        add_normalization_constraint!(node, approx_model, number_of_states, normalization_coeff, cut_generation_regime.duality_regime.normalization_regime)
 
     end
 

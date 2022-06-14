@@ -4,6 +4,8 @@
 # If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
 ################################################################################
 
+#const ws = GAMS.GAMSWorkspace()
+
 """
 Function which assigns the correct solvers to be used in the specific part
 of DynamicSDDiP
@@ -82,26 +84,23 @@ function set_solver!(
     ############################################################################
     if solver == "CPLEX"
         JuMP.set_optimizer(subproblem, JuMP.optimizer_with_attributes(
-            GAMS.Optimizer,
+            () -> GAMS.Optimizer(),
             "Solver"=>solver,
             "optcr"=>0.0,
-            "numericalemphasis"=>numerical_focus);
-            add_bridges = false
+            "numericalemphasis"=>numerical_focus)
             )
     elseif solver == "Gurobi"
         JuMP.set_optimizer(subproblem, JuMP.optimizer_with_attributes(
-            GAMS.Optimizer,
+            () -> GAMS.Optimizer(),
             "Solver"=>solver,
             "optcr"=>0.0,
-            "NumericFocus"=>numerical_focus);
-            add_bridges = false
+            "NumericFocus"=>numerical_focus)
             )
     else
     JuMP.set_optimizer(subproblem, JuMP.optimizer_with_attributes(
-        GAMS.Optimizer,
+        () -> GAMS.Optimizer(),
         "Solver"=>solver,
-        "optcr"=>0.0);
-        add_bridges = false
+        "optcr"=>0.0)
         )
 
         if numerical_focus == 1

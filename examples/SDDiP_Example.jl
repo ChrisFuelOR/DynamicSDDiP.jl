@@ -21,7 +21,7 @@ function model_config()
 
     # Duality / Cut computation configuration
     dual_initialization_regime = DynamicSDDiP.ZeroDuals()
-    dual_solution_regime = DynamicSDDiP.Kelley()
+    dual_solution_regime = DynamicSDDiP.LevelBundle()
     dual_bound_regime = DynamicSDDiP.BothBounds()
     dual_status_regime = DynamicSDDiP.Rigorous()
     dual_choice_regime = DynamicSDDiP.StandardChoice()
@@ -30,41 +30,37 @@ function model_config()
     dual_space_regime = DynamicSDDiP.NoDualSpaceRestriction()
     copy_regime = DynamicSDDiP.ConvexHullCopy()
 
-    duality_regime_2 = DynamicSDDiP.UnifiedLagrangianDuality(
-        atol = 1e-4,
-        rtol = 1e-4,
-        iteration_limit = 1000,
-        dual_initialization_regime = dual_initialization_regime,
-        dual_bound_regime = dual_bound_regime,
-        dual_solution_regime = dual_solution_regime,
-        dual_choice_regime = dual_choice_regime,
-        dual_status_regime = dual_status_regime,
-        normalization_regime = normalization_regime,
-        dual_space_regime = dual_space_regime,
-        copy_regime = copy_regime,
-    )
+    # duality_regime_2 = DynamicSDDiP.UnifiedLagrangianDuality(
+    #     atol = 1e-4,
+    #     rtol = 1e-4,
+    #     iteration_limit = 1000,
+    #     dual_initialization_regime = dual_initialization_regime,
+    #     dual_bound_regime = dual_bound_regime,
+    #     dual_solution_regime = dual_solution_regime,
+    #     dual_choice_regime = dual_choice_regime,
+    #     dual_status_regime = dual_status_regime,
+    #     normalization_regime = normalization_regime,
+    #     dual_space_regime = dual_space_regime,
+    #     copy_regime = copy_regime,
+    # )
 
-    # duality_regime_2 = DynamicSDDiP.LagrangianDuality(
-    #      atol = 1e-4,
-    #      rtol = 1e-4,
-    #      iteration_limit = 1000,
-    #      dual_initialization_regime = dual_initialization_regime,
-    #      dual_bound_regime = dual_bound_regime,
-    #      dual_solution_regime = dual_solution_regime,
-    #      dual_choice_regime = dual_choice_regime,
-    #      dual_status_regime = dual_status_regime,
-    #      copy_regime = copy_regime,
-    #  )
+    duality_regime_2 = DynamicSDDiP.LagrangianDuality(
+         atol = 1e-4,
+         rtol = 1e-4,
+         iteration_limit = 1000,
+         dual_initialization_regime = dual_initialization_regime,
+         dual_bound_regime = dual_bound_regime,
+         dual_solution_regime = dual_solution_regime,
+         dual_choice_regime = dual_choice_regime,
+         dual_status_regime = dual_status_regime,
+         copy_regime = copy_regime,
+     )
 
     #duality_regime = DynamicSDDiP.LinearDuality()
     #duality_regime = DynamicSDDiP.StrengthenedDuality()
 
     # State approximation and cut projection configuration
-    #cut_projection_regime = DynamicSDDiP.BigM()
-    #binary_precision = Dict{Symbol, Float64}()
-
-    # State approximation and cut projection configuration
-    state_approximation_regime_2 = DynamicSDDiP.NoStateApproximation()
+    state_approximation_regime_2 = DynamicSDDiP.BinaryApproximation()
 
     # Cut generation regimes
     cut_generation_regime_2 = DynamicSDDiP.CutGenerationRegime(
@@ -83,7 +79,7 @@ function model_config()
     cut_generation_regimes = [cut_generation_regime_1, cut_generation_regime_2]
 
     # Regularization configuration
-    regularization_regime = DynamicSDDiP.NoRegularization()
+    regularization_regime = DynamicSDDiP.Regularization(sigma=[0.0,1.0])
 
     # Cut aggregation regime
     cut_aggregation_regime = DynamicSDDiP.MultiCutRegime()
@@ -94,7 +90,7 @@ function model_config()
     end
 
     # Cut selection configuration
-    cut_selection_regime = DynamicSDDiP.CutSelection()
+    cut_selection_regime = DynamicSDDiP.NoCutSelection()
 
     # File for logging
     log_file = "C:/Users/cg4102/Documents/julia_logs/SDDiP_Example.log"
@@ -120,12 +116,12 @@ function model_config()
 
     # Define solvers to be used
     applied_solvers = DynamicSDDiP.AppliedSolvers(
-        LP = "Gurobi",
-        MILP = "Gurobi",
-        MIQCP = "Gurobi",
+        LP = "CPLEX",
+        MILP = "CPLEX",
+        MIQCP = "CPLEX",
         MINLP = "SCIP",
-        NLP = "Gurobi",
-        Lagrange = "Gurobi",
+        NLP = "CPLEX",
+        Lagrange = "CPLEX",
     )
 
     # Start model with used configuration

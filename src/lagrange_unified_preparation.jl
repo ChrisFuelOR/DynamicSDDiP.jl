@@ -991,8 +991,7 @@ function prepare_state_variables_for_feasibility_model!(
 		JuMP.unfix(state)
 
 		# Set bounds and integer constraints based on copy_regime
-		variable_info = node.ext[:state_info_storage][name].in
-		follow_state_unfixing_binary_slack!(node, state_comp, variable_info, copy_regime)
+		follow_state_unfixing_binary_slack!(node, state, copy_regime)
 	end
 
 	return
@@ -1106,7 +1105,7 @@ function prepare_state_variables_for_original_model!(
 	relint_data = node.ext[:relint_data]
 
 	for (i, (name, state)) in enumerate(node.ext[:backward_data][:bin_states])
-		prepare_state_fixing!(node, state)
+		prepare_state_fixing_binary!(node, state)
 		JuMP.fix(state, relint_data[:original_state_values][name], force=true)
 	end
 
@@ -1216,20 +1215,16 @@ end
 """
 Auxiliary method to relax state variable bounds for BinaryApproximation.
 """
-function follow_state_unfixing_binary_slack!(node::SDDP.Node, state::JuMP.VariableRef, variable_info::DynamicSDDiP.VariableInfo, copy_regime::DynamicSDDiP.StateSpaceCopy)
+function follow_state_unfixing_binary_slack!(node::SDDP.Node, state::JuMP.VariableRef, copy_regime::DynamicSDDiP.StateSpaceCopy)
 
-	follow_state_unfixing_slack!(node, state, variable_info, DynamicSDDiP.ConvexHullCopy())
+	follow_state_unfixing_slack!(node, state, DynamicSDDiP.ConvexHullCopy())
 
-    if variable_info.binary
-        JuMP.set_binary(state.in)
-    elseif variable_info.integer
-        JuMP.set_integer(state.in)
-    end
+    JuMP.set_binary(state)
 
     return
 end
 
-function follow_state_unfixing_binary_slack!(node::SDDP.Node, state::JuMP.VariableRef, variable_info::DynamicSDDiP.VariableInfo, copy_regime::DynamicSDDiP.ConvexHullCopy)
+function follow_state_unfixing_binary_slack!(node::SDDP.Node, state::JuMP.VariableRef, copy_regime::DynamicSDDiP.ConvexHullCopy)
 
 	subproblem = node.subproblem
 	relint_data = node.ext[:relint_data]
@@ -1243,7 +1238,7 @@ function follow_state_unfixing_binary_slack!(node::SDDP.Node, state::JuMP.Variab
 	push!(relint_data[:relint_variables], slack_var)
 
 	# Add constraint for state variable bounds
-	slack_con = JuMP.@constraint(subproblem, -state.in + slack_var <= -lb * scaling_var)
+	slack_con = JuMP.@constraint(subproblem, -state + slack_var <= -lb * scaling_var)
 	push!(relint_data[:relint_constraints], slack_con)
 
 	# Add slack variable
@@ -1251,13 +1246,13 @@ function follow_state_unfixing_binary_slack!(node::SDDP.Node, state::JuMP.Variab
 	push!(relint_data[:relint_variables], slack_var)
 
 	# Add constraint for state variable bounds
-	slack_con = JuMP.@constraint(subproblem, state.in + slack_var <= ub * scaling_var)
+	slack_con = JuMP.@constraint(subproblem, state + slack_var <= ub * scaling_var)
 	push!(relint_data[:relint_constraints], slack_con)
 
     return
 end
 
-function follow_state_unfixing_binary_slack!(node::SDDP.Node, state::JuMP.VariableRef, variable_info::DynamicSDDiP.VariableInfo, copy_regime::DynamicSDDiP.NoBoundsCopy)
+function follow_state_unfixing_binary_slack!(node::SDDP.Node, state::JuMP.VariableRef, copy_regime::DynamicSDDiP.NoBoundsCopy)
 
 	subproblem = node.subproblem
 	relint_data = node.ext[:relint_data]
@@ -1272,7 +1267,7 @@ function follow_state_unfixing_binary_slack!(node::SDDP.Node, state::JuMP.Variab
 	push!(relint_data[:relint_variables], slack_var)
 
 	# Add constraint for state variable bounds
-	slack_con = JuMP.@constraint(subproblem, -state.in + slack_var <= -lb * scaling_var)
+	slack_con = JuMP.@constraint(subproblem, -state + slack_var <= -lb * scaling_var)
 	push!(relint_data[:relint_constraints], slack_con)
 
 	# Add slack variable
@@ -1280,7 +1275,7 @@ function follow_state_unfixing_binary_slack!(node::SDDP.Node, state::JuMP.Variab
 	push!(relint_data[:relint_variables], slack_var)
 
 	# Add constraint for state variable bounds
-	slack_con = JuMP.@constraint(subproblem, state.in + slack_var <= ub * scaling_var)
+	slack_con = JuMP.@constraint(subproblem, state + slack_var <= ub * scaling_var)
 	push!(relint_data[:relint_constraints], slack_con)
 
     return

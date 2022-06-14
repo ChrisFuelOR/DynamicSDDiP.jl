@@ -89,6 +89,7 @@ end
 
 """
 Simple cut selection feature for nonlinear cuts.
+Note that we only compare nonlinear cuts with each other.
 """
 function _cut_selection_update(
     node::SDDP.Node,
@@ -153,6 +154,11 @@ function _cut_selection_update(
     at the existing states. If a cut is an improvement, add it to a queue to be added.
     """
     for old_cut in V.cuts
+        if isa(old_cut,DynamicSDDiP.LinearCut)
+            # We only care about other nonlinear cuts.
+            continue
+        end
+
         if !isempty(old_cut.cut_constraints)
             # We only care about cuts not currently in the model.
             continue
@@ -222,6 +228,7 @@ end
 
 """
 Simple cut selection feature for linear cuts.
+Note that we only compare linear cuts with each other.
 """
 # Internal function: update the Level-One datastructures inside `bellman_function`.
 function _cut_selection_update(
@@ -276,6 +283,11 @@ function _cut_selection_update(
     at the existing states. If a cut is an improvement, add it to a queue to be added.
     """
     for old_cut in V.cuts
+        if isa(old_cut,DynamicSDDiP.NonlinearCut)
+            # We only care about other linear cuts.
+            continue
+        end
+
         if !isnothing(old_cut.cut_constraint)
             # We only care about cuts not currently in the model.
             continue

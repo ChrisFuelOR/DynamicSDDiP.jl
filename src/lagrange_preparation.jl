@@ -1,3 +1,4 @@
+
 function relax_copy_constraints!(
     node::SDDP.Node,
     x_in_value::Vector{Float64},
