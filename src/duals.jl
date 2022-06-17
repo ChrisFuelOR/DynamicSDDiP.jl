@@ -71,7 +71,6 @@ function get_dual_solution(
     )
 end
 
-
 function solve_LP_relaxation(
     node::SDDP.Node,
     subproblem::JuMP.Model,
@@ -86,13 +85,14 @@ function solve_LP_relaxation(
     dual_vars_initial = zeros(number_of_states)
 
     # Create LP Relaxation
-    undo_relax = JuMP.relax_integrality(subproblem);
+    undo_relax = JuMP.relax_integrality(node.subproblem)
 
     # Define appropriate solver
-    set_solver!(subproblem, algo_params, applied_solvers, :LP_relax)
+    set_solver!(subproblem, algo_params, applied_solvers, :LP_relax, algo_params.solver_approach)
+
+    JuMP.optimize!(subproblem)
 
     # Solve LP Relaxation
-    JuMP.optimize!(subproblem)
     @assert JuMP.termination_status(subproblem) == MOI.OPTIMAL
 
     dual_obj = JuMP.objective_value(subproblem)
@@ -238,7 +238,7 @@ function get_dual_solution(
     #regularize_bw!(node, node_index, subproblem, cut_generation_regime, DynamicSDDiP.NoRegularization(), cut_generation_regime.state_approximation_regime)
 
     # RESET SOLVER (as it may have been changed in between for some reason)
-    DynamicSDDiP.set_solver!(subproblem, algo_params, applied_solvers, :backward_pass)
+    DynamicSDDiP.set_solver!(subproblem, algo_params, applied_solvers, :backward_pass, algo_params.solver_approach)
 
     # SOLVE PRIMAL PROBLEM (can be regularized or not)
     TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_primal" begin
@@ -252,8 +252,6 @@ function get_dual_solution(
     # DEREGULARIZE PROBLEM IF REQUIRED
     deregularize_bw!(node, subproblem, algo_params.regularization_regime, cut_generation_regime.state_approximation_regime)
     #deregularize_bw!(node, subproblem, DynamicSDDiP.NoRegularization(), cut_generation_regime.state_approximation_regime)
-
-    Infiltrator.@infiltrate
 
     Infiltrator.@infiltrate algo_params.infiltrate_state in [:all]
 
@@ -372,7 +370,7 @@ function get_dual_solution(
     regularize_bw!(node, node_index, subproblem, cut_generation_regime, algo_params.regularization_regime, cut_generation_regime.state_approximation_regime)
 
     # RESET SOLVER (as it may have been changed in between for some reason)
-    DynamicSDDiP.set_solver!(subproblem, algo_params, applied_solvers, :backward_pass)
+    DynamicSDDiP.set_solver!(subproblem, algo_params, applied_solvers, :backward_pass, algo_params.solver_approach)
 
     # SOLVE PRIMAL PROBLEM (can be regularized or not)
     TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_primal" begin
@@ -452,12 +450,31 @@ function get_dual_solution(
     ############################################################################
     # SET DUAL VARIABLES AND STATES CORRECTLY FOR RETURN
     ############################################################################
-    store_dual_values!(node, dual_values, dual_vars, dual_0_var, bin_state, cut_generation_regime.state_approximation_regime)
+    if isapprox(lag_obj, 0.0, atol=1e-8) && isapprox(dual_0_var, 0.0, atol=1e-8)
+        """ The incumbent (state, epi_state) is contained in the epigraph (of the
+        convex closure of the value function). Hence, we cannot obtain a cut
+        to separate it from the epigraph.
+        Furthermore, since dual_0_var is 0, the cut that we obtain is a (redundant)
+        feasibility cut, e.g. state >= lower_bound(state). Since we only want
+        to deal with optimality cuts in multistage problems, we do not want to
+        use such cut at all. Therefore, by division by dual_0_var we construct
+        classical Lagrangian optimality cuts. However, if dual_0_var is 0, this
+        causes numerical issues.
+        We avoid this by replacing the occuring redundant cut in this case by
+        a different redundant cut."""
 
-    # We still want to express the cuts in the original system,
-    # so we have to divide the value for the intercept by dual_0_var as well.
-    # Moreover, we have to add epi_state
-    lag_obj = lag_obj / dual_0_var + epi_state
+        dual_0_var = 1.0
+        dual_vars .= zeros(length(dual_vars))
+        lag_obj = 0.0
+
+    else
+        # We still want to express the cuts in the original system,
+        # so we have to divide the value for the intercept by dual_0_var as well.
+        # Moreover, we have to add epi_state
+        lag_obj = lag_obj / dual_0_var + epi_state
+    end
+
+    store_dual_values!(node, dual_values, dual_vars, dual_0_var, bin_state, cut_generation_regime.state_approximation_regime)
 
     return (
         dual_values=dual_values,
@@ -628,7 +645,7 @@ function initialize_duals(
     undo_relax = JuMP.relax_integrality(subproblem);
 
     # Define appropriate solver
-    set_solver!(subproblem, algo_params, applied_solvers, :LP_relax)
+    set_solver!(subproblem, algo_params, applied_solvers, :LP_relax, algo_params.solver_approach)
 
     # Solve LP Relaxation
     JuMP.optimize!(subproblem)
@@ -667,7 +684,8 @@ function get_and_set_dual_values!(
     )
 
     for (i, name) in enumerate(keys(node.states))
-        reference_to_constr = JuMP.FixRef(node.subproblem[name].in)
+
+        reference_to_constr = JuMP.FixRef(node.states[name].in)
         dual_vars_initial[i] = JuMP.dual(reference_to_constr)
     end
 
@@ -708,7 +726,7 @@ function store_dual_values!(
     )
 
     for (i, name) in enumerate(keys(node.states))
-        dual_values[name] = dual_vars[i] / dual_0_var
+        dual_values[name] = dual_vars[i] #/ dual_0_var
     end
 
     return

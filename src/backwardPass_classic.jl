@@ -141,7 +141,12 @@ function solve_all_children(
                 ################################################################
                 # DETERMINE ASSOCIATED EPI_STATE
                 ################################################################
-                epi_state = epi_states[i]
+                if algo_params.cut_type == SDDP.SINGLE_CUT
+                    #epi_state = epi_states[1]
+                    epi_state = Inf
+                elseif algo_params.cut_type == SDDP.MULTI_CUT
+                    epi_state = epi_states[i]
+                end
 
                 ################################################################
                 # SOLVE THE BACKWARD PASS PROBLEM
@@ -227,8 +232,6 @@ function solve_subproblem_backward(
     TimerOutputs.@timeit DynamicSDDiP_TIMER "space_change" begin
         changeStateSpace!(node, subproblem, state, cut_generation_regime.state_approximation_regime)
     end
-
-    Infiltrator.@infiltrate
 
     ############################################################################
     # SOLVE DUAL PROBLEM TO OBTAIN CUT INFORMATION

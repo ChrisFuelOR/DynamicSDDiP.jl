@@ -382,7 +382,7 @@ function _eval_height(node::SDDP.Node, cut::DynamicSDDiP.NonlinearCut,
     # Create a new JuMP model to evaluate the height of a non-convex cut
     model = JuMP.Model()
     model.ext[:sddp_policy_graph] = node.subproblem.ext[:sddp_policy_graph]
-    set_solver!(model, algo_params, applied_solvers, :cut_selection)
+    set_solver!(model, algo_params, applied_solvers, :cut_selection, algo_params.solver_approach)
 
     # Storages for coefficients and binary states
     binary_state_storage = JuMP.VariableRef[]

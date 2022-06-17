@@ -315,7 +315,7 @@ function add_normalization_constraint!(
 	π⁻ = approx_model[:π⁻]
 	π₀ = approx_model[:π₀]
 
-	ω₀ = normalization_coeff.ω₀
+	ω₀ = normalization_coeff.ω₀ 
 	ω = normalization_coeff.ω
 
 	JuMP.@constraint(approx_model, ω₀ * π₀ + sum(ω[i] * (π⁺[i] - π⁻[i]) for i in 1:number_of_states) <= 1)

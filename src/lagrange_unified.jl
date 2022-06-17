@@ -18,6 +18,7 @@ function _solve_unified_Lagrangian_relaxation!(
     # Set the objective of the Lagrangian relaxation
     old_obj = JuMP.objective_function(model)
     JuMP.set_objective_function(model, JuMP.@expression(model, π0_k * w_expr + π_k' * h_expr))
+    #Infiltrator.@infiltrate
 
     # Optimization
     JuMP.optimize!(model)
@@ -95,7 +96,7 @@ function solve_unified_lagrangian_dual(
 
     # Set solver for inner problem
     #---------------------------------------------------------------------------
-    set_solver!(node.subproblem, algo_params, applied_solvers, :lagrange_relax)
+    set_solver!(node.subproblem, algo_params, applied_solvers, :lagrange_relax, algo_params.solver_approach)
 
     ############################################################################
     # RELAXING THE COPY CONSTRAINTS
@@ -126,9 +127,9 @@ function solve_unified_lagrangian_dual(
         approx_model.ext[:sddp_policy_graph] = node.subproblem.ext[:sddp_policy_graph]
 
         if isa(cut_generation_regime.duality_regime.normalization_regime, DynamicSDDiP.L₂_Deep)
-            set_solver!(approx_model, algo_params, applied_solvers, :l₂)
+            set_solver!(approx_model, algo_params, applied_solvers, :l₂, algo_params.solver_approach)
         else
-            set_solver!(approx_model, algo_params, applied_solvers, :kelley)
+            set_solver!(approx_model, algo_params, applied_solvers, :kelley, algo_params.solver_approach)
         end
 
         # Create the objective
@@ -145,6 +146,8 @@ function solve_unified_lagrangian_dual(
         # variables here, which is required for the Norm Minimization part later
         JuMP.@variable(approx_model, π⁺[1:number_of_states] >= 0)
         JuMP.@variable(approx_model, π⁻[1:number_of_states] >= 0)
+        #JuMP.@constraint(approx_model, π⁺[1:number_of_states] .<= 10.0)
+        #JuMP.@constraint(approx_model, π⁻[1:number_of_states] .<= 10.0)
         JuMP.@expression(approx_model, π, π⁺ .- π⁻) # not required to be a constraint
         JuMP.@variable(approx_model, π₀ >= 0)
         set_multiplier_bounds!(node, approx_model, number_of_states, bound_results.dual_bound,
@@ -212,10 +215,14 @@ function solve_unified_lagrangian_dual(
         π0_k = JuMP.value.(π₀)
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
+        #Infiltrator.@infiltrate
+
         ########################################################################
         if L_star > t_k + atol/10.0
             error("Could not solve for Lagrangian duals. LB > UB.")
+            #break
         end
+
     end
 
     ############################################################################
@@ -260,7 +267,7 @@ function solve_unified_lagrangian_dual(
     ############################################################################
     # RESET SOLVER
     ############################################################################
-    set_solver!(node.subproblem, algo_params, applied_solvers, :forward_pass)
+    set_solver!(node.subproblem, algo_params, applied_solvers, :forward_pass, algo_params.solver_approach)
 
     ############################################################################
     # LOGGING
@@ -270,6 +277,8 @@ function solve_unified_lagrangian_dual(
     # Set dual_vars (here π_k) to the optimal solution
     π_k .= -π_star
     π0_k = π0_star
+
+    #Infiltrator.@infiltrate
 
     return (lag_obj = s * L_star, iterations = iter, lag_status = lag_status, dual_0_var = π0_k)
 
@@ -334,7 +343,7 @@ function solve_unified_lagrangian_dual(
 
     # Set solver for inner problem
     #---------------------------------------------------------------------------
-    set_solver!(node.subproblem, algo_params, applied_solvers, :lagrange_relax)
+    set_solver!(node.subproblem, algo_params, applied_solvers, :lagrange_relax, algo_params.solver_approach)
 
     # Set bundle_parameters
     #---------------------------------------------------------------------------
@@ -363,9 +372,9 @@ function solve_unified_lagrangian_dual(
         approx_model.ext[:sddp_policy_graph] = node.subproblem.ext[:sddp_policy_graph]
 
         if isa(cut_generation_regime.duality_regime.normalization_regime, DynamicSDDiP.L₂_Deep)
-            set_solver!(approx_model, algo_params, applied_solvers, :l₂)
+            set_solver!(approx_model, algo_params, applied_solvers, :l₂, algo_params.solver_approach)
         else
-            set_solver!(approx_model, algo_params, applied_solvers, :kelley)
+            set_solver!(approx_model, algo_params, applied_solvers, :kelley, algo_params.solver_approach)
         end
 
         # Create the objective
@@ -443,9 +452,9 @@ function solve_unified_lagrangian_dual(
         ########################################################################
         JuMP.@objective(approx_model, Max, t)
         if isa(cut_generation_regime.duality_regime.normalization_regime, DynamicSDDiP.L₂_Deep)
-            set_solver!(approx_model, algo_params, applied_solvers, :l₂)
+            set_solver!(approx_model, algo_params, applied_solvers, :l₂, algo_params.solver_approach)
         else
-            set_solver!(approx_model, algo_params, applied_solvers, :kelley)
+            set_solver!(approx_model, algo_params, applied_solvers, :kelley, algo_params.solver_approach)
         end
 
         ########################################################################
@@ -527,7 +536,8 @@ function solve_unified_lagrangian_dual(
         ########################################################################
         # Objective function of approx model has to be adapted to new center
         JuMP.@objective(approx_model, Min, sum((π_k[i] - π[i])^2 for i in 1:number_of_states) + (π0_k - π₀)^2)
-        set_solver!(approx_model, algo_params, applied_solvers, :level_bundle)
+        set_solver!(approx_model, algo_params, applied_solvers, :level_bundle, algo_params.solver_approach)
+
         TimerOutputs.@timeit DynamicSDDiP_TIMER "bundle_sol" begin
             JuMP.optimize!(approx_model)
         end
@@ -546,6 +556,11 @@ function solve_unified_lagrangian_dual(
         π_k .= JuMP.value.(π)
         π0_k = JuMP.value.(π₀)
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
+
+        # Delete the level lower bound for the original approx_model again
+        JuMP.delete_lower_bound(t)
+
+        Infiltrator.@infiltrate
 
         ########################################################################
         if L_star > t_k + atol/10.0
@@ -595,7 +610,7 @@ function solve_unified_lagrangian_dual(
     ############################################################################
     # RESET SOLVER
     ############################################################################
-    set_solver!(node.subproblem, algo_params, applied_solvers, :forward_pass)
+    set_solver!(node.subproblem, algo_params, applied_solvers, :forward_pass, algo_params.solver_approach)
 
     ############################################################################
     # LOGGING

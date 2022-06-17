@@ -593,6 +593,46 @@ copy_regime defines the constraints that the copy variable z of the state x has
 #TODO: Maybe define the copy_regime one time in a completeley separate way.
 
 ################################################################################
+# DEFINING STRUCT FOR SOLVERS TO BE USED
+################################################################################
+"""
+For the Lagrangian subproblems a separate solver can be defined if for
+    the LP/MILP solver numerical issues occur.
+"""
+
+struct AppliedSolvers
+    LP :: Any
+    MILP :: Any
+    MIQCP :: Any
+    MINLP :: Any
+    NLP :: Any
+    Lagrange :: Any
+
+    function AppliedSolvers(;
+        LP = "Gurobi",
+        MILP = "Gurobi",
+        MIQCP = "Gurobi",
+        MINLP = "SCIP",
+        NLP = "SCIP",
+        Lagrange = "Gurobi",
+        )
+        return new(
+            LP,
+            MILP,
+            MIQCP,
+            MINLP,
+            NLP,
+            Lagrange
+            )
+    end
+end
+
+abstract type AbstractSolverApproach end
+
+mutable struct GAMS_Solver <: AbstractSolverApproach end
+mutable struct Direct_Solver <: AbstractSolverApproach end
+
+################################################################################
 # DEFINING STRUCT FOR CONFIGURATION OF ALGORITHM PARAMETERS
 ################################################################################
 """
@@ -625,6 +665,7 @@ mutable struct AlgoParams
     numerical_focus::Bool
     silent::Bool
     infiltrate_state::Symbol
+    solver_approach::Union{DynamicSDDiP.GAMS_Solver,DynamicSDDiP.Direct_Solver}
 
     function AlgoParams(;
         stopping_rules = [DeterministicStopping()],
@@ -647,6 +688,7 @@ mutable struct AlgoParams
         numerical_focus = false,
         silent = true,
         infiltrate_state = :none,
+        solver_approach = DynamicSDDiP.GAMS_Solver(),
     )
         return new(
             stopping_rules,
@@ -669,42 +711,8 @@ mutable struct AlgoParams
             numerical_focus,
             silent,
             infiltrate_state,
+            solver_approach
         )
-    end
-end
-
-################################################################################
-# DEFINING STRUCT FOR SOLVERS TO BE USED
-################################################################################
-"""
-For the Lagrangian subproblems a separate solver can be defined if for
-    the LP/MILP solver numerical issues occur.
-"""
-
-struct AppliedSolvers
-    LP :: Any
-    MILP :: Any
-    MIQCP :: Any
-    MINLP :: Any
-    NLP :: Any
-    Lagrange :: Any
-
-    function AppliedSolvers(;
-        LP = "Gurobi",
-        MILP = "Gurobi",
-        MIQCP = "Gurobi",
-        MINLP = "SCIP",
-        NLP = "SCIP",
-        Lagrange = "Gurobi",
-        )
-        return new(
-            LP,
-            MILP,
-            MIQCP,
-            MINLP,
-            NLP,
-            Lagrange
-            )
     end
 end
 

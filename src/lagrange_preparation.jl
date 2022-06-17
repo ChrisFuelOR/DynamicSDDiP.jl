@@ -133,7 +133,7 @@ function set_multiplier_bounds!(node::SDDP.Node, approx_model::JuMP.Model,
     duality_regime::DynamicSDDiP.LagrangianDuality)
 
     weights = determine_weights!(node, approx_model, number_of_states, regularization_regime, state_approximation_regime)
-    add_norm_constraints!(node, approx_model, weights, dual_bound, number_of_states, DynamicSDDiP.L₁, duality_regime)
+    add_norm_constraints!(node, approx_model, weights, dual_bound, number_of_states, DynamicSDDiP.L₁(), duality_regime)
 
     return
 end
@@ -157,7 +157,7 @@ function set_multiplier_bounds!(node::SDDP.Node, approx_model::JuMP.Model,
     duality_regime::DynamicSDDiP.LagrangianDuality)
 
     weights = determine_weights!(node, approx_model, number_of_states, regularization_regime, state_approximation_regime)
-    add_norm_constraints!(node, approx_model, weights, dual_bound, number_of_states, DynamicSDDiP.L₁, duality_regime)
+    add_norm_constraints!(node, approx_model, weights, dual_bound, number_of_states, DynamicSDDiP.L₁(), duality_regime)
 
     return
 end

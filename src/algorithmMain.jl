@@ -197,8 +197,8 @@ function solve(
         print_helper(print_footer, log_file_handle, results)
         if algo_params.print_level > 1
             # print_helper(TimerOutputs.print_timer, log_file_handle, DynamicSDDiP_TIMER)
-            TimerOutputs.print_timer(log_file_handle, DynamicSDDiP_TIMER, allocations=false)
-            TimerOutputs.print_timer(stdout, DynamicSDDiP_TIMER, allocations=false)
+            TimerOutputs.print_timer(log_file_handle, DynamicSDDiP_TIMER, allocations=true)
+            TimerOutputs.print_timer(stdout, DynamicSDDiP_TIMER, allocations=true)
         end
     end
     close(log_file_handle)
@@ -404,7 +404,15 @@ function convergence_handler(
 
         # CHECK IF SIGMA SHOULD BE INCREASED (DUE TO LB > UB)
         ########################################################################
-        if result.upper_bound - result.lower_bound < - 1e-8 # NOTE
+        # Check if deterministic stopping is used
+        deterministic_stopping = false
+        for stopping_rule in algo_params.stopping_rules
+            if isa(stopping_rule, DynamicSDDiP.DeterministicStopping)
+                deterministic_stopping = true
+            end
+        end
+
+        if result.upper_bound - result.lower_bound < - 1e-8 && deterministic_stopping
                 regularization_regime.sigma = regularization_regime.sigma * regularization_regime.sigma_factor
                 sigma_increased = true
                 previous_solution = nothing
@@ -471,7 +479,15 @@ function convergence_handler(
 
         # CHECK IF LB > UB
         ########################################################################
-        if result.upper_bound - result.lower_bound < - 1e-8 # NOTE
+        # Check if deterministic stopping is used
+        deterministic_stopping = false
+        for stopping_rule in algo_params.stopping_rules
+            if isa(stopping_rule, DynamicSDDiP.DeterministicStopping)
+                deterministic_stopping = true
+            end
+        end
+
+        if result.upper_bound - result.lower_bound < - 1e-8 && deterministic_stopping
             error("LB < UB for DynamicSDDiP. Terminating.")
         else
             # Update previous_solution and previous_bound
@@ -557,7 +573,9 @@ function iteration(
         )
     end
 
-    #Infiltrator.@infiltrate
+    # if model.ext[:iteration] == 2
+    #     Infiltrator.@infiltrate
+    # end
 
     ############################################################################
     # CALCULATE LOWER BOUND

@@ -4,8 +4,10 @@ authors = ["Christian Fuellner"]
 version = "0.1.0"
 
 [deps]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 GAMS = "1ca51c6a-1b4d-4546-9ae1-53e0a243ab12"
+GLPK = "60bf3e95-4087-53dc-ae20-288a0d20c6a6"
 Gurobi = "2e9cd046-0924-5485-92f1-d5272153d98b"
 Infiltrator = "5903a43b-9cc3-4c30-8d17-598619ec4e9b"
 JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
@@ -15,6 +17,7 @@ PrettyTables = "08abe8d2-0d0c-5749-adfa-8a2ac140af0d"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
+SCIP = "82193955-e24f-5292-bf16-6f2c5261a85f"
 SDDP = "f4570300-c277-11e8-125c-4912f86ce65d"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"

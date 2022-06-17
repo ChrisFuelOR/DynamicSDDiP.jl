@@ -4,20 +4,18 @@
 # If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
 ################################################################################
 
-using JuMP
-using SDDP
-using DynamicSDDiP
+import JuMP
+import SDDP
+import DynamicSDDiP
 using Revise
-#using Gurobi
-using GAMS
-#using SCIP
-using Infiltrator
+import GAMS
+import Infiltrator
 
 
 function model_config()
 
     # Stopping rules to be used
-    stopping_rules = [DynamicSDDiP.DeterministicStopping()]
+    stopping_rules = [SDDP.IterationLimit(10)]
 
     # Duality / Cut computation configuration
     dual_initialization_regime = DynamicSDDiP.ZeroDuals()
@@ -25,24 +23,25 @@ function model_config()
     dual_bound_regime = DynamicSDDiP.BothBounds()
     dual_status_regime = DynamicSDDiP.Rigorous()
     dual_choice_regime = DynamicSDDiP.StandardChoice()
-    normalization_regime = DynamicSDDiP.Core_Relint()
-    #dual_space_regime = DynamicSDDiP.BendersSpanSpaceRestriction(10, :multi_cut)
+    normalization_regime = DynamicSDDiP.Core_Midpoint()
+    #normalization_regime = DynamicSDDiP.Core_Midpoint()
+    #dual_subproblemace_regime = DynamicSDDiP.BendersSpanSpaceRestriction(10, :multi_cut)
     dual_space_regime = DynamicSDDiP.NoDualSpaceRestriction()
     copy_regime = DynamicSDDiP.ConvexHullCopy()
 
-    # duality_regime_2 = DynamicSDDiP.UnifiedLagrangianDuality(
-    #     atol = 1e-4,
-    #     rtol = 1e-4,
-    #     iteration_limit = 1000,
-    #     dual_initialization_regime = dual_initialization_regime,
-    #     dual_bound_regime = dual_bound_regime,
-    #     dual_solution_regime = dual_solution_regime,
-    #     dual_choice_regime = dual_choice_regime,
-    #     dual_status_regime = dual_status_regime,
-    #     normalization_regime = normalization_regime,
-    #     dual_space_regime = dual_space_regime,
-    #     copy_regime = copy_regime,
-    # )
+    duality_regime_1 = DynamicSDDiP.UnifiedLagrangianDuality(
+        atol = 1e-4,
+        rtol = 1e-4,
+        iteration_limit = 1000,
+        dual_initialization_regime = dual_initialization_regime,
+        dual_bound_regime = dual_bound_regime,
+        dual_solution_regime = dual_solution_regime,
+        dual_choice_regime = dual_choice_regime,
+        dual_status_regime = dual_status_regime,
+        normalization_regime = normalization_regime,
+        dual_space_regime = dual_space_regime,
+        copy_regime = copy_regime,
+    )
 
     duality_regime_2 = DynamicSDDiP.LagrangianDuality(
          atol = 1e-4,
@@ -56,30 +55,22 @@ function model_config()
          copy_regime = copy_regime,
      )
 
-    #duality_regime = DynamicSDDiP.LinearDuality()
+    #duality_regime_1 = DynamicSDDiP.LinearDuality()
     #duality_regime = DynamicSDDiP.StrengthenedDuality()
 
     # State approximation and cut projection configuration
-    state_approximation_regime_2 = DynamicSDDiP.NoStateApproximation()
-
-    # Cut generation regimes
-    cut_generation_regime_2 = DynamicSDDiP.CutGenerationRegime(
-        state_approximation_regime = state_approximation_regime_2,
-        duality_regime = duality_regime_2,
-    )
-
-    duality_regime_1 = DynamicSDDiP.LinearDuality()
     state_approximation_regime_1 = DynamicSDDiP.NoStateApproximation()
 
+    # Cut generation regimes
     cut_generation_regime_1 = DynamicSDDiP.CutGenerationRegime(
         state_approximation_regime = state_approximation_regime_1,
         duality_regime = duality_regime_1,
     )
 
-    cut_generation_regimes = [cut_generation_regime_1, cut_generation_regime_2]
+    cut_generation_regimes = [cut_generation_regime_1]
 
     # Regularization configuration
-    regularization_regime = DynamicSDDiP.Regularization(sigma=[0.0,1.0])
+    regularization_regime = DynamicSDDiP.NoRegularization()
 
     # Cut aggregation regime
     cut_aggregation_regime = DynamicSDDiP.MultiCutRegime()
@@ -93,13 +84,26 @@ function model_config()
     cut_selection_regime = DynamicSDDiP.NoCutSelection()
 
     # File for logging
-    log_file = "C:/Users/cg4102/Documents/julia_logs/SDDiP_Example.log"
+    log_file = "C:/Users/cg4102/Documents/julia_logs/Generation_Expansion_dynamic.log"
 
     # Suppress solver output
-    silent = true
+    silent = false
 
     # Infiltration for debugging
     infiltrate_state = :none
+
+    # Solver approach
+    solver_approach = DynamicSDDiP.GAMS_Solver()
+
+    # Define solvers to be used
+    applied_solvers = DynamicSDDiP.AppliedSolvers(
+        LP = "CPLEX",
+        MILP = "CPLEX",
+        MIQCP = "CPLEX",
+        MINLP = "CPLEX",
+        NLP = "CPLEX",
+        Lagrange = "CPLEX",
+    )
 
     # Definition of algo_params
     algo_params = DynamicSDDiP.AlgoParams(
@@ -112,16 +116,8 @@ function model_config()
         log_file = log_file,
         silent = silent,
         infiltrate_state = infiltrate_state,
-    )
-
-    # Define solvers to be used
-    applied_solvers = DynamicSDDiP.AppliedSolvers(
-        LP = "CPLEX",
-        MILP = "CPLEX",
-        MIQCP = "CPLEX",
-        MINLP = "SCIP",
-        NLP = "CPLEX",
-        Lagrange = "CPLEX",
+        solver_approach = solver_approach,
+        numerical_focus = false,
     )
 
     # Start model with used configuration
@@ -151,47 +147,86 @@ end
 
 function model_definition()
 
-    number_of_stages = 2
+    build_cost = 1
+    use_cost = 4/10000.0
+    num_units = 5
+    capacities = ones(num_units)
+    demand_vals =
+        0.5 * [
+            5 5 5 5 5 5 5 5
+            4 3 1 3 0 9 8 17
+            0 9 4 2 19 19 13 7
+        ]
+
+        # 5 5 5 5 5 5 5 5
+        # 4 3 1 3 0 9 8 17
+        # 0 9 4 2 19 19 13 7
+        # 25 11 4 14 4 6 15 12
+        # 6 7 5 3 8 4 17 13
+
+    # Cost of unmet demand
+    penalty = 50
+    # Discounting rate
+    rho = 0.99
+
+    number_of_stages = 3
 
     model = SDDP.LinearPolicyGraph(
         stages = number_of_stages,
         lower_bound = 0.0,
         optimizer = GAMS.Optimizer,
         sense = :Min
-    ) do subproblem, t
+    ) do subproblem, stage
 
-        ########################################################################
         # DEFINE STAGE-t MODEL
         ########################################################################
         # State variables
-        JuMP.@variable(subproblem, 0.0 <= x <= 1.0, SDDP.State, Bin, initial_value = 0)
+        JuMP.@variable(
+            subproblem,
+            0 <= invested[1:num_units] <= 1,
+            SDDP.State,
+            Int, #TODO: Why not Bin
+            initial_value = 0
+        )
 
-        if t == 1
+        # Local variables
+        JuMP.@variables(subproblem, begin
+            generation >= 0
+            unmet >= 0
+            demand
+        end)
 
-            # Constraints
-            x = subproblem[:x]
-            JuMP.@constraint(subproblem, x.out >= x.in)
+        # Constraints
+        JuMP.@constraints(
+            subproblem,
+            begin
+                # Can't un-invest
+                investment[i in 1:num_units], invested[i].out >= invested[i].in
+                # Generation capacity
+                sum(capacities[i] * invested[i].out for i in 1:num_units) >=
+                generation
+                # Meet demand or pay a penalty
+                unmet >= demand - sum(generation)
+                # For fewer iterations order the units to break symmetry, units are identical (tougher numerically)
+                [j in 1:(num_units-1)], invested[j].out <= invested[j+1].out
+            end
+        )
 
-            # Stage objective
-            SDDP.@stageobjective(subproblem, -x.out)
+        # Demand is uncertain
+        SDDP.parameterize(ω -> JuMP.fix(demand, ω), subproblem, demand_vals[stage, :])
 
-        else
-            # Local variables
-            JuMP.@variable(subproblem, 0.0 <= y[i=1:2])
-            JuMP.set_integer(y[1])
-            JuMP.set_upper_bound(y[1], 2)
-            JuMP.set_upper_bound(y[2], 3)
-
-            # Constraints
-            x = subproblem[:x]
-            JuMP.@constraint(subproblem, x.out == 0)
-            JuMP.@constraint(subproblem, con, 2*y[1] + y[2] >= 3*x.in)
-
-            # Stage objective
-            SDDP.@stageobjective(subproblem, y[1] + y[2])
-
-        end
-
+        # Objective function
+        JuMP.@expression(
+            subproblem,
+            investment_cost,
+            build_cost *
+            sum(invested[i].out - invested[i].in for i in 1:num_units)
+        )
+        SDDP.@stageobjective(
+            subproblem,
+            (investment_cost + generation * use_cost) * rho^(stage - 1) +
+            penalty * unmet
+        )
     end
 
     return model

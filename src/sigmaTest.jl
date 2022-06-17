@@ -40,7 +40,7 @@ function forward_sigma_test(
 
         # SET SOLVER
         ########################################################################
-        DynamicSDDiP.set_solver!(node.subproblem, algo_params, applied_solvers, :forward_pass)
+        DynamicSDDiP.set_solver!(node.subproblem, algo_params, applied_solvers, :forward_pass, algo_params.solver_approach)
 
         # SOLVE REGULARIZED PROBLEM
         ############################################################################

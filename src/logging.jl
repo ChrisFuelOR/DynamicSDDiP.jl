@@ -32,12 +32,11 @@ struct Log
     binary_refinement::Union{Symbol,Nothing}
     subproblem_size::Union{Dict{Symbol,Int64},Nothing}
     algo_params::DynamicSDDiP.AlgoParams
-    lag_iterations::Union{Vector{Int},Nothing}
+    lag_iterations::Union{Vector{Int},Vector{Float64},Nothing}
     lag_status::Union{Vector{String},Nothing}
     total_cuts::Int
     active_cuts::Int
 end
-
 
 # Internal struct: storage for SDDP options and cached data. Users shouldn't
 # interact with this directly.
@@ -149,6 +148,8 @@ function print_parameters(io, algo_params::DynamicSDDiP.AlgoParams, applied_solv
 
     println(io, "||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||")
     println(io, "APPLIED SOLVERS (LP, MILP, MIQCP, MINLP, NLP, Lagrange)")
+    println(io, applied_solvers)
+    println(io, algo_params.solver_approach)
 
     flush(io)
 end
@@ -290,18 +291,18 @@ function print_iteration(io, log::Log, start_time::Float64)
     print(io, lpad(Printf.@sprintf("%5d", log.active_cuts), 7))
     print(io, "       ")
 
-    if !isnothing(log.lag_iterations)
-        print(io, log.lag_iterations)
-    else
-        print(io, lpad(Printf.@sprintf(""), 19))
-    end
-    print(io, "  ")
-    if !isnothing(log.lag_status)
-        print(io, log.lag_status)
-    else
-        print(io, lpad(Printf.@sprintf(""), 19))
-    end
-    print(io, "  ")
+    # if !isnothing(log.lag_iterations)
+    #     print(io, log.lag_iterations)
+    # else
+    #     print(io, lpad(Printf.@sprintf(""), 19))
+    # end
+    # print(io, "  ")
+    # if !isnothing(log.lag_status)
+    #     print(io, log.lag_status)
+    # else
+    #     print(io, lpad(Printf.@sprintf(""), 19))
+    # end
+    # print(io, "  ")
 
     println(io)
 

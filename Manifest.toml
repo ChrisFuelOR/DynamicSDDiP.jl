@@ -1,5 +1,11 @@
 # This file is machine-generated - editing it directly is not advised
 
+[[ASL_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
+git-tree-sha1 = "370cafc70604b2522f2c7cf9915ebcd17b4cd38b"
+uuid = "ae81ac8f-d209-56e5-92de-9978fef736f9"
+version = "0.1.2+0"
+
 [[Artifacts]]
 deps = ["Pkg"]
 git-tree-sha1 = "c30985d8821e0cd73870b17b0ed0ce6dc44cb744"
@@ -14,6 +20,12 @@ deps = ["JSON", "Logging", "Printf", "Profile", "Statistics", "UUIDs"]
 git-tree-sha1 = "4c10eee4af024676200bc7752e536f858c6b8f93"
 uuid = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 version = "1.3.1"
+
+[[BinaryProvider]]
+deps = ["Libdl", "Logging", "SHA"]
+git-tree-sha1 = "ecdec412a9abc8db54c0efc5548c64dfce072058"
+uuid = "b99e7846-7c00-51b0-8f62-c81ae34c0232"
+version = "0.5.10"
 
 [[Bzip2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -157,6 +169,24 @@ git-tree-sha1 = "50d3b1239a39e88ea187062ab131a3401089789a"
 uuid = "1ca51c6a-1b4d-4546-9ae1-53e0a243ab12"
 version = "0.2.5"
 
+[[GLPK]]
+deps = ["BinaryProvider", "CEnum", "GLPK_jll", "Libdl", "MathOptInterface"]
+git-tree-sha1 = "833dbc8fbb0554e31186df509d67fc2f78f1bb09"
+uuid = "60bf3e95-4087-53dc-ae20-288a0d20c6a6"
+version = "0.14.14"
+
+[[GLPK_jll]]
+deps = ["Artifacts", "GMP_jll", "JLLWrappers", "Libdl", "Pkg"]
+git-tree-sha1 = "01de09b070d4b8e3e1250c6542e16ed5cad45321"
+uuid = "e8aa6df9-e6ca-548a-97ff-1f85fc5b8b98"
+version = "5.0.0+0"
+
+[[GMP_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
+git-tree-sha1 = "15abc5f976569a1c9d651aff02f7222ef305eb2a"
+uuid = "781609d7-10c4-51f6-84f2-b8444358ff6d"
+version = "6.1.2+6"
+
 [[Gurobi]]
 deps = ["CEnum", "Libdl", "MathOptInterface"]
 git-tree-sha1 = "aac05324d46b53289ccb05510b05b4a56ffd3ed5"
@@ -189,6 +219,12 @@ deps = ["Test"]
 git-tree-sha1 = "b3364212fb5d870f724876ffcd34dd8ec6d98918"
 uuid = "3587e190-3f89-42d0-90ee-14403ec27112"
 version = "0.1.7"
+
+[[Ipopt_jll]]
+deps = ["ASL_jll", "Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "MUMPS_seq_jll", "OpenBLAS32_jll", "Pkg"]
+git-tree-sha1 = "82124f27743f2802c23fcb05febc517d0b15d86e"
+uuid = "9cc047cb-c261-5740-88fc-0cf96f7bdcc7"
+version = "3.13.4+2"
 
 [[IrrationalConstants]]
 git-tree-sha1 = "7fd44fd4ff43fc60815f8e764c0f352b83c49151"
@@ -256,6 +292,18 @@ git-tree-sha1 = "491a883c4fef1103077a7f648961adbf9c8dd933"
 uuid = "6f1432cf-f94c-5a45-995e-cdbf5db27b0b"
 version = "2.1.2"
 
+[[METIS_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
+git-tree-sha1 = "2dc1a9fc87e57e32b1fc186db78811157b30c118"
+uuid = "d00139f3-1899-568f-a2f0-47f597d42d70"
+version = "5.1.0+5"
+
+[[MUMPS_seq_jll]]
+deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "METIS_jll", "OpenBLAS32_jll", "Pkg"]
+git-tree-sha1 = "1a11a84b2af5feb5a62a820574804056cdc59c39"
+uuid = "d7ed1dd3-d0ae-5e8e-bfb4-87a502085b8d"
+version = "5.2.1+4"
+
 [[MacroTools]]
 deps = ["Markdown", "Random"]
 git-tree-sha1 = "3d3e902b31198a27340d0bf00d6ac452866021cf"
@@ -302,6 +350,12 @@ version = "0.3.7"
 git-tree-sha1 = "ed3157f48a05543cce9b241e1f2815f7e843d96e"
 uuid = "ca575930-c2e3-43a9-ace4-1e988b2c1908"
 version = "1.2.0"
+
+[[OpenBLAS32_jll]]
+deps = ["CompilerSupportLibraries_jll", "Libdl", "Pkg"]
+git-tree-sha1 = "793b33911239d2651c356c823492b58d6490d36a"
+uuid = "656ef2d0-ae68-5445-9ca0-591084a874a2"
+version = "0.3.9+4"
 
 [[OpenLibm_jll]]
 deps = ["Libdl", "Pkg"]
@@ -380,9 +434,21 @@ git-tree-sha1 = "41deb3df28ecf75307b6e492a738821b031f8425"
 uuid = "295af30f-e4ad-537b-8983-00126c2a3abe"
 version = "3.1.20"
 
+[[SCIP]]
+deps = ["Ipopt_jll", "Libdl", "MathOptInterface", "SCIP_jll"]
+git-tree-sha1 = "65b0334960fc3a068691efaba4ed4d664d3f22a8"
+uuid = "82193955-e24f-5292-bf16-6f2c5261a85f"
+version = "0.9.8"
+
+[[SCIP_jll]]
+deps = ["Artifacts", "CompilerSupportLibraries_jll", "GMP_jll", "Ipopt_jll", "JLLWrappers", "Libdl", "Pkg", "Zlib_jll", "bliss_jll"]
+git-tree-sha1 = "83d35a061885aa73491aa2f8db28310214bbd521"
+uuid = "e5ac4fe4-a920-5659-9bf8-f9f73e9e79ce"
+version = "0.1.3+0"
+
 [[SDDP]]
 deps = ["Distributed", "HTTP", "JSON", "JuMP", "LinearAlgebra", "MutableArithmetics", "Printf", "Random", "RecipesBase", "Reexport", "SHA", "Statistics", "TimerOutputs"]
-git-tree-sha1 = "01ffea8a99d7191d9b83ef3a01711d623973051c"
+path = "C:\\Users\\cg4102\\.julia\\dev\\SDDP"
 uuid = "f4570300-c277-11e8-125c-4912f86ce65d"
 version = "0.4.3"
 
@@ -470,3 +536,9 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "320228915c8debb12cb434c59057290f0834dbf6"
 uuid = "83775a58-1f1d-513f-b197-d71354ab007a"
 version = "1.2.11+18"
+
+[[bliss_jll]]
+deps = ["Artifacts", "GMP_jll", "JLLWrappers", "Libdl", "Pkg"]
+git-tree-sha1 = "efa0ae50a40cdf404e18ce375dfb764001f38b92"
+uuid = "508c9074-7a14-5c94-9582-3d4bc1871065"
+version = "0.73.0+1"

@@ -12,7 +12,7 @@ import SDDP
 import Revise
 import TimerOutputs
 import GAMS
-#import Gurobi
+import Gurobi
 #import SCIP
 import Printf
 import Dates
@@ -21,6 +21,12 @@ import Infiltrator
 
 const MOI = MathOptInterface
 
+const GRB_ENV = Ref{Gurobi.Env}()
+
+function __init__()
+    GRB_ENV[] = Gurobi.Env()
+    return
+end
 
 # Write your package code here.
 include("typedefs.jl")
