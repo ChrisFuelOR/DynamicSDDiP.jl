@@ -60,10 +60,11 @@ function get_dual_solution(
     ############################################################################
     # SET DUAL VARIABLES AND STATES CORRECTLY FOR RETURN
     ############################################################################
-    store_dual_values!(node, dual_values, dual_vars, dual_0_var, bin_state, cut_generation_regime.state_approximation_regime)
+    store_dual_values!(node, dual_values, dual_vars, bin_state, cut_generation_regime.state_approximation_regime)
 
     return (
         dual_values=dual_values,
+        dual_0_var=dual_0_var,
         bin_state=bin_state,
         intercept=dual_obj,
         iterations=1,
@@ -172,10 +173,11 @@ function get_dual_solution(
     ############################################################################
     # SET DUAL VARIABLES AND STATES CORRECTLY FOR RETURN
     ############################################################################
-    store_dual_values!(node, dual_values, dual_vars, dual_0_var, bin_state, cut_generation_regime.state_approximation_regime)
+    store_dual_values!(node, dual_values, dual_vars, bin_state, cut_generation_regime.state_approximation_regime)
 
     return (
         dual_values=dual_values,
+        dual_0_var=dual_0_var,
         bin_state=bin_state,
         intercept=dual_obj,
         iterations=1,
@@ -300,10 +302,11 @@ function get_dual_solution(
     ############################################################################
     # SET DUAL VARIABLES AND STATES CORRECTLY FOR RETURN
     ############################################################################
-    store_dual_values!(node, dual_values, dual_vars, dual_0_var, bin_state, cut_generation_regime.state_approximation_regime)
+    store_dual_values!(node, dual_values, dual_vars, bin_state, cut_generation_regime.state_approximation_regime)
 
     return (
         dual_values=dual_values,
+        dual_0_var=dual_0_var,
         bin_state=bin_state,
         intercept=lag_obj,
         iterations=lag_iterations,
@@ -378,6 +381,10 @@ function get_dual_solution(
     end
 
     # Maybe attempt numerical recovery as in SDDP
+    #if node.subproblem.ext[:sddp_policy_graph].ext[:iteration] == 10
+    #    Infiltrator.@infiltrate
+    #end
+
     primal_obj = JuMP.objective_value(subproblem)
     @assert JuMP.termination_status(subproblem) == MOI.OPTIMAL
 
@@ -401,6 +408,7 @@ function get_dual_solution(
         node,
         number_of_states,
         epi_state,
+        algo_params,
         cut_generation_regime.state_approximation_regime,
         duality_regime.normalization_regime,
         duality_regime.copy_regime
@@ -433,6 +441,10 @@ function get_dual_solution(
         lag_iterations = results.iterations
         lag_status = results.lag_status
         dual_0_var = results.dual_0_var
+
+        if node.subproblem.ext[:sddp_policy_graph].ext[:iteration] == 1
+            Infiltrator.@infiltrate
+        end
 
         ########################################################################
         # CHECK STATUS FOR ABNORMAL BEHAVIOR
@@ -468,16 +480,16 @@ function get_dual_solution(
         lag_obj = 0.0
 
     else
-        # We still want to express the cuts in the original system,
-        # so we have to divide the value for the intercept by dual_0_var as well.
-        # Moreover, we have to add epi_state
-        lag_obj = lag_obj / dual_0_var + epi_state
+        # We have to correct the intercept. We do this at this point, as (in
+        # contrast to some other corrections) it is not required for Benders cuts.
+        lag_obj = lag_obj + epi_state * dual_0_var
     end
 
-    store_dual_values!(node, dual_values, dual_vars, dual_0_var, bin_state, cut_generation_regime.state_approximation_regime)
+    store_dual_values!(node, dual_values, dual_vars, bin_state, cut_generation_regime.state_approximation_regime)
 
     return (
         dual_values=dual_values,
+        dual_0_var=dual_0_var,
         bin_state=bin_state,
         intercept=lag_obj,
         iterations=lag_iterations,
@@ -696,7 +708,6 @@ function store_dual_values!(
     node::SDDP.Node,
     dual_values::Dict{Symbol, Float64},
     dual_vars::Vector{Float64},
-    dual_0_var::Float64,
     bin_state::Dict{Symbol, BinaryState},
     state_approximation_regime::DynamicSDDiP.BinaryApproximation
     )
@@ -704,7 +715,7 @@ function store_dual_values!(
     #old_rhs = node.ext[:backward_data][:old_rhs]
 
     for (i, name) in enumerate(keys(node.ext[:backward_data][:bin_states]))
-        dual_values[name] = dual_vars[i] / dual_0_var
+        dual_values[name] = dual_vars[i]
 
         #value = old_rhs[i]
         value = JuMP.fix_value(node.ext[:backward_data][:bin_states][name])
@@ -720,13 +731,12 @@ function store_dual_values!(
     node::SDDP.Node,
     dual_values::Dict{Symbol, Float64},
     dual_vars::Vector{Float64},
-    dual_0_var::Float64,
     bin_state::Dict{Symbol, BinaryState},
     state_approximation_regime::DynamicSDDiP.NoStateApproximation
     )
 
     for (i, name) in enumerate(keys(node.states))
-        dual_values[name] = dual_vars[i] #/ dual_0_var
+        dual_values[name] = dual_vars[i]
     end
 
     return

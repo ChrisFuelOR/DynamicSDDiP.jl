@@ -725,6 +725,7 @@ abstract type Cut end
 mutable struct NonlinearCut <: Cut
     intercept::Float64
     coefficients::Dict{Symbol,Float64}
+    scaling_coeff::Float64
     ############################################################################
     trial_state::Dict{Symbol,Float64}
     anchor_state::Dict{Symbol,Float64}
@@ -776,6 +777,7 @@ will always be the same and only one cut_constraint has to be stored.
 mutable struct LinearCut <: Cut
     intercept::Float64
     coefficients::Dict{Symbol,Float64}
+    scaling_coeff::Float64
     ############################################################################
     trial_state::Dict{Symbol,Float64} # same as anchor state
     ############################################################################
@@ -830,6 +832,7 @@ struct BackwardPassItems{T,U}
     "Given a (node, noise) tuple, index the element in the array."
     cached_solutions::Dict{Tuple{T,Any},Int}
     duals::Vector{Dict{Symbol,Float64}}
+    dual_0_var::Vector{Float64}
     supports::Vector{U}
     nodes::Vector{T}
     probability::Vector{Float64}
@@ -843,6 +846,7 @@ struct BackwardPassItems{T,U}
         return new{T,U}(
             Dict{Tuple{T,Any},Int}(),
             Dict{Symbol,Float64}[],
+            Float64[],
             U[],
             T[],
             Float64[],

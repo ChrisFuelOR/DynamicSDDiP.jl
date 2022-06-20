@@ -315,7 +315,7 @@ function add_normalization_constraint!(
 	π⁻ = approx_model[:π⁻]
 	π₀ = approx_model[:π₀]
 
-	ω₀ = normalization_coeff.ω₀ 
+	ω₀ = normalization_coeff.ω₀
 	ω = normalization_coeff.ω
 
 	JuMP.@constraint(approx_model, ω₀ * π₀ + sum(ω[i] * (π⁺[i] - π⁻[i]) for i in 1:number_of_states) <= 1)
@@ -563,8 +563,6 @@ function get_core_point(
 	return (x = core_point.x, theta = core_point.theta)
 end
 
-
-
 """
 Use core point to obtain normalization coefficients
 """
@@ -572,6 +570,7 @@ function get_normalization_coefficients(
     node::SDDP.Node,
     number_of_states::Int,
 	epi_state::Float64,
+	algo_params::DynamicSDDiP.AlgoParams,
     state_approximation_regime::DynamicSDDiP.BinaryApproximation,
 	normalization_regime::Union{DynamicSDDiP.Core_Midpoint,DynamicSDDiP.Core_Epsilon,DynamicSDDiP.Core_In_Out,DynamicSDDiP.Core_Optimal, DynamicSDDiP.Core_Relint},
 	copy_regime::DynamicSDDiP.AbstractCopyRegime,
@@ -582,6 +581,15 @@ function get_normalization_coefficients(
 
 	# Get theta direction
 	ω₀ = core_point.theta - epi_state
+
+	""" For Core_Epsilon with parameter 0.0 we do not allow negative values, since
+	they are related to numerical issues. """
+	if isa(normalization_regime, DynamicSDDiP.Core_Epsilon) && isapprox(normalization_regime.perturb, 0.0) && ω₀ < 0
+		ω₀ = 0.0
+	end
+
+	# TODO: We could exclude very small coefficients in general based on AlgoParams.atol
+	# in order to avoid numerical issues.
 
 	# Get state direction
 	ω = zeros(number_of_states)
@@ -597,6 +605,7 @@ function get_normalization_coefficients(
     node::SDDP.Node,
     number_of_states::Int,
 	epi_state::Float64,
+	algo_params::DynamicSDDiP.AlgoParams,
     state_approximation_regime::DynamicSDDiP.NoStateApproximation,
 	normalization_regime::Union{DynamicSDDiP.Core_Midpoint,DynamicSDDiP.Core_Epsilon,DynamicSDDiP.Core_In_Out,DynamicSDDiP.Core_Optimal, DynamicSDDiP.Core_Relint},
 	copy_regime::DynamicSDDiP.AbstractCopyRegime,
@@ -607,6 +616,15 @@ function get_normalization_coefficients(
 
 	# Get theta direction
 	ω₀ = core_point.theta - epi_state
+
+	""" For Core_Epsilon with parameter 0.0 we do not allow negative values, since
+	they are related to numerical issues. """
+	if isa(normalization_regime, DynamicSDDiP.Core_Epsilon) && isapprox(normalization_regime.perturb, 0.0) && ω₀ < 0
+		ω₀ = 0.0
+	end
+
+	# TODO: We could exclude very small coefficients in general based on AlgoParams.atol
+	# in order to avoid numerical issues.
 
 	# Get state direction
 	ω = zeros(number_of_states)
@@ -627,6 +645,7 @@ function get_normalization_coefficients(
     node::SDDP.Node,
     number_of_states::Int,
 	epi_state::Float64,
+	algo_params::DynamicSDDiP.AlgoParams,
     state_approximation_regime::DynamicSDDiP.BinaryApproximation,
 	normalization_regime::DynamicSDDiP.AbstractNormalizationRegime,
 	copy_regime::DynamicSDDiP.AbstractCopyRegime,
@@ -639,6 +658,7 @@ function get_normalization_coefficients(
     node::SDDP.Node,
     number_of_states::Int,
 	epi_state::Float64,
+	algo_params::DynamicSDDiP.AlgoParams,
     state_approximation_regime::DynamicSDDiP.NoStateApproximation,
 	normalization_regime::DynamicSDDiP.AbstractNormalizationRegime,
 	copy_regime::DynamicSDDiP.AbstractCopyRegime,

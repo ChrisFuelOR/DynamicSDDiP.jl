@@ -129,6 +129,7 @@ function solve_all_children(
             if haskey(items.cached_solutions, (child.term, noise.term))
                 sol_index = items.cached_solutions[(child.term, noise.term)]
                 push!(items.duals, items.duals[sol_index])
+                push!(items.dual_0_var, items.dual_0_var[sol_index])
                 push!(items.supports, items.supports[sol_index])
                 push!(items.nodes, child_node.index)
                 push!(items.probability, items.probability[sol_index])
@@ -167,6 +168,7 @@ function solve_all_children(
                     )
                 end
                 push!(items.duals, subproblem_results.duals)
+                push!(items.dual_0_var, subproblem_results.dual_0_var)
                 push!(items.supports, noise)
                 push!(items.nodes, child_node.index)
                 push!(items.probability, child.probability * noise.probability)
@@ -252,6 +254,7 @@ function solve_subproblem_backward(
 
     return (
         duals = dual_results.dual_values,
+        dual_0_var = dual_results.dual_0_var,
         bin_state = dual_results.bin_state,
         objective = dual_results.intercept,
         iterations = dual_results.iterations,

@@ -125,6 +125,7 @@ function backward_pass(
                         anchor_state,
                         items.bin_state[1],
                         items.duals,
+                        items.dual_0_var,
                         items.supports,
                         items.probability,
                         items.objectives,

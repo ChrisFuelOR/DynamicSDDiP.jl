@@ -22,6 +22,7 @@ import Infiltrator
 const MOI = MathOptInterface
 
 const GRB_ENV = Ref{Gurobi.Env}()
+const ws = GAMS.GAMSWorkspace()
 
 function __init__()
     GRB_ENV[] = Gurobi.Env()

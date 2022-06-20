@@ -21,7 +21,7 @@ function model_config()
 
     # Duality / Cut computation configuration
     dual_initialization_regime = DynamicSDDiP.ZeroDuals()
-    dual_solution_regime = DynamicSDDiP.LevelBundle()
+    dual_solution_regime = DynamicSDDiP.Kelley()
     dual_bound_regime = DynamicSDDiP.BothBounds()
     dual_status_regime = DynamicSDDiP.Rigorous()
     dual_choice_regime = DynamicSDDiP.StandardChoice()
@@ -30,19 +30,19 @@ function model_config()
     dual_space_regime = DynamicSDDiP.NoDualSpaceRestriction()
     copy_regime = DynamicSDDiP.ConvexHullCopy()
 
-    # duality_regime_2 = DynamicSDDiP.UnifiedLagrangianDuality(
-    #     atol = 1e-4,
-    #     rtol = 1e-4,
-    #     iteration_limit = 1000,
-    #     dual_initialization_regime = dual_initialization_regime,
-    #     dual_bound_regime = dual_bound_regime,
-    #     dual_solution_regime = dual_solution_regime,
-    #     dual_choice_regime = dual_choice_regime,
-    #     dual_status_regime = dual_status_regime,
-    #     normalization_regime = normalization_regime,
-    #     dual_space_regime = dual_space_regime,
-    #     copy_regime = copy_regime,
-    # )
+    duality_regime_1 = DynamicSDDiP.UnifiedLagrangianDuality(
+        atol = 1e-4,
+        rtol = 1e-4,
+        iteration_limit = 1000,
+        dual_initialization_regime = dual_initialization_regime,
+        dual_bound_regime = dual_bound_regime,
+        dual_solution_regime = dual_solution_regime,
+        dual_choice_regime = dual_choice_regime,
+        dual_status_regime = dual_status_regime,
+        normalization_regime = normalization_regime,
+        dual_space_regime = dual_space_regime,
+        copy_regime = copy_regime,
+    )
 
     duality_regime_2 = DynamicSDDiP.LagrangianDuality(
          atol = 1e-4,
@@ -65,7 +65,7 @@ function model_config()
     # Cut generation regimes
     cut_generation_regime_2 = DynamicSDDiP.CutGenerationRegime(
         state_approximation_regime = state_approximation_regime_2,
-        duality_regime = duality_regime_2,
+        duality_regime = duality_regime_1,
     )
 
     duality_regime_1 = DynamicSDDiP.LinearDuality()
@@ -73,13 +73,13 @@ function model_config()
 
     cut_generation_regime_1 = DynamicSDDiP.CutGenerationRegime(
         state_approximation_regime = state_approximation_regime_1,
-        duality_regime = duality_regime_1,
+        duality_regime = duality_regime_2,
     )
 
     cut_generation_regimes = [cut_generation_regime_1, cut_generation_regime_2]
 
     # Regularization configuration
-    regularization_regime = DynamicSDDiP.Regularization(sigma=[0.0,1.0])
+    regularization_regime = DynamicSDDiP.NoRegularization()
 
     # Cut aggregation regime
     cut_aggregation_regime = DynamicSDDiP.MultiCutRegime()

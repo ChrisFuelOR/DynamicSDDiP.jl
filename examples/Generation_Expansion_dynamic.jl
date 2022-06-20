@@ -10,21 +10,22 @@ import DynamicSDDiP
 using Revise
 import GAMS
 import Infiltrator
+import Random
 
 
 function model_config()
 
     # Stopping rules to be used
-    stopping_rules = [SDDP.IterationLimit(10)]
+    stopping_rules = [SDDP.IterationLimit(20)]
 
     # Duality / Cut computation configuration
     dual_initialization_regime = DynamicSDDiP.ZeroDuals()
-    dual_solution_regime = DynamicSDDiP.LevelBundle()
+    dual_solution_regime = DynamicSDDiP.Kelley()
     dual_bound_regime = DynamicSDDiP.BothBounds()
-    dual_status_regime = DynamicSDDiP.Rigorous()
+    dual_status_regime = DynamicSDDiP.Lax()
     dual_choice_regime = DynamicSDDiP.StandardChoice()
-    normalization_regime = DynamicSDDiP.Core_Midpoint()
-    #normalization_regime = DynamicSDDiP.Core_Midpoint()
+    #normalization_regime = DynamicSDDiP.Core_Epsilon(perturb=0.0)
+    normalization_regime = DynamicSDDiP.Core_Relint()
     #dual_subproblemace_regime = DynamicSDDiP.BendersSpanSpaceRestriction(10, :multi_cut)
     dual_space_regime = DynamicSDDiP.NoDualSpaceRestriction()
     copy_regime = DynamicSDDiP.ConvexHullCopy()
@@ -44,18 +45,18 @@ function model_config()
     )
 
     duality_regime_2 = DynamicSDDiP.LagrangianDuality(
-         atol = 1e-4,
-         rtol = 1e-4,
-         iteration_limit = 1000,
-         dual_initialization_regime = dual_initialization_regime,
-         dual_bound_regime = dual_bound_regime,
-         dual_solution_regime = dual_solution_regime,
-         dual_choice_regime = dual_choice_regime,
-         dual_status_regime = dual_status_regime,
-         copy_regime = copy_regime,
-     )
+        atol = 1e-4,
+        rtol = 1e-4,
+        iteration_limit = 1000,
+        dual_initialization_regime = dual_initialization_regime,
+        dual_bound_regime = dual_bound_regime,
+        dual_solution_regime = dual_solution_regime,
+        dual_choice_regime = dual_choice_regime,
+        dual_status_regime = dual_status_regime,
+        copy_regime = copy_regime,
+    )
 
-    #duality_regime_1 = DynamicSDDiP.LinearDuality()
+    duality_regime_3 = DynamicSDDiP.LinearDuality()
     #duality_regime = DynamicSDDiP.StrengthenedDuality()
 
     # State approximation and cut projection configuration
@@ -76,7 +77,7 @@ function model_config()
     cut_aggregation_regime = DynamicSDDiP.MultiCutRegime()
 
     cut_type = SDDP.SINGLE_CUT
-    if isa(cut_aggregation_regime,DynamicSDDiP.MultiCutRegime)
+    if isa(cut_aggregation_regime, DynamicSDDiP.MultiCutRegime)
         cut_type = SDDP.MULTI_CUT
     end
 
@@ -87,22 +88,22 @@ function model_config()
     log_file = "C:/Users/cg4102/Documents/julia_logs/Generation_Expansion_dynamic.log"
 
     # Suppress solver output
-    silent = false
+    silent = true
 
     # Infiltration for debugging
     infiltrate_state = :none
 
     # Solver approach
-    solver_approach = DynamicSDDiP.GAMS_Solver()
+    solver_approach = DynamicSDDiP.Direct_Solver()
 
     # Define solvers to be used
     applied_solvers = DynamicSDDiP.AppliedSolvers(
-        LP = "CPLEX",
-        MILP = "CPLEX",
-        MIQCP = "CPLEX",
-        MINLP = "CPLEX",
-        NLP = "CPLEX",
-        Lagrange = "CPLEX",
+        LP = "Gurobi",
+        MILP = "Gurobi",
+        MIQCP = "Gurobi",
+        MINLP = "Gurobi",
+        NLP = "Gurobi",
+        Lagrange = "Gurobi",
     )
 
     # Definition of algo_params
@@ -121,22 +122,22 @@ function model_config()
     )
 
     # Start model with used configuration
-    model_starter(
-        algo_params,
-        applied_solvers,
-    )
+    model_starter(algo_params, applied_solvers)
 end
 
 
 function model_starter(
     algo_params::DynamicSDDiP.AlgoParams = DynamicSDDiP.AlgoParams(),
     applied_solvers::DynamicSDDiP.AppliedSolvers = DynamicSDDiP.AppliedSolvers(),
-    )
+)
 
     ############################################################################
     # DEFINE MODEL
     ############################################################################
     model = model_definition()
+
+    ## For repeatability
+    Random.seed!(11119)
 
     ############################################################################
     # SOLVE MODEL
@@ -148,7 +149,7 @@ end
 function model_definition()
 
     build_cost = 1
-    use_cost = 4/10000.0
+    use_cost = 4 / 10000.0
     num_units = 5
     capacities = ones(num_units)
     demand_vals =
@@ -156,26 +157,28 @@ function model_definition()
             5 5 5 5 5 5 5 5
             4 3 1 3 0 9 8 17
             0 9 4 2 19 19 13 7
+            25 11 4 14 4 6 15 12
+            6 7 5 3 8 4 17 13
         ]
 
-        # 5 5 5 5 5 5 5 5
-        # 4 3 1 3 0 9 8 17
-        # 0 9 4 2 19 19 13 7
-        # 25 11 4 14 4 6 15 12
-        # 6 7 5 3 8 4 17 13
+    # 5 5 5 5 5 5 5 5
+    # 4 3 1 3 0 9 8 17
+    # 0 9 4 2 19 19 13 7
+    # 25 11 4 14 4 6 15 12
+    # 6 7 5 3 8 4 17 13
 
     # Cost of unmet demand
     penalty = 50
     # Discounting rate
     rho = 0.99
 
-    number_of_stages = 3
+    number_of_stages = 5
 
     model = SDDP.LinearPolicyGraph(
         stages = number_of_stages,
         lower_bound = 0.0,
         optimizer = GAMS.Optimizer,
-        sense = :Min
+        sense = :Min,
     ) do subproblem, stage
 
         # DEFINE STAGE-t MODEL
@@ -203,8 +206,7 @@ function model_definition()
                 # Can't un-invest
                 investment[i in 1:num_units], invested[i].out >= invested[i].in
                 # Generation capacity
-                sum(capacities[i] * invested[i].out for i in 1:num_units) >=
-                generation
+                sum(capacities[i] * invested[i].out for i = 1:num_units) >= generation
                 # Meet demand or pay a penalty
                 unmet >= demand - sum(generation)
                 # For fewer iterations order the units to break symmetry, units are identical (tougher numerically)
@@ -219,13 +221,11 @@ function model_definition()
         JuMP.@expression(
             subproblem,
             investment_cost,
-            build_cost *
-            sum(invested[i].out - invested[i].in for i in 1:num_units)
+            build_cost * sum(invested[i].out - invested[i].in for i = 1:num_units)
         )
         SDDP.@stageobjective(
             subproblem,
-            (investment_cost + generation * use_cost) * rho^(stage - 1) +
-            penalty * unmet
+            (investment_cost + generation * use_cost) * rho^(stage - 1) + penalty * unmet
         )
     end
 

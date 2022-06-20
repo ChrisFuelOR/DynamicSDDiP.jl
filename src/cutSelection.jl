@@ -477,6 +477,10 @@ function _eval_height(node::SDDP.Node, cut::DynamicSDDiP.NonlinearCut,
     ############################################################################
     JuMP.optimize!(model)
     height = JuMP.objective_value(model)
+
+    # redo scaling by π₀ cause otherwise, cuts are not comparable to each other
+    height = height / cut.scaling_coeff
+
     return height
 
 end
@@ -495,6 +499,10 @@ function _eval_height(node::SDDP.Node, cut::DynamicSDDiP.LinearCut,
     for (key, value) in cut.coefficients
         height += value * sampled_state.state[key]
     end
+
+    # redo scaling by π₀ cause otherwise, cuts are not comparable to each other
+    height = height / cut.scaling_coeff
+
     return height
 
 end

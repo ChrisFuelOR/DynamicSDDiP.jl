@@ -11,6 +11,8 @@ function _solve_unified_Lagrangian_relaxation!(
     h_k::Vector{Float64},
     w_expr::JuMP.GenericAffExpr{Float64,JuMP.VariableRef},
     w_k::Float64,
+    algo_params::DynamicSDDiP.AlgoParams,
+    applied_solvers::DynamicSDDiP.AppliedSolvers,
     update_subgradients::Bool = true,
 )
     model = node.subproblem
@@ -22,7 +24,17 @@ function _solve_unified_Lagrangian_relaxation!(
 
     # Optimization
     JuMP.optimize!(model)
-    @assert JuMP.termination_status(model) == MOI.OPTIMAL
+
+    if (JuMP.termination_status(model) != MOI.OPTIMAL) && !algo_params.numerical_focus
+        algo_params.numerical_focus = true
+        set_solver!(node.subproblem, algo_params, applied_solvers, :lagrange_relax, algo_params.solver_approach)
+        Infiltrator.@infiltrate
+        JuMP.optimize!(model)
+        @assert JuMP.termination_status(model) == MOI.OPTIMAL
+        algo_params.numerical_focus = false
+    else (JuMP.termination_status(model) != MOI.OPTIMAL) && algo_params.numerical_focus
+        @assert JuMP.termination_status(model) == MOI.OPTIMAL
+    end
 
     # Update the correct values
     L_k = JuMP.objective_value(model)
@@ -54,7 +66,7 @@ function solve_unified_lagrangian_dual(
     algo_params::DynamicSDDiP.AlgoParams,
     cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
-    dual_solution_regime::DynamicSDDiP.Kelley
+    dual_solution_regime::DynamicSDDiP.Kelley,
 )
 
     ############################################################################
@@ -179,7 +191,7 @@ function solve_unified_lagrangian_dual(
         ########################################################################
         # Evaluate the inner problem and determine a subgradient
         TimerOutputs.@timeit DynamicSDDiP_TIMER "inner_sol" begin
-            relax_results = _solve_unified_Lagrangian_relaxation!(node, π_k, π0_k, h_expr, h_k, w_expr, w_k, true)
+            relax_results = _solve_unified_Lagrangian_relaxation!(node, π_k, π0_k, h_expr, h_k, w_expr, w_k, algo_params, applied_solvers, true)
         end
         L_k = relax_results.L_k
         w_k = relax_results.w_k
@@ -209,7 +221,17 @@ function solve_unified_lagrangian_dual(
         TimerOutputs.@timeit DynamicSDDiP_TIMER "outer_sol" begin
             JuMP.optimize!(approx_model)
         end
-        @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
+
+        if (JuMP.termination_status(approx_model) != MOI.OPTIMAL) && !algo_params.numerical_focus
+            algo_params.numerical_focus = true
+            set_solver!(node.subproblem, algo_params, applied_solvers, :lagrange_relax, algo_params.solver_approach)
+            JuMP.optimize!(approx_model)
+            @assert JuMP.termination_status(approx_model) == MOI.OPTIMAL
+            algo_params.numerical_focus = false
+        else (JuMP.termination_status(approx_model) != MOI.OPTIMAL) && algo_params.numerical_focus
+            @assert JuMP.termination_status(approx_model) == MOI.OPTIMAL
+        end
+
         t_k = JuMP.objective_value(approx_model)
         π_k .= JuMP.value.(π)
         π0_k = JuMP.value.(π₀)
@@ -219,8 +241,8 @@ function solve_unified_lagrangian_dual(
 
         ########################################################################
         if L_star > t_k + atol/10.0
-            error("Could not solve for Lagrangian duals. LB > UB.")
-            #break
+            #error("Could not solve for Lagrangian duals. LB > UB.")
+            break
         end
 
     end

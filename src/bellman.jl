@@ -167,6 +167,7 @@ function refine_bellman_function(
     anchor_points::Dict{Symbol,Float64},
     bin_states::Dict{Symbol,BinaryState},
     dual_variables::Vector{Dict{Symbol,Float64}},
+    dual_0_var::Vector{Float64},
     noise_supports::Vector,
     nominal_probability::Vector{Float64},
     objective_realizations::Vector{Float64},
@@ -217,6 +218,7 @@ function refine_bellman_function(
             risk_adjusted_probability,
             objective_realizations,
             dual_variables,
+            dual_0_var,
             offset,
             cut_away,
             algo_params,
@@ -237,6 +239,7 @@ function refine_bellman_function(
             risk_adjusted_probability,
             objective_realizations,
             dual_variables,
+            dual_0_var,
             offset,
             cut_away,
             algo_params,
@@ -261,6 +264,7 @@ function _add_average_cut(
     risk_adjusted_probability::Vector{Float64},
     objective_realizations::Vector{Float64},
     dual_variables::Vector{Dict{Symbol,Float64}},
+    dual_0_var::Vector{Float64},
     offset::Float64,
     cut_away::Bool,
     algo_params::DynamicSDDiP.AlgoParams,
@@ -284,9 +288,9 @@ function _add_average_cut(
 
     for i in 1:length(objective_realizations)
         p = risk_adjusted_probability[i]
-        θᵏ += p * objective_realizations[i]
+        θᵏ += p * objective_realizations[i] / dual_0_var[i]
         for (key, dual) in dual_variables[i]
-            πᵏ[key] += p * dual
+            πᵏ[key] += p * dual / dual_0_var[i]
         end
     end
 
@@ -316,6 +320,7 @@ function _add_average_cut(
         node.bellman_function.global_theta,
         θᵏ,
         πᵏ,
+        1.0,
         bin_states,
         anchor_points,
         trial_points,
@@ -348,6 +353,7 @@ function _add_multi_cut(
     risk_adjusted_probability::Vector{Float64},
     objective_realizations::Vector{Float64},
     dual_variables::Vector{Dict{Symbol,Float64}},
+    dual_0_var::Vector{Float64},
     offset::Float64,
     cut_away::Bool,
     algo_params::DynamicSDDiP.AlgoParams,
@@ -383,6 +389,7 @@ function _add_multi_cut(
             node.bellman_function.local_thetas[i],
             objective_realizations[i],
             dual_variables[i],
+            dual_0_var[i],
             bin_states,
             anchor_points,
             trial_points,
@@ -459,6 +466,7 @@ function _add_cut(
     V::DynamicSDDiP.CutApproximation,
     θᵏ::Float64, # epigraph variable theta
     πᵏ::Dict{Symbol,Float64}, # dual multipliers (cut coefficients)
+    π₀ᵏ::Float64, # dual scaling multiplier
     λᵏ::Dict{Symbol,BinaryState}, # binary states (anchor point in binary space for cut using BinaryApproximation)
     xᵏ_b::Dict{Symbol,Float64}, # anchor point for cut using BinaryApproximation
     xᵏ::Dict{Symbol,Float64}, # trial point (anchor point for cut without BinaryApproximation), outgoing_state
@@ -495,6 +503,7 @@ function _add_cut(
     cut = DynamicSDDiP.NonlinearCut(
             θᵏ,
             πᵏ,
+            π₀ᵏ,
             xᵏ,
             xᵏ_b,
             λᵏ,
@@ -665,7 +674,7 @@ function _add_cut_constraints_to_models(
     # ADD THE ORIGINAL CUT CONSTRAINT AS WELL
     ############################################################################
     expr = get_cut_expression(model, node, V, all_lambda, all_mu, all_eta,
-        all_coefficients, number_of_states, number_of_duals,
+        all_coefficients, cut.scaling_coeff, number_of_states, number_of_duals,
         cut_generation_regime.state_approximation_regime.cut_projection_regime)
 
     constraint_ref = if JuMP.objective_sense(model) == MOI.MIN_SENSE
@@ -1204,6 +1213,7 @@ function get_cut_expression(
     all_mu::Vector{JuMP.VariableRef},
     all_eta::Vector{JuMP.VariableRef},
     all_coefficients::Vector{Float64},
+    scaling_coeff::Float64,
     number_of_states::Int64,
     number_of_duals::Int64,
     cut_projection_regime::Union{DynamicSDDiP.SOS1,DynamicSDDiP.BigM,DynamicSDDiP.KKT},
@@ -1211,7 +1221,7 @@ function get_cut_expression(
 
     expr = JuMP.@expression(
         model,
-        V.theta - sum(all_coefficients[j] * all_lambda[j]  for j in 1:number_of_duals)
+        scaling_coeff * V.theta - sum(all_coefficients[j] * all_lambda[j]  for j in 1:number_of_duals)
     )
 
     return expr
@@ -1225,6 +1235,7 @@ function get_cut_expression(
     all_mu::Vector{JuMP.VariableRef},
     all_eta::Vector{JuMP.VariableRef},
     all_coefficients::Vector{Float64},
+    scaling_coeff::Float64,
     number_of_states::Int64,
     number_of_duals::Int64,
     cut_projection_regime::DynamicSDDiP.StrongDuality,
@@ -1232,7 +1243,7 @@ function get_cut_expression(
 
     expr = JuMP.@expression(
         model,
-        V.theta - sum(all_mu[j]  for j in 1:size(all_mu, 1))
+        scaling_coeff * V.theta - sum(all_mu[j]  for j in 1:size(all_mu, 1))
         - sum(x * all_eta[i]  for (i, (_,x)) in enumerate(V.states))
     )
 
@@ -1298,6 +1309,7 @@ function _add_cut(
     V::DynamicSDDiP.CutApproximation,
     θᵏ::Float64, # epigraph variable theta
     πᵏ::Dict{Symbol,Float64}, # dual multipliers (cut coefficients)
+    π₀ᵏ::Float64, # dual scaling multiplier
     λᵏ::Dict{Symbol,BinaryState}, # binary states (anchor point in binary space for cut using BinaryApproximation)
     xᵏ_b::Dict{Symbol,Float64}, # anchor point for cut using BinaryApproximation
     xᵏ::Dict{Symbol,Float64}, # trial point (anchor point for cut without BinaryApproximation), outgoing_state
@@ -1334,6 +1346,7 @@ function _add_cut(
     cut = DynamicSDDiP.LinearCut(
             θᵏ,
             πᵏ,
+            π₀ᵏ,
             xᵏ,
             sigma_use,
             nothing,
@@ -1394,7 +1407,7 @@ function _add_cut_constraints_to_models(
     ############################################################################
     expr = JuMP.@expression(
         model,
-        V.theta - sum(cut.coefficients[i] * x for (i, x) in V.states)
+        cut.scaling_coeff * V.theta - sum(cut.coefficients[i] * x for (i, x) in V.states)
     )
 
     cut.cut_constraint = if JuMP.objective_sense(model) == MOI.MIN_SENSE

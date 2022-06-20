@@ -4,8 +4,6 @@
 # If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
 ################################################################################
 
-const ws = GAMS.GAMSWorkspace()
-
 """
 Function which assigns the correct solvers to be used in the specific part
 of DynamicSDDiP, given that we use GAMS.jl as a framework for solver communication.
@@ -85,7 +83,7 @@ function set_solver!(
     ############################################################################
     if solver == "CPLEX"
         JuMP.set_optimizer(subproblem, JuMP.optimizer_with_attributes(
-            () -> GAMS.Optimizer(),
+            () -> GAMS.Optimizer(ws),
             "Solver"=>solver,
             "optcr"=>1e-4,
             "numericalemphasis"=>numerical_focus)
