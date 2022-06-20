@@ -251,7 +251,7 @@ function solve_unified_lagrangian_dual(
     # CONVERGENCE ANALYSIS
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "convergence_check" begin
-        if isapprox(L_star, t_k, atol = atol, rtol = rtol) && L_star == 1e9
+        if isapprox(L_star, t_k, atol = atol, rtol = rtol) && isapprox(L_star, 1e9, rtol=1e-4)
             # UNBOUNDEDNESS DETECTED, which is only bounded by artificial
             # objective bound 1e-9
             # Leads still to a valid cut, but no vertex of the reverse polar set

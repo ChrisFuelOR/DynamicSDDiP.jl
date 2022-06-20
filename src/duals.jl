@@ -442,9 +442,9 @@ function get_dual_solution(
         lag_status = results.lag_status
         dual_0_var = results.dual_0_var
 
-        if node.subproblem.ext[:sddp_policy_graph].ext[:iteration] == 1
-            Infiltrator.@infiltrate
-        end
+        #if node.subproblem.ext[:sddp_policy_graph].ext[:iteration] == 4
+        #    Infiltrator.@infiltrate
+        #end
 
         ########################################################################
         # CHECK STATUS FOR ABNORMAL BEHAVIOR
@@ -474,6 +474,25 @@ function get_dual_solution(
         causes numerical issues.
         We avoid this by replacing the occuring redundant cut in this case by
         a different redundant cut."""
+
+        dual_0_var = 1.0
+        dual_vars .= zeros(length(dual_vars))
+        lag_obj = 0.0
+
+    elseif !isnothing(normalization_coeff) && all(normalization_coeff.ω .== 0.0) && isapprox(normalization_coeff.ω₀, 0.0, atol=1e-8)
+        """ If the linear pseudonorm is used, but all coefficients are zero,
+        then the Lagrangian dual is not normalized, but unbounded. Analogously,
+        a zero function is optimized over the reverse polar set, which can yield
+        any point in this unbounded set. Therefore, we are not guaranteed to
+        obtain any meaningful cut.
+
+        Note that we artificially bound the dual objective with 1e-9, so that
+        we obtain valid, but usually very large cut coefficients.
+        However, experiments show that the cuts still tend to be invalid due
+        to numerical issues for these large coefficients. Therefore, in this
+        case we do not construct a new cut at all (or at least restrict
+        to redundant cut).
+        """
 
         dual_0_var = 1.0
         dual_vars .= zeros(length(dual_vars))
