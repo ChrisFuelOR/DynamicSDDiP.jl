@@ -25,15 +25,9 @@ function _solve_unified_Lagrangian_relaxation!(
     # Optimization
     JuMP.optimize!(model)
 
-    if (JuMP.termination_status(model) != MOI.OPTIMAL) && !algo_params.numerical_focus
-        algo_params.numerical_focus = true
-        set_solver!(node.subproblem, algo_params, applied_solvers, :lagrange_relax, algo_params.solver_approach)
-        Infiltrator.@infiltrate
-        JuMP.optimize!(model)
-        @assert JuMP.termination_status(model) == MOI.OPTIMAL
-        algo_params.numerical_focus = false
-    else (JuMP.termination_status(model) != MOI.OPTIMAL) && algo_params.numerical_focus
-        @assert JuMP.termination_status(model) == MOI.OPTIMAL
+    # Try recovering from numerical issues
+    if (JuMP.termination_status(model) != MOI.OPTIMAL)
+        elude_numerical_issues!(model, algo_params)
     end
 
     # Update the correct values
@@ -220,16 +214,11 @@ function solve_unified_lagrangian_dual(
         # Get a bound from the approximate model
         TimerOutputs.@timeit DynamicSDDiP_TIMER "outer_sol" begin
             JuMP.optimize!(approx_model)
-        end
 
-        if (JuMP.termination_status(approx_model) != MOI.OPTIMAL) && !algo_params.numerical_focus
-            algo_params.numerical_focus = true
-            set_solver!(node.subproblem, algo_params, applied_solvers, :lagrange_relax, algo_params.solver_approach)
-            JuMP.optimize!(approx_model)
-            @assert JuMP.termination_status(approx_model) == MOI.OPTIMAL
-            algo_params.numerical_focus = false
-        else (JuMP.termination_status(approx_model) != MOI.OPTIMAL) && algo_params.numerical_focus
-            @assert JuMP.termination_status(approx_model) == MOI.OPTIMAL
+            # Try recovering from numerical issues
+            if (JuMP.termination_status(approx_model) != MOI.OPTIMAL)
+                elude_numerical_issues!(approx_model, algo_params)
+            end
         end
 
         t_k = JuMP.objective_value(approx_model)

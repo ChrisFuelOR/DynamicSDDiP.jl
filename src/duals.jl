@@ -380,13 +380,17 @@ function get_dual_solution(
         JuMP.optimize!(subproblem)
     end
 
-    # Maybe attempt numerical recovery as in SDDP
+    # Try recovering from numerical issues
+    if (JuMP.termination_status(subproblem) != MOI.OPTIMAL)
+        elude_numerical_issues!(subproblem, algo_params)
+    end
+
     #if node.subproblem.ext[:sddp_policy_graph].ext[:iteration] == 10
     #    Infiltrator.@infiltrate
     #end
 
+    #@assert JuMP.termination_status(subproblem) == MOI.OPTIMAL
     primal_obj = JuMP.objective_value(subproblem)
-    @assert JuMP.termination_status(subproblem) == MOI.OPTIMAL
 
     # DEREGULARIZE PROBLEM IF REQUIRED
     deregularize_bw!(node, subproblem, algo_params.regularization_regime, cut_generation_regime.state_approximation_regime)

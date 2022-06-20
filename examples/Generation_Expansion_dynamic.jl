@@ -24,8 +24,8 @@ function model_config()
     dual_bound_regime = DynamicSDDiP.BothBounds()
     dual_status_regime = DynamicSDDiP.Lax()
     dual_choice_regime = DynamicSDDiP.StandardChoice()
-    normalization_regime = DynamicSDDiP.Core_Epsilon(perturb=0.0)
-    #normalization_regime = DynamicSDDiP.Core_Relint()
+    #normalization_regime = DynamicSDDiP.Core_Epsilon(perturb=0.0)
+    normalization_regime = DynamicSDDiP.L₁_Deep()
     #dual_subproblemace_regime = DynamicSDDiP.BendersSpanSpaceRestriction(10, :multi_cut)
     dual_space_regime = DynamicSDDiP.NoDualSpaceRestriction()
     copy_regime = DynamicSDDiP.ConvexHullCopy()
@@ -119,6 +119,7 @@ function model_config()
         infiltrate_state = infiltrate_state,
         solver_approach = solver_approach,
         numerical_focus = false,
+        run_numerical_stability_report = false,
     )
 
     # Start model with used configuration
@@ -137,7 +138,7 @@ function model_starter(
     model = model_definition()
 
     ## For repeatability
-    Random.seed!(11119)
+    Random.seed!(11113)
 
     ############################################################################
     # SOLVE MODEL

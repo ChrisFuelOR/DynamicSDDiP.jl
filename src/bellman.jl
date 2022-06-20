@@ -484,6 +484,11 @@ function _add_cut(
 ) where {N,T}
 
     ############################################################################
+    # CHECK FOR BAD-SCALED CUTS
+    ############################################################################
+    _dynamic_range_warning(θᵏ, πᵏ, π₀ᵏ)
+
+    ############################################################################
     # CORRECT THE INTERCEPT (WE USE A DIFFERENT CUT FORMULA)
     ############################################################################
     for (key, λ) in λᵏ
@@ -1327,6 +1332,11 @@ function _add_cut(
 ) where {N,T}
 
     ############################################################################
+    # CHECK FOR BAD-SCALED CUTS
+    ############################################################################
+    _dynamic_range_warning(θᵏ, πᵏ, π₀ᵏ)
+
+    ############################################################################
     # CORRECT THE INTERCEPT (WE USE A DIFFERENT CUT FORMULA)
     ############################################################################
     for (key, x) in xᵏ
@@ -1503,4 +1513,44 @@ function check_for_cut_away(
 
     return cut_away
 
+end
+
+_magnitude(x) = x ≈ 0 ? 0 : log10(abs(x))
+
+function _dynamic_range_warning(intercept, coefficients, scaling_coeff)
+    lo = hi = _magnitude(intercept)
+    lo_v = hi_v = intercept
+    for v in values(coefficients)
+        i = _magnitude(v)
+        if v < lo_v
+            lo, lo_v = i, v
+        elseif v > hi_v
+            hi, hi_v = i, v
+        end
+    end
+    i = _magnitude(scaling_coeff)
+    v = scaling_coeff
+    if v < lo_v
+        lo, lo_v = i, v
+    elseif v > hi_v
+        hi, hi_v = i, v
+    end
+
+    if hi - lo > 10
+        @warn(
+            """Found a cut with a mix of small and large coefficients.
+          The order of magnitude difference is $(hi - lo).
+          The smallest cofficient is $(lo_v).
+          The largest coefficient is $(hi_v).
+
+      You can ignore this warning, but it may be an indication of numerical issues.
+
+      Consider rescaling your model by using different units, e.g, kilometers instead
+      of meters. You should also consider reducing the accuracy of your input data (if
+      you haven't already). For example, it probably doesn't make sense to measure the
+      inflow into a reservoir to 10 decimal places.""",
+            maxlog = 1,
+        )
+    end
+    return
 end

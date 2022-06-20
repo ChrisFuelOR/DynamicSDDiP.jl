@@ -229,3 +229,55 @@ function set_solver!(
 
     return
 end
+
+
+"""
+Sometimes using a lot of cutting-planes some numerical issues occur, and the
+subproblem is no longer bounded or feasible. However, from my experience CPLEX
+handles this way better than Gurobi, so that CPLEX may still yield a feasible
+solution for the subproblem. On the contrary, using CPLEX by means of GAMS.jl
+is way slower than directly using Gurobi. Therefore, we revert to CPLEX
+in case that a subproblem is infeasible/unbounded only.
+"""
+function elude_numerical_issues!(
+    subproblem::JuMP.Model,
+    algo_params::DynamicSDDiP.AlgoParams,
+)
+
+    numerical_focus = algo_params.numerical_focus ? 1 : 0
+    JuMP.set_optimizer(subproblem, JuMP.optimizer_with_attributes(
+        () -> GAMS.Optimizer(),
+        "Solver"=>"CPLEX",
+        "optcr"=>1e-4,
+        "numericalemphasis"=>numerical_focus)
+        )
+    JuMP.optimize!(subproblem)
+
+    @assert JuMP.termination_status(subproblem) == MOI.OPTIMAL
+
+    return
+end
+
+
+""" A possible alternative is to attempt a solution using the numerical_focus
+parameter. However, from my experience this does not help in most cases.
+See previously used code below.
+"""
+
+# TRY RECOVERING FROM NUMERICAL ISSUES USING numerical_focus
+########################################################################
+# if (JuMP.termination_status(approx_model) != MOI.OPTIMAL) && !algo_params.numerical_focus
+#     algo_params.numerical_focus = true
+#     set_solver!(node.subproblem, algo_params, applied_solvers, :lagrange_relax, algo_params.solver_approach)
+#     JuMP.optimize!(approx_model)
+#     @assert JuMP.termination_status(approx_model) == MOI.OPTIMAL
+#     algo_params.numerical_focus = false
+# else (JuMP.termination_status(approx_model) != MOI.OPTIMAL) && algo_params.numerical_focus
+#     @assert JuMP.termination_status(approx_model) == MOI.OPTIMAL
+# end
+
+""" We could also use the SDDP numerical_recovery approach, see below.
+However, from my experience this does not help in most of our cases. """
+
+#MOI.Utilities.reset_optimizer(subproblem)
+#JuMP.optimize!(subproblem)

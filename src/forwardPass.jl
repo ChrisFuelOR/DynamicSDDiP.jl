@@ -135,7 +135,9 @@ function solve_subproblem_forward(
     Infiltrator.@infiltrate algo_params.infiltrate_state in [:all]
     JuMP.optimize!(subproblem)
 
-    # Maybe attempt numerical recovery as in SDDP
+    if (JuMP.termination_status(subproblem) != MOI.OPTIMAL)
+        elude_numerical_issues!(subproblem, algo_params)
+    end
 
     state = get_outgoing_state(node)
     objective = JuMP.objective_value(subproblem)

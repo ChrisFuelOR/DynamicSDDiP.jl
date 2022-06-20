@@ -40,6 +40,16 @@ function solve(
     if algo_params.print_level > 0
         print_helper(print_banner, log_file_handle)
     end
+    if algo_params.run_numerical_stability_report
+        report = sprint(
+            io -> SDDP.numerical_stability_report(
+                io,
+                model,
+                print = algo_params.print_level > 0,
+            ),
+        )
+        SDDP.print_helper(print, log_file_handle, report)
+    end
 
     if algo_params.print_level > 1
         print_helper(print_parameters, log_file_handle, algo_params, applied_solvers)
