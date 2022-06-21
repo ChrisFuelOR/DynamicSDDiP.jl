@@ -145,6 +145,10 @@ function solve_subproblem_forward(
     get_epi_states(node, epi_states_stage, algo_params.cut_aggregation_regime)
     Infiltrator.@infiltrate algo_params.infiltrate_state in [:all]
 
+    # if node_index == 6
+    #     Infiltrator.@infiltrate
+    # end
+
     ############################################################################
     # DE-REGULARIZE SUBPROBLEM IF REQUIRED
     ############################################################################

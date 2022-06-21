@@ -463,6 +463,10 @@ function get_dual_solution(
         rethrow(e)
     end
 
+    if node_index in [7] && node.subproblem.ext[:sddp_policy_graph].ext[:iteration] >= 6
+        Infiltrator.@infiltrate
+    end
+
     ############################################################################
     # SET DUAL VARIABLES AND STATES CORRECTLY FOR RETURN
     ############################################################################
@@ -620,7 +624,7 @@ function lagrangian_status_check(
     elseif lag_status == :iter
         error("Solving Lagrangian dual exceeded iteration limit.")
     elseif lag_status == :unbounded
-        error("Normalized Lagrangian dual unbounded.")
+        error("Normalized Lagrangian dual unbounded and reached artificial bound.")
     end
 
     return

@@ -83,7 +83,7 @@ function set_solver!(
     ############################################################################
     if solver == "CPLEX"
         JuMP.set_optimizer(subproblem, JuMP.optimizer_with_attributes(
-            () -> GAMS.Optimizer(ws),
+            () -> GAMS.Optimizer(),
             "Solver"=>solver,
             "optcr"=>1e-4,
             "numericalemphasis"=>numerical_focus)

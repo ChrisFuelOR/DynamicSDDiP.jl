@@ -145,7 +145,7 @@ function solve_unified_lagrangian_dual(
         JuMP.@objective(approx_model, Max, t)
         # We cannot use the primal_obj as an obj_bound in the unified framework,
         # so we use an arbitrarily chosen upper bound.
-        set_objective_bound!(approx_model, s, 1e9)
+        set_objective_bound!(approx_model, s, 1e15)
 
         # Create the dual variables
         # Note that the real dual multipliers are split up into two non-negative
@@ -226,8 +226,6 @@ function solve_unified_lagrangian_dual(
         π0_k = JuMP.value.(π₀)
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
-        #Infiltrator.@infiltrate
-
         ########################################################################
         if L_star > t_k + atol/10.0
             #error("Could not solve for Lagrangian duals. LB > UB.")
@@ -265,7 +263,7 @@ function solve_unified_lagrangian_dual(
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "minimal_norm" begin
         minimal_norm_choice_unified!(node, node_index, approx_model, π_k, π_star, π0_k, π0_star, t_k, h_expr, h_k, w_expr, w_k, s, L_star,
-            iteration_limit, atol, rtol, cut_generation_regime.duality_regime.dual_choice_regime, iter, algo_params)
+            iteration_limit, atol, rtol, cut_generation_regime.duality_regime.dual_choice_regime, iter, algo_params, applied_solvers)
     end
 
     ############################################################################
@@ -284,6 +282,12 @@ function solve_unified_lagrangian_dual(
     # LOGGING
     ############################################################################
     # print_helper(print_lag_iteration, lag_log_file_handle, iter, t_k, L_star, L_k)
+    #if node.subproblem.ext[:sddp_policy_graph].ext[:iteration] == 11
+    #    Infiltrator.@infiltrate
+    #end
+    # if all(π_star .== 0) && isapprox(π0_star, 0.0, atol=1e-8)
+    #     println(node_index, ", ", node.subproblem.ext[:sddp_policy_graph].ext[:iteration], ", ", lag_status, ", ", epi_state,  ", ",primal_obj, ", ", L_star, ", ", t_k, ", ", π_star, ", ", π0_star)
+    # end
 
     # Set dual_vars (here π_k) to the optimal solution
     π_k .= -π_star
@@ -665,6 +669,7 @@ function minimal_norm_choice_unified!(
     dual_choice_regime::DynamicSDDiP.MinimalNormChoice,
     iter::Int,
     algo_params::DynamicSDDiP.AlgoParams,
+    applied_solvers::DynamicSDDiP.AppliedSolvers,
     )
 
     π⁺ = approx_model[:π⁺]
@@ -691,7 +696,8 @@ function minimal_norm_choice_unified!(
         @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
         π_k .= JuMP.value.(π)
 
-        relax_results = _solve_unified_Lagrangian_relaxation!(node, π_k, π0_k, h_expr, h_k, w_expr, w_k, true)
+        relax_results = _solve_unified_Lagrangian_relaxation!(node, π_k, π0_k, h_expr, h_k, w_expr, w_k, algo_params, applied_solvers, true)
+
         L_k = relax_results.L_k
         w_k = relax_results.w_k
 
@@ -732,6 +738,7 @@ function minimal_norm_choice_unified!(
     dual_choice_regime::DynamicSDDiP.StandardChoice,
     iter::Int,
     algo_params::DynamicSDDiP.AlgoParams,
+    applied_solvers::DynamicSDDiP.AppliedSolvers,
     )
 
     return
