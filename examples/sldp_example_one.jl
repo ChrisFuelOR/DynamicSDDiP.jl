@@ -49,9 +49,9 @@ function sldp_example_one()
     # JuMP.optimize!(det_equiv)
     # print(JuMP.objective_value(det_equiv))
 
-    #duality_handler = SDDP.ContinuousConicDuality()
+    duality_handler = SDDP.ContinuousConicDuality()
     #duality_handler = SDDP.StrengthenedConicDuality()
-    duality_handler = SDDP.LagrangianDuality(atol=1e-4,rtol=1e-4)
+    #duality_handler = SDDP.LagrangianDuality(atol=1e-4,rtol=1e-4)
 
     SDDP.train(
         model,
@@ -65,4 +65,17 @@ function sldp_example_one()
     return
 end
 
+Random.seed!(11111)
+sldp_example_one()
+
+Random.seed!(11112)
+sldp_example_one()
+
+Random.seed!(11113)
+sldp_example_one()
+
+Random.seed!(11114)
+sldp_example_one()
+
+Random.seed!(11115)
 sldp_example_one()

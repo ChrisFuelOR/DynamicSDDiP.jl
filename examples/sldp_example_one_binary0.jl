@@ -61,26 +61,20 @@ function model_config()
 
     # State approximation and cut projection configuration
     state_approximation_regime_1 = DynamicSDDiP.NoStateApproximation()
-    cut_projection_regime = DynamicSDDiP.BigM()
-    binary_precision = Dict{Symbol, Float64}()
-    state_approximation_regime_2 = DynamicSDDiP.BinaryApproximation(
-                                     binary_precision = binary_precision,
-                                     cut_projection_regime = cut_projection_regime)
 
     # Cut generation regimes
     cut_generation_regime = DynamicSDDiP.CutGenerationRegime(
-        state_approximation_regime = state_approximation_regime_2,
+        state_approximation_regime = state_approximation_regime_1,
         duality_regime = duality_regime_2,
     )
 
     cut_generation_regimes = [cut_generation_regime]
 
     # Regularization configuration
-    #regularization_regime = DynamicSDDiP.NoRegularization()
-    regularization_regime = DynamicSDDiP.Regularization(sigma=[0.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0], sigma_factor=5.0)
+    regularization_regime = DynamicSDDiP.NoRegularization()
 
     # Cut aggregation regime
-    cut_aggregation_regime = DynamicSDDiP.SingleCutRegime()
+    cut_aggregation_regime = DynamicSDDiP.MultiCutRegime()
 
     cut_type = SDDP.SINGLE_CUT
     if isa(cut_aggregation_regime, DynamicSDDiP.MultiCutRegime)
@@ -88,10 +82,10 @@ function model_config()
     end
 
     # Cut selection configuration
-    cut_selection_regime = DynamicSDDiP.CutSelection()
+    cut_selection_regime = DynamicSDDiP.NoCutSelection()
 
     # File for logging
-    log_file = "C:/Users/cg4102/Documents/julia_logs/sldp_example_one_dynamic_sben.log"
+    log_file = "C:/Users/cg4102/Documents/julia_logs/sldp_example_one_binary.log"
 
     # Suppress solver output
     silent = true
@@ -152,7 +146,11 @@ end
 
 function model_definition()
 
-    number_of_stages = 2
+    number_of_stages = 8
+    #beta = 0.01 #0.1
+    #K = 11 #8
+    K = 40
+    beta = 20/(2^K -1)
 
     model = SDDP.LinearPolicyGraph(
         stages = number_of_stages,
@@ -161,30 +159,52 @@ function model_definition()
         sense = :Min,
     ) do subproblem, t
 
-        JuMP.@variable(subproblem, x, SDDP.State, initial_value = 2.0, lower_bound = -10.0, upper_bound = 10.0)
+        # Auxiliary binary state variables
+        JuMP.@variable(subproblem, λ[1:K], SDDP.State, Bin, initial_value = 0)
+
+        # Add former state variable as ordinary variable
+        JuMP.@variable(subproblem, x_out, lower_bound = 0.0, upper_bound = 20.0)
+        JuMP.@variable(subproblem, x_in, lower_bound = 0.0, upper_bound = 20.0)
+
+        # Add slack variables to ensure complete continuous recourse
+        JuMP.@variable(subproblem, slack⁺ >= 0)
+        JuMP.@variable(subproblem, slack⁻ >= 0)
+
+        # Add binary approximation constraints
+        JuMP.@constraint(subproblem, x_out == sum(2^(k-1) * beta * λ[k].out for k in 1:K))
+        if t==1
+            JuMP.@constraint(subproblem, x_in == 12.0)
+        else
+            JuMP.@constraint(subproblem, x_in == sum(2^(k-1) * beta * λ[k].in for k in 1:K))
+        end
+
+        # Keep the rest of the constraints as it is
         JuMP.@variables(subproblem, begin
             x⁺ >= 0
             x⁻ >= 0
             0 <= u <= 1, Bin
             ω
         end)
-        SDDP.@stageobjective(subproblem, 0.9^(t - 1) * (x⁺ + x⁻))
-        JuMP.@constraints(subproblem, begin
-            x.out == x.in + 2 * u - 1 + ω
-            x⁺ >= x.out
-            x⁻ >= -x.out
-        end)
-        # points = [
-        #     -0.3089653673606697,
-        #     -0.2718277412744214,
-        #     -0.09611178608243474,
-        #     0.24645863921577763,
-        #     0.5204224537256875,
-        # ]
-        # SDDP.parameterize(φ -> JuMP.fix(ω, φ), subproblem, [points; -points])
-        SDDP.parameterize(φ -> JuMP.fix(ω, φ), subproblem, [0.0])
 
+        # Add slack penalization factor (see SLDP.jl)
+        slack_penalize = 1.0 + (1.0 - 0.9^(number_of_stages+1-t))/(1 - 0.9)*0.9^(t-1)
+
+        SDDP.@stageobjective(subproblem, 0.9^(t - 1) * (x⁺ + x⁻) + slack_penalize * (slack⁺ + slack⁻))
+        JuMP.@constraints(subproblem, begin
+            x_out == x_in + 2 * u - 1 + ω + slack⁺ - slack⁻
+            x⁺ >= x_out -10
+            x⁻ >= -x_out + 10
+        end)
+
+        points = [
+            -0.3089653673606697,
+            -0.2718277412744214,
+            -0.09611178608243474,
+            0.24645863921577763,
+            0.5204224537256875,
+        ]
         JuMP.set_silent(subproblem)
+        SDDP.parameterize(φ -> JuMP.fix(ω, φ), subproblem, [points; -points])
 
         return
     end

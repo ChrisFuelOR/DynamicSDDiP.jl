@@ -16,7 +16,7 @@ import Random
 function model_config()
 
     # Stopping rules to be used
-    stopping_rules = [SDDP.IterationLimit(20)]
+    stopping_rules = [SDDP.IterationLimit(30)]
 
     # Duality / Cut computation configuration
     dual_initialization_regime = DynamicSDDiP.ZeroDuals()
@@ -76,8 +76,8 @@ function model_config()
     cut_generation_regimes = [cut_generation_regime]
 
     # Regularization configuration
-    #regularization_regime = DynamicSDDiP.NoRegularization()
-    regularization_regime = DynamicSDDiP.Regularization(sigma=[0.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0], sigma_factor=5.0)
+    regularization_regime = DynamicSDDiP.NoRegularization()
+    #regularization_regime = DynamicSDDiP.Regularization(sigma=[0.0,10.0,10.0,10.0,10.0,10.0,10.0,10.0], sigma_factor=5.0)
 
     # Cut aggregation regime
     cut_aggregation_regime = DynamicSDDiP.SingleCutRegime()
@@ -91,7 +91,7 @@ function model_config()
     cut_selection_regime = DynamicSDDiP.CutSelection()
 
     # File for logging
-    log_file = "C:/Users/cg4102/Documents/julia_logs/sldp_example_one_dynamic_sben.log"
+    log_file = "C:/Users/cg4102/Documents/julia_logs/sldp_example_one_dynamic.log"
 
     # Suppress solver output
     silent = true
@@ -152,7 +152,7 @@ end
 
 function model_definition()
 
-    number_of_stages = 2
+    number_of_stages = 8
 
     model = SDDP.LinearPolicyGraph(
         stages = number_of_stages,
@@ -161,28 +161,30 @@ function model_definition()
         sense = :Min,
     ) do subproblem, t
 
-        JuMP.@variable(subproblem, x, SDDP.State, initial_value = 2.0, lower_bound = -10.0, upper_bound = 10.0)
+        JuMP.@variable(subproblem, x, SDDP.State, initial_value = 12.0, lower_bound = 0.0, upper_bound = 20.0)
         JuMP.@variables(subproblem, begin
             x⁺ >= 0
             x⁻ >= 0
-            0 <= u <= 1, Bin
             ω
         end)
+
+        JuMP.@variable(subproblem, u, Bin)
+
         SDDP.@stageobjective(subproblem, 0.9^(t - 1) * (x⁺ + x⁻))
         JuMP.@constraints(subproblem, begin
-            x.out == x.in + 2 * u - 1 + ω
-            x⁺ >= x.out
-            x⁻ >= -x.out
+            x.out == x.in + 2 * u + ω - 1
+            x⁺ >= x.out - 10.0
+            x⁻ >= -x.out + 10.0
         end)
-        # points = [
-        #     -0.3089653673606697,
-        #     -0.2718277412744214,
-        #     -0.09611178608243474,
-        #     0.24645863921577763,
-        #     0.5204224537256875,
-        # ]
-        # SDDP.parameterize(φ -> JuMP.fix(ω, φ), subproblem, [points; -points])
-        SDDP.parameterize(φ -> JuMP.fix(ω, φ), subproblem, [0.0])
+        points = [
+            -0.3089653673606697,
+            -0.2718277412744214,
+            -0.09611178608243474,
+            0.24645863921577763,
+            0.5204224537256875,
+        ]
+        SDDP.parameterize(φ -> JuMP.fix(ω, φ), subproblem, [points; -points])
+        #SDDP.parameterize(φ -> JuMP.fix(ω, φ), subproblem, [0.0])
 
         JuMP.set_silent(subproblem)
 
