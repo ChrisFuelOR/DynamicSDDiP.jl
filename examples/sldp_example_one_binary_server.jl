@@ -223,11 +223,18 @@ function model_starter_single(
     log_file::String,
     time_limit::Int,
     seed::Int
+    )
 
     try
-        model_config(duality_regime_sym, normalization_regime, cut_aggregation_regime, cut_selection_regime, log_file, seed)
-    catch
+    model_config(duality_regime_sym, normalization_regime, cut_aggregation_regime, cut_selection_regime, log_file, time_limit, seed)
+    catch e
         @printf "Case %d terminated with error" num
+        println()
+        #throw(error(e))
+        showerror(stdout, e, catch_backtrace())
+        println()
+        println("#############################################################")
+        println()
     end
 end
 

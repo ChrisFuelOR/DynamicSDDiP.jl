@@ -120,7 +120,6 @@ function model_config()
         solver_approach = solver_approach,
         numerical_focus = false,
         run_numerical_stability_report = false,
-        seed = 12345,
     )
 
     # Start model with used configuration
