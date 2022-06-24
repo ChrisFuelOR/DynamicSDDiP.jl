@@ -211,8 +211,18 @@ are only required for the (relaxed) binary variables.
 """
 function follow_state_unfixing!(state::SDDP.State, variable_info::DynamicSDDiP.VariableInfo, copy_regime::DynamicSDDiP.StateSpaceCopy)
 
-    follow_state_unfixing!(state, variable_info, DynamicSDDiP.ConvexHullCopy())
-
+    if variable_info.has_lb
+        JuMP.set_lower_bound(state.in, variable_info.lower_bound)
+    else
+        # avoid unboundedness
+        JuMP.set_lower_bound(state.in, -1e9)
+    end
+    if variable_info.has_ub
+        JuMP.set_upper_bound(state.in, variable_info.upper_bound)
+    else
+        # avoid unboundedness
+        JuMP.set_upper_bound(state.in, 1e9)
+    end
     if variable_info.binary
         JuMP.set_binary(state.in)
     elseif variable_info.integer
@@ -226,12 +236,16 @@ function follow_state_unfixing!(state::SDDP.State, variable_info::DynamicSDDiP.V
 
     if variable_info.has_lb
         JuMP.set_lower_bound(state.in, variable_info.lower_bound)
+    elseif variable_info.binary
+        JuMP.set_lower_bound(state.in, 0)
     else
         # avoid unboundedness
         JuMP.set_lower_bound(state.in, -1e9)
     end
     if variable_info.has_ub
         JuMP.set_upper_bound(state.in, variable_info.upper_bound)
+    elseif variable_info.binary
+        JuMP.set_upper_bound(state.in, 1.0)
     else
         # avoid unboundedness
         JuMP.set_upper_bound(state.in, 1e9)
