@@ -27,7 +27,7 @@ function set_solver!(
         # TODO: What about nonlinear cut projections here?
         solver = applied_solvers.LP
     elseif algorithmic_step in [:l₂]
-        solver = "scip"
+        solver = applied_solvers.MINLP
     else
         # For all other algorithmic steps, we have to consider the projection
         # of the non-convex cuts if BinaryApproximation is used.
@@ -141,7 +141,7 @@ function set_solver!(
         # TODO: What about nonlinear cut projections here?
         solver = applied_solvers.LP
     elseif algorithmic_step in [:l₂]
-        solver = "scip"
+        solver = applied_solvers.MINLP
     else
         # For all other algorithmic steps, we have to consider the projection
         # of the non-convex cuts if BinaryApproximation is used.

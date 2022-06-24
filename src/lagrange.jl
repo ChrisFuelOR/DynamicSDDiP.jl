@@ -226,7 +226,8 @@ function solve_lagrangian_dual(
 
         ########################################################################
         if L_star > t_k + atol/10.0
-            error("Could not solve for Lagrangian duals. LB > UB.")
+            #error("Could not solve for Lagrangian duals. LB > UB.")
+            break
         end
     end
 
@@ -727,7 +728,7 @@ function _getStrengtheningInformation(
     ############################################################################
     # RELAXING THE COPY CONSTRAINTS
     ############################################################################
-    relax_copy_constraints!(node, x_in_value, h_expr, cut_generation_regime.state_approximation_regime, cut_generation_regime.duality_regime.copy_regime)
+    relax_copy_constraints!(node, x_in_value, h_expr, cut_generation_regime.state_approximation_regime, DynamicSDDiP.StateSpaceCopy())
 
     ########################################################################
     # SOLVE LAGRANGIAN RELAXATION FOR GIVEN DUAL_VARS

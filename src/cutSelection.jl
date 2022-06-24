@@ -337,13 +337,13 @@ end
 
 
 function count_cuts(node::SDDP.Node, V::DynamicSDDiP.CutApproximation)
-    node.ext[:total_cuts] = size(V.cuts, 1)
+    node.ext[:total_cuts] += size(V.cuts, 1)
     counter = 0
 
     for cut in V.cuts
         counter = count_cut(cut, counter)
     end
-    node.ext[:active_cuts] = counter
+    node.ext[:active_cuts] += counter
 
     return
 

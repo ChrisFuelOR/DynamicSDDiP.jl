@@ -221,6 +221,7 @@ function regularize_binary!(
 
     # New objective
     new_obj = old_obj + fact * sigma_bin * v
+    Infiltrator.@infiltrate
     JuMP.set_objective_function(subproblem, new_obj)
 
     # Variables

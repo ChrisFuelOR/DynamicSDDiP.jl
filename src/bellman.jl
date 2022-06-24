@@ -1450,7 +1450,7 @@ function _add_locals_if_necessary(
     elseif num_local_thetas == 0
         global_theta = bellman_function.global_theta
         model = JuMP.owner_model(global_theta.theta)
-        local_thetas = JuMP.@variable(model, [1:N])
+        local_thetas = JuMP.@variable(model, [1:N], base_name = "θ")
         if JuMP.has_lower_bound(global_theta.theta)
             JuMP.set_lower_bound.(
                 local_thetas,

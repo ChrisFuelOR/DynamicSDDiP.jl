@@ -13,6 +13,7 @@ function backward_pass_node(
     outgoing_state::Dict{Symbol,Float64},
     epi_states::Vector{Float64},
     scenario_path,
+    add_cut_flag::Bool,
     algo_params::DynamicSDDiP.AlgoParams,
     cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
@@ -35,6 +36,7 @@ function backward_pass_node(
         epi_states,
         algo_params.backward_sampling_scheme,
         scenario_path[1:index],
+        add_cut_flag,
         algo_params,
         cut_generation_regime,
         applied_solvers
@@ -59,6 +61,7 @@ function backward_pass_node(
     outgoing_state::Dict{Symbol,Float64},
     epi_states::Vector{Float64},
     scenario_path,
+    add_cut_flag::Bool,
     algo_params::DynamicSDDiP.AlgoParams,
     cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
@@ -81,6 +84,7 @@ function backward_pass_node(
         epi_states,
         algo_params.backward_sampling_scheme,
         scenario_path[1:index],
+        add_cut_flag,
         algo_params,
         cut_generation_regime,
         applied_solvers
@@ -105,6 +109,7 @@ function solve_all_children(
     epi_states::Vector{Float64},
     backward_sampling_scheme::SDDP.AbstractBackwardSamplingScheme,
     scenario_path,
+    add_cut_flag::Bool,
     algo_params::DynamicSDDiP.AlgoParams,
     cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
@@ -162,6 +167,7 @@ function solve_all_children(
                         noise.term,
                         i,
                         scenario_path,
+                        add_cut_flag,
                         algo_params,
                         cut_generation_regime,
                         applied_solvers
@@ -208,6 +214,7 @@ function solve_subproblem_backward(
     noise,
     i::Int64,
     scenario_path::Vector{Tuple{T,S}},
+    add_cut_flag::Bool,
     algo_params::DynamicSDDiP.AlgoParams,
     cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     applied_solvers::DynamicSDDiP.AppliedSolvers;
@@ -240,7 +247,7 @@ function solve_subproblem_backward(
     ############################################################################
     # Solve dual and return a dict with the multipliers of the copy constraints.
     TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_dual" begin
-        dual_results = get_dual_solution(node, node_index, i, epi_state, algo_params, cut_generation_regime, applied_solvers, cut_generation_regime.duality_regime)
+        dual_results = get_dual_solution(node, node_index, i, epi_state, add_cut_flag, algo_params, cut_generation_regime, applied_solvers, cut_generation_regime.duality_regime)
     end
 
     ############################################################################

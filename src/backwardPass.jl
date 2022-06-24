@@ -73,6 +73,9 @@ function backward_pass(
                 # Determine required epi_states
                 epi_states_node = epi_states[Symbol(node_index)]
 
+                # Add flag to decide whether a cut is added
+                add_cut_flag = true
+
                 # Dict to store values of binary approximation of the state
                 # Note that we could also retrieve this from the actual trial point
                 # (outgoing_state) or from its approximation via binexpand. However,
@@ -92,6 +95,7 @@ function backward_pass(
                     outgoing_state,
                     epi_states_node,
                     scenario_path[1:index],
+                    add_cut_flag,
                     algo_params,
                     cut_generation_regime,
                     applied_solvers,
@@ -108,48 +112,52 @@ function backward_pass(
                 ################################################################
                 # REFINE BELLMAN FUNCTION BY ADDING CUTS
                 ################################################################
-                """
-                Note that for all backward openings, bin_state is the same,
-                so we can just use bin_state[1] in the following.
-                Maybe this should be changed later.
-                """
-                TimerOutputs.@timeit DynamicSDDiP_TIMER "update_bellman" begin
-                    cut_away = refine_bellman_function(
-                        model,
-                        node,
-                        node_index,
-                        node.bellman_function,
-                        options.risk_measures[node_index],
-                        outgoing_state,
-                        epi_states_node,
-                        anchor_state,
-                        items.bin_state[1],
-                        items.duals,
-                        items.dual_0_var,
-                        items.supports,
-                        items.probability,
-                        items.objectives,
-                        cut_away,
-                        algo_params,
-                        cut_generation_regime,
-                        applied_solvers
-                    )
+                if add_cut_flag
+
+                    """
+                    Note that for all backward openings, bin_state is the same,
+                    so we can just use bin_state[1] in the following.
+                    Maybe this should be changed later.
+                    """
+                    TimerOutputs.@timeit DynamicSDDiP_TIMER "update_bellman" begin
+                        cut_away = refine_bellman_function(
+                            model,
+                            node,
+                            node_index,
+                            node.bellman_function,
+                            options.risk_measures[node_index],
+                            outgoing_state,
+                            epi_states_node,
+                            anchor_state,
+                            items.bin_state[1],
+                            items.duals,
+                            items.dual_0_var,
+                            items.supports,
+                            items.probability,
+                            items.objectives,
+                            cut_away,
+                            algo_params,
+                            cut_generation_regime,
+                            applied_solvers
+                        )
+                    end
+
+                    ################################################################
+                    #NOTE: I did not include the similar node thing from SDDP.jl.
+                    #Not really sure what it means anyway.
+
+                    ################################################################
+                    # UPDATE LIST OF BENDERS CUTS FOR CHEN & LUEDTKE APPROACH
+                    ################################################################
+                    """ Note that we store the indices for all Benders cuts instead
+                    of only the last K, since it is not known here which value K has."""
+
+                    if isa(cut_generation_regime.duality_regime, DynamicSDDiP.LinearDuality)
+                        update_Benders_cut_list!(node, algo_params.cut_aggregation_regime, cut_generation_regime.state_approximation_regime)
+                    end
+                    # TODO: A similar approach can be used for Lagrangian cuts
+
                 end
-
-                ################################################################
-                #NOTE: I did not include the similar node thing from SDDP.jl.
-                #Not really sure what it means anyway.
-
-                ################################################################
-                # UPDATE LIST OF BENDERS CUTS FOR CHEN & LUEDTKE APPROACH
-                ################################################################
-                """ Note that we store the indices for all Benders cuts instead
-                of only the last K, since it is not known here which value K has."""
-
-                if isa(cut_generation_regime.duality_regime, DynamicSDDiP.LinearDuality)
-                    update_Benders_cut_list!(node, algo_params.cut_aggregation_regime, cut_generation_regime.state_approximation_regime)
-                end
-                # TODO: A similar approach can be used for Lagrangian cuts
 
                 ################################################################
                 # LOGGING

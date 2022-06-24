@@ -26,6 +26,10 @@ function _solve_unified_Lagrangian_relaxation!(
     JuMP.optimize!(model)
 
     # Try recovering from numerical issues
+    # if JuMP.termination_status(model) != MOI.OPTIMAL
+    #     Infiltrator.@infiltrate
+    # end
+
     if (JuMP.termination_status(model) != MOI.OPTIMAL)
         elude_numerical_issues!(model, algo_params)
     end
