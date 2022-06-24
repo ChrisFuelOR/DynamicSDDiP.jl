@@ -32,6 +32,7 @@ struct Log
     binary_refinement::Union{Symbol,Nothing}
     subproblem_size::Union{Dict{Symbol,Int64},Nothing}
     algo_params::DynamicSDDiP.AlgoParams
+    agg_lag_iterations::Int64
     lag_iterations::Union{Vector{Int},Vector{Float64},Nothing}
     lag_status::Union{Vector{String},Nothing}
     total_cuts::Int
@@ -151,6 +152,14 @@ function print_parameters(io, algo_params::DynamicSDDiP.AlgoParams, applied_solv
     println(io, applied_solvers)
     println(io, algo_params.solver_approach)
 
+    if !isnothing(algo_params.seed)
+        println(io, "||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||")
+        println(io, "SAMPLING")
+        println(io, "Used seed for sampling scenarios: ")
+        print(io, rpad(Printf.@sprintf("%s", algo_params.seed), 10))
+        println(io)
+    end
+
     flush(io)
 end
 
@@ -237,6 +246,10 @@ function print_iteration_header(io)
     header = "Active"
     print(io, lpad(Printf.@sprintf("%s", header), 7))
     print(io, "  ")
+    header = "# It."
+    print(io, lpad(Printf.@sprintf("%s", header), 9))
+    print(io, "  ")
+
     println(io)
 
     printstyled(io, "", rule^rule_length, "\n"; bold=true)
@@ -289,7 +302,10 @@ function print_iteration(io, log::Log, start_time::Float64)
     print(io, lpad(Printf.@sprintf("%5d", log.total_cuts), 7))
     print(io, "  ")
     print(io, lpad(Printf.@sprintf("%5d", log.active_cuts), 7))
-    print(io, "       ")
+
+    print(io, "  ")
+    print(io, lpad(Printf.@sprintf("%5d", log.agg_lag_iterations), 9))
+    #print(io, "       ")
 
     # if !isnothing(log.lag_iterations)
     #     print(io, log.lag_iterations)

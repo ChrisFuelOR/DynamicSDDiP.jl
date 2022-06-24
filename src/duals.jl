@@ -289,6 +289,7 @@ function get_dual_solution(
 
         lag_obj = results.lag_obj
         lag_iterations = results.iterations
+        subproblem.ext[:sddp_policy_graph].ext[:agg_lag_iterations] += results.iterations
         lag_status = results.lag_status
 
         ########################################################################
@@ -450,6 +451,7 @@ function get_dual_solution(
 
         lag_obj = results.lag_obj
         lag_iterations = results.iterations
+        subproblem.ext[:sddp_policy_graph].ext[:agg_lag_iterations] += results.iterations
         lag_status = results.lag_status
         dual_0_var = results.dual_0_var
 

@@ -16,13 +16,13 @@ import Random
 function model_config()
 
     # Stopping rules to be used
-    stopping_rules = [SDDP.TimeLimit(3600)]
+    stopping_rules = [SDDP.TimeLimit(200)]
 
     # Duality / Cut computation configuration
     dual_initialization_regime = DynamicSDDiP.ZeroDuals()
     dual_solution_regime = DynamicSDDiP.Kelley()
     dual_bound_regime = DynamicSDDiP.BothBounds()
-    dual_status_regime = DynamicSDDiP.Rigorous()
+    dual_status_regime = DynamicSDDiP.Lax()
     dual_choice_regime = DynamicSDDiP.StandardChoice()
     #normalization_regime = DynamicSDDiP.Core_Epsilon(perturb=1e-2)
     normalization_regime = DynamicSDDiP.Core_Optimal()
@@ -65,7 +65,7 @@ function model_config()
     # Cut generation regimes
     cut_generation_regime = DynamicSDDiP.CutGenerationRegime(
         state_approximation_regime = state_approximation_regime_1,
-        duality_regime = duality_regime_1,
+        duality_regime = duality_regime_2,
     )
 
     cut_generation_regimes = [cut_generation_regime]
@@ -120,6 +120,7 @@ function model_config()
         solver_approach = solver_approach,
         numerical_focus = false,
         run_numerical_stability_report = false,
+        seed = 12345,
     )
 
     # Start model with used configuration

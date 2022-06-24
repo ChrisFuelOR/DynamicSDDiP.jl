@@ -644,6 +644,7 @@ function iteration(
              binary_refinement,
              subproblem_size,
              algo_params,
+             model.ext[:agg_lag_iterations],
              model.ext[:lag_iterations],
              model.ext[:lag_status],
              model.ext[:total_cuts],

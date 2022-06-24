@@ -665,6 +665,7 @@ mutable struct AlgoParams
     numerical_focus::Bool
     silent::Bool
     infiltrate_state::Symbol
+    seed::Union{Nothing,Int}
     solver_approach::Union{DynamicSDDiP.GAMS_Solver,DynamicSDDiP.Direct_Solver}
 
     function AlgoParams(;
@@ -688,6 +689,7 @@ mutable struct AlgoParams
         numerical_focus = false,
         silent = true,
         infiltrate_state = :none,
+        seed = nothing,
         solver_approach = DynamicSDDiP.GAMS_Solver(),
     )
         return new(
@@ -711,6 +713,7 @@ mutable struct AlgoParams
             numerical_focus,
             silent,
             infiltrate_state,
+            seed,
             solver_approach
         )
     end
