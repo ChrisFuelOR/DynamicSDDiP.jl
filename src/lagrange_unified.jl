@@ -685,9 +685,9 @@ function minimal_norm_choice_unified!(
     # We actually would have to solve with the objective (π⁺ + π⁻)/π₀
     # To avoid a nonlinear problem, we fix the scaling factor π₀ to its optimal
     # value from the previous solution method.
-    #JuMP.fix(π₀, π0_k, force=true)
-    JuMP.fix(π₀, π0_star, force=true)
-    π0_k = π0_star
+    JuMP.fix(π₀, π0_k, force=true)
+    #JuMP.fix(π₀, π0_star, force=true)
+    #π0_k = π0_star
 
     # Reset objective
     JuMP.@objective(approx_model, Min, sum(π⁺) + sum(π⁻))
