@@ -702,7 +702,7 @@ function minimal_norm_choice_unified!(
         try
             @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
         catch err
-            showerror(stdout, err, catch_backtrace())
+            #showerror(stdout, err, catch_backtrace())
             println()
             println("Proceeding without minimal norm choice.")
             break
