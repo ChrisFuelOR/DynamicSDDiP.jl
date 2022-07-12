@@ -333,7 +333,7 @@ function minimal_norm_choice!(
     for _ in (iter+1):iteration_limit
         JuMP.optimize!(approx_model)
         @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
-        π_k .= value.(π)
+        π_k .= JuMP.value.(π)
 
         if !augmented
             L_k = _solve_Lagrangian_relaxation!(node, π_k, h_expr, h_k, true)

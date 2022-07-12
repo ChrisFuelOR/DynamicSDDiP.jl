@@ -685,6 +685,7 @@ function minimal_norm_choice_unified!(
     # We actually would have to solve with the objective (π⁺ + π⁻)/π₀
     # To avoid a nonlinear problem, we fix the scaling factor π₀ to its optimal
     # value from the previous solution method.
+    #JuMP.fix(π₀, π0_k, force=true)
     JuMP.fix(π₀, π0_star, force=true)
     π0_k = π0_star
 
@@ -697,7 +698,16 @@ function minimal_norm_choice_unified!(
     # we can just keep our current λ_star.
     for _ in (iter+1):iteration_limit
         JuMP.optimize!(approx_model)
-        @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
+
+        try
+            @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
+        catch err
+            showerror(stdout, err, catch_backtrace())
+            println()
+            println("Proceeding without minimal norm choice.")
+            break
+        end
+
         π_k .= JuMP.value.(π)
 
         relax_results = _solve_unified_Lagrangian_relaxation!(node, π_k, π0_k, h_expr, h_k, w_expr, w_k, algo_params, applied_solvers, true)
