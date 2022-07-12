@@ -26,10 +26,6 @@ function _solve_unified_Lagrangian_relaxation!(
     JuMP.optimize!(model)
 
     # Try recovering from numerical issues
-    if JuMP.termination_status(model) != MOI.OPTIMAL
-        Infiltrator.@infiltrate
-    end
-
     if (JuMP.termination_status(model) != MOI.OPTIMAL)
         elude_numerical_issues!(model, algo_params)
     end
@@ -234,12 +230,9 @@ function solve_unified_lagrangian_dual(
         # π0_k >= 0 is enforced as a constraint.
         # In such case, the inner problem of the Lagrangian relaxation may
         # become unbounded. Therefore, we set π0_k manually to 0 then.
-        if π0_k < 0 && π0_k > - 1e-4
-            π0_k = 0.0
-        end
-
-        if node_index == 8 && node.subproblem.ext[:sddp_policy_graph].ext[:iteration] == 21 && π0_k < 0
+        if π0_k < 0
             Infiltrator.@infiltrate
+            π0_k = 0.0
         end
 
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
