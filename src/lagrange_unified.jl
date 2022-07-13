@@ -226,6 +226,10 @@ function solve_unified_lagrangian_dual(
         π_k .= JuMP.value.(π)
         π0_k = JuMP.value.(π₀)
 
+        if node_index == 2
+            println( L_star, ", ", t_k, ", ", π_k, ", ", π0_k)
+        end
+
         # Sometimes the solver (e.g. Gurobi) provides a float point approximation
         # of zero, which is slightly negative, e.g. 1.144917E-16, even though
         # π0_k >= 0 is enforced as a constraint.
@@ -247,6 +251,8 @@ function solve_unified_lagrangian_dual(
         end
 
     end
+
+    println()
 
     ############################################################################
     # CONVERGENCE ANALYSIS
