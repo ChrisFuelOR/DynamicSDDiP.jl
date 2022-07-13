@@ -192,6 +192,10 @@ function solve_unified_lagrangian_dual(
 
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
+        if node_index == 2 && iter > 28
+            Infiltrator.@infiltrate
+        end
+
         ########################################################################
         # UPDATE BEST FOUND SOLUTION SO FAR
         ########################################################################
@@ -229,6 +233,10 @@ function solve_unified_lagrangian_dual(
         t_k = JuMP.objective_value(approx_model)
         π_k .= JuMP.value.(π)
         π0_k = JuMP.value.(π₀)
+
+        if node_index == 2 && iter > 28
+            Infiltrator.@infiltrate
+        end
 
         # Sometimes the solver (e.g. Gurobi) provides a float point approximation
         # of zero, which is slightly negative, e.g. 1.144917E-16, even though
