@@ -199,6 +199,10 @@ function solve_unified_lagrangian_dual(
             L_star = s * L_k
             π_star .= π_k
             π0_star = π0_k
+
+            if node_index == 2
+                println( L_star, ", ", t_k, ", ", π_k, ", ", π0_k)
+            end
         end
 
         ########################################################################
@@ -225,10 +229,6 @@ function solve_unified_lagrangian_dual(
         t_k = JuMP.objective_value(approx_model)
         π_k .= JuMP.value.(π)
         π0_k = JuMP.value.(π₀)
-
-        if node_index == 2
-            println( L_star, ", ", t_k, ", ", π_k, ", ", π0_k)
-        end
 
         # Sometimes the solver (e.g. Gurobi) provides a float point approximation
         # of zero, which is slightly negative, e.g. 1.144917E-16, even though
