@@ -200,7 +200,7 @@ function set_solver!(
     elseif solver == "Gurobi"
         JuMP.set_optimizer(subproblem, JuMP.optimizer_with_attributes(
             () -> Gurobi.Optimizer(GRB_ENV[]),
-            "MIPGap"=>0.0, #1e-4
+            "MIPGap"=>1e-4
             "NumericFocus"=>numerical_focus)
             )
     elseif solver == "SCIP"
