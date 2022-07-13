@@ -390,7 +390,6 @@ function get_dual_solution(
 
     # Try recovering from numerical issues
     if (JuMP.termination_status(subproblem) != MOI.OPTIMAL)
-        Infiltrator.@infiltrate
         elude_numerical_issues!(subproblem, algo_params)
     end
 
