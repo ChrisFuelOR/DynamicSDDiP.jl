@@ -145,17 +145,19 @@ function solve_unified_lagrangian_dual(
         JuMP.@objective(approx_model, Max, t)
         # We cannot use the primal_obj as an obj_bound in the unified framework,
         # so we use an arbitrarily chosen upper bound.
-        set_objective_bound!(approx_model, s, 1e15)
+        #set_objective_bound!(approx_model, s, 1e15)
 
         # Create the dual variables
         # Note that the real dual multipliers are split up into two non-negative
         # variables here, which is required for the Norm Minimization part later
         JuMP.@variable(approx_model, π⁺[1:number_of_states] >= 0)
         JuMP.@variable(approx_model, π⁻[1:number_of_states] >= 0)
-        #JuMP.@constraint(approx_model, π⁺[1:number_of_states] .<= 10.0)
-        #JuMP.@constraint(approx_model, π⁻[1:number_of_states] .<= 10.0)
+
+        JuMP.@constraint(approx_model, π⁺[1:number_of_states] .<= 10.0)
+        JuMP.@constraint(approx_model, π⁻[1:number_of_states] .<= 10.0)
+
         JuMP.@expression(approx_model, π, π⁺ .- π⁻) # not required to be a constraint
-        JuMP.@variable(approx_model, π₀ >= 0)
+        JuMP.@variable(approx_model, 10.0 >= π₀ >= 0)
         set_multiplier_bounds!(node, approx_model, number_of_states, bound_results.dual_bound,
             algo_params.regularization_regime, cut_generation_regime.state_approximation_regime,
             cut_generation_regime.duality_regime)
@@ -165,6 +167,8 @@ function solve_unified_lagrangian_dual(
 
         # Add normalization constraint depending on abstract normalization regime
         add_normalization_constraint!(node, approx_model, number_of_states, normalization_coeff, cut_generation_regime.duality_regime.normalization_regime)
+
+        Infiltrator.@infiltrate
 
     end
 
@@ -192,10 +196,6 @@ function solve_unified_lagrangian_dual(
 
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
-        if node_index == 2 && iter > 28
-            Infiltrator.@infiltrate
-        end
-
         ########################################################################
         # UPDATE BEST FOUND SOLUTION SO FAR
         ########################################################################
@@ -203,10 +203,6 @@ function solve_unified_lagrangian_dual(
             L_star = s * L_k
             π_star .= π_k
             π0_star = π0_k
-
-            if node_index == 2
-                println( L_star, ", ", t_k, ", ", π_k, ", ", π0_k)
-            end
         end
 
         ########################################################################
@@ -234,20 +230,13 @@ function solve_unified_lagrangian_dual(
         π_k .= JuMP.value.(π)
         π0_k = JuMP.value.(π₀)
 
-        if node_index == 2 && iter > 28
-            Infiltrator.@infiltrate
-        end
-
         # Sometimes the solver (e.g. Gurobi) provides a float point approximation
         # of zero, which is slightly negative, e.g. 1.144917E-16, even though
         # π0_k >= 0 is enforced as a constraint.
         # In such case, the inner problem of the Lagrangian relaxation may
         # become unbounded. Therefore, we set π0_k manually to 0 then.
         if π0_k < 0 && π0_k > -1e-4
-            println("π₀ < 0 due to numerical issues. Reset to 0.")
             π0_k = 0.0
-        elseif π0_k < 0
-            Infiltrator.@infiltrate
         end
 
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
@@ -259,8 +248,6 @@ function solve_unified_lagrangian_dual(
         end
 
     end
-
-    println()
 
     ############################################################################
     # CONVERGENCE ANALYSIS
