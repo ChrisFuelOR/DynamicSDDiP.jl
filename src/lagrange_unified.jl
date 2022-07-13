@@ -168,8 +168,6 @@ function solve_unified_lagrangian_dual(
         # Add normalization constraint depending on abstract normalization regime
         add_normalization_constraint!(node, approx_model, number_of_states, normalization_coeff, cut_generation_regime.duality_regime.normalization_regime)
 
-        Infiltrator.@infiltrate
-
     end
 
     ############################################################################
