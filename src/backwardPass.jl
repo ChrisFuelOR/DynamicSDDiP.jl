@@ -277,8 +277,6 @@ function solve_first_stage_problem(
     stage_objective = JuMP.value(node.stage_objective)
     objective = JuMP.objective_value(subproblem)
 
-    Infiltrator.@infiltrate
-
     ############################################################################
     # DETERMINE THE PROBLEM SIZE
     ############################################################################
