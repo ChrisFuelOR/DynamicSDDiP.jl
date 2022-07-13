@@ -206,7 +206,7 @@ function model_definition()
         ]
         SDDP.parameterize(φ -> JuMP.fix(ω, φ), subproblem, [points; -points])
 
-        JuMP.set_silent(subproblem)
+        #JuMP.set_silent(subproblem)
 
         return
     end
