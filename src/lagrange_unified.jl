@@ -145,7 +145,7 @@ function solve_unified_lagrangian_dual(
         JuMP.@objective(approx_model, Max, t)
         # We cannot use the primal_obj as an obj_bound in the unified framework,
         # so we use an arbitrarily chosen upper bound.
-        # set_objective_bound!(approx_model, s, 1e15)
+        set_objective_bound!(approx_model, s, 1e15)
 
         # Create the dual variables
         # Note that the real dual multipliers are split up into two non-negative
@@ -153,12 +153,12 @@ function solve_unified_lagrangian_dual(
         JuMP.@variable(approx_model, π⁺[1:number_of_states] >= 0)
         JuMP.@variable(approx_model, π⁻[1:number_of_states] >= 0)
 
-        JuMP.@constraint(approx_model, π⁺[1:number_of_states] .<= 20.0)
-        JuMP.@constraint(approx_model, π⁻[1:number_of_states] .<= 20.0)
-        JuMP.@variable(approx_model, 20.0 >= π₀ >= 0)
+        #JuMP.@constraint(approx_model, π⁺[1:number_of_states] .<= 20.0)
+        #JuMP.@constraint(approx_model, π⁻[1:number_of_states] .<= 20.0)
+        #JuMP.@variable(approx_model, 20.0 >= π₀ >= 0)
 
         JuMP.@expression(approx_model, π, π⁺ .- π⁻) # not required to be a constraint
-        # JuMP.@variable(approx_model, π₀ >= 0)
+        JuMP.@variable(approx_model, π₀ >= 0)
         set_multiplier_bounds!(node, approx_model, number_of_states, bound_results.dual_bound,
             algo_params.regularization_regime, cut_generation_regime.state_approximation_regime,
             cut_generation_regime.duality_regime)
