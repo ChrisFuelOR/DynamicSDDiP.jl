@@ -88,7 +88,7 @@ function model_config(
     end
 
     # Suppress solver output
-    silent = true
+    silent = false
 
     # Infiltration for debugging
     infiltrate_state = :none
@@ -206,7 +206,7 @@ function model_definition()
         ]
         SDDP.parameterize(φ -> JuMP.fix(ω, φ), subproblem, [points; -points])
 
-        #JuMP.set_silent(subproblem)
+        JuMP.set_silent(subproblem)
 
         return
     end
@@ -241,7 +241,7 @@ end
 
 function model_starter_server()
 
-    model_starter_single(0,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/sldp_binary_single.log", 200, 11111)
+    # model_starter_single(0,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/sldp_binary_single.log", 200, 11111)
 
     #model_starter_single(1,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/sldp_binary_single.log", 3600, 11111)
     # model_starter_single(2,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/sldp_binary_multi.log", 3600, 11111)
@@ -275,8 +275,8 @@ function model_starter_server()
     # model_starter_single(27,:uni_lag, DynamicSDDiP.Core_Relint(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/sldp_binary_relint.log", 3600, 11113)
     #
     model_starter_single(30,:uni_lag, DynamicSDDiP.Core_Optimal(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/sldp_binary_opt.log", 3600, 11113)
-    model_starter_single(28,:uni_lag, DynamicSDDiP.Core_Optimal(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/sldp_binary_opt.log", 3600, 11111)
-    model_starter_single(29,:uni_lag, DynamicSDDiP.Core_Optimal(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/sldp_binary_opt.log", 3600, 11112)
+    # model_starter_single(28,:uni_lag, DynamicSDDiP.Core_Optimal(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/sldp_binary_opt.log", 3600, 11111)
+    # model_starter_single(29,:uni_lag, DynamicSDDiP.Core_Optimal(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/sldp_binary_opt.log", 3600, 11112)
 
     # model_starter_single(31,:uni_lag, DynamicSDDiP.L∞_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/sldp_binary_Lsup.log", 3600, 11113)
     # model_starter_single(32,:uni_lag, DynamicSDDiP.L₁_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/sldp_binary_Lsup.log", 3600, 11113)
