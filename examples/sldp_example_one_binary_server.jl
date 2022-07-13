@@ -88,13 +88,13 @@ function model_config(
     end
 
     # Suppress solver output
-    silent = false
+    silent = true
 
     # Infiltration for debugging
     infiltrate_state = :none
 
     # Solver approach
-    solver_approach = DynamicSDDiP.Direct_Solver()
+    solver_approach = DynamicSDDiP.GAMS_Solver()
 
     # Define solvers to be used
     applied_solvers = DynamicSDDiP.AppliedSolvers(
