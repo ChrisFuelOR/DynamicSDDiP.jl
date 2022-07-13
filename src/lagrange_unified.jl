@@ -231,9 +231,11 @@ function solve_unified_lagrangian_dual(
         # π0_k >= 0 is enforced as a constraint.
         # In such case, the inner problem of the Lagrangian relaxation may
         # become unbounded. Therefore, we set π0_k manually to 0 then.
-        if π0_k < 0
+        if π0_k < 0 && π0_k > -1e-4
             println("π₀ < 0 due to numerical issues. Reset to 0.")
             π0_k = 0.0
+        elseif π0_k < 0
+            Infiltrator.@infiltrate
         end
 
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
