@@ -145,7 +145,7 @@ function solve_unified_lagrangian_dual(
         JuMP.@objective(approx_model, Max, t)
         # We cannot use the primal_obj as an obj_bound in the unified framework,
         # so we use an arbitrarily chosen upper bound.
-        set_objective_bound!(approx_model, s, 1e15)
+        # set_objective_bound!(approx_model, s, 1e15)
 
         # Create the dual variables
         # Note that the real dual multipliers are split up into two non-negative
