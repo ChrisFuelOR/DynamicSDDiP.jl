@@ -1172,6 +1172,8 @@ function follow_state_unfixing_slack!(node::SDDP.Node, state::SDDP.State, variab
 
 	if variable_info.has_lb
 		lb = variable_info.lower_bound
+	elseif variable_info.binary
+		lb = 0
 	else
 		lb = -1e9
 	end
@@ -1187,6 +1189,8 @@ function follow_state_unfixing_slack!(node::SDDP.Node, state::SDDP.State, variab
 
 	if variable_info.has_ub
 		ub = variable_info.upper_bound
+	elseif variable_info.binary
+		ub = 1
 	else
 		ub = 1e9
 	end
@@ -1237,7 +1241,7 @@ Auxiliary method to relax state variable bounds for BinaryApproximation.
 """
 function follow_state_unfixing_binary_slack!(node::SDDP.Node, state::JuMP.VariableRef, copy_regime::DynamicSDDiP.StateSpaceCopy)
 
-	follow_state_unfixing_slack!(node, state, DynamicSDDiP.ConvexHullCopy())
+	follow_state_unfixing_binary_slack!(node, state, DynamicSDDiP.ConvexHullCopy())
 
     JuMP.set_binary(state)
 
@@ -1278,7 +1282,7 @@ function follow_state_unfixing_binary_slack!(node::SDDP.Node, state::JuMP.Variab
 	relint_data = node.ext[:relint_data]
 	scaling_var = subproblem[:scaling_var]
 
-	# To avoid unboundedness
+	# TODO: To avoid unboundedness
 	lb = 0
 	ub = 1
 
