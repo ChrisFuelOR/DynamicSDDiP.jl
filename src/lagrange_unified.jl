@@ -220,7 +220,7 @@ function solve_unified_lagrangian_dual(
 
             # Try recovering from numerical issues
             if (JuMP.termination_status(approx_model) != MOI.OPTIMAL)
-                Infiltrator.@infiltrate
+                #Infiltrator.@infiltrate
                 elude_numerical_issues!(approx_model, algo_params)
             end
         end
