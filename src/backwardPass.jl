@@ -272,6 +272,7 @@ function solve_first_stage_problem(
     JuMP.optimize!(subproblem)
 
     # Maybe attempt numerical recovery as in SDDP
+    @assert JuMP.termination_status(subproblem) == MOI.OPTIMAL
 
     state = get_outgoing_state(node)
     stage_objective = JuMP.value(node.stage_objective)
