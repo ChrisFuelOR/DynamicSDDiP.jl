@@ -524,6 +524,8 @@ function get_dual_solution(
 
     store_dual_values!(node, dual_values, dual_vars, bin_state, cut_generation_regime.state_approximation_regime)
 
+    #Infiltrator.@infiltrate
+
     return (
         dual_values=dual_values,
         dual_0_var=dual_0_var,
