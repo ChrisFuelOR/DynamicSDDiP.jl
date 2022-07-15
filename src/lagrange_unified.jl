@@ -307,7 +307,7 @@ function solve_unified_lagrangian_dual(
     π_k .= -π_star
     π0_k = π0_star
 
-    Infiltrator.@infiltrate
+    #Infiltrator.@infiltrate
 
     return (lag_obj = s * L_star, iterations = iter, lag_status = lag_status, dual_0_var = π0_k)
 
