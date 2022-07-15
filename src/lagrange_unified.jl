@@ -153,9 +153,9 @@ function solve_unified_lagrangian_dual(
         JuMP.@variable(approx_model, π⁺[1:number_of_states] >= 0)
         JuMP.@variable(approx_model, π⁻[1:number_of_states] >= 0)
 
-        JuMP.@constraint(approx_model, π⁺[1:number_of_states] .<= 10.0)
-        JuMP.@constraint(approx_model, π⁻[1:number_of_states] .<= 10.0)
-        JuMP.@variable(approx_model, 10.0 >= π₀ >= 0)
+        JuMP.@constraint(approx_model, π⁺[1:number_of_states] .<= 20.0)
+        JuMP.@constraint(approx_model, π⁻[1:number_of_states] .<= 20.0)
+        JuMP.@variable(approx_model, 20.0 >= π₀ >= 0)
 
         JuMP.@expression(approx_model, π, π⁺ .- π⁻) # not required to be a constraint
         #JuMP.@variable(approx_model, π₀ >= 0)
@@ -252,7 +252,7 @@ function solve_unified_lagrangian_dual(
     # CONVERGENCE ANALYSIS
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "convergence_check" begin
-        if isapprox(L_star, t_k, atol = atol, rtol = rtol) && isapprox(L_star, 1e9, rtol=1e-4)
+        if isapprox(L_star, t_k, atol = atol, rtol = rtol) && isapprox(L_star, 1e15, rtol=1e-4)
             # UNBOUNDEDNESS DETECTED, which is only bounded by artificial
             # objective bound 1e-9
             # Leads still to a valid cut, but no vertex of the reverse polar set
