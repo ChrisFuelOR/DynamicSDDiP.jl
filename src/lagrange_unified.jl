@@ -158,7 +158,7 @@ function solve_unified_lagrangian_dual(
         JuMP.@variable(approx_model, 10.0 >= π₀ >= 0)
 
         JuMP.@expression(approx_model, π, π⁺ .- π⁻) # not required to be a constraint
-        JuMP.@variable(approx_model, π₀ >= 0)
+        #JuMP.@variable(approx_model, π₀ >= 0)
         set_multiplier_bounds!(node, approx_model, number_of_states, bound_results.dual_bound,
             algo_params.regularization_regime, cut_generation_regime.state_approximation_regime,
             cut_generation_regime.duality_regime)
