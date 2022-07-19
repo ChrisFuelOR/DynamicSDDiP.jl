@@ -737,7 +737,7 @@ function minimal_norm_choice_unified!(
             #showerror(stdout, err, catch_backtrace())
             println()
             println("Proceeding without minimal norm choice.")
-            break
+            return it
         end
 
         π_k .= JuMP.value.(π)
