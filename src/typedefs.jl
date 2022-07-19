@@ -400,6 +400,9 @@ mutable struct UnifiedLagrangianDuality <: AbstractDualityRegime
     normalization_regime::AbstractNormalizationRegime
     dual_space_regime::AbstractDualSpaceRegime
     copy_regime::AbstractCopyRegime
+    user_dual_objective_bound::Union{Nothing,Float64}
+    user_dual_multiplier_bound::Union{Nothing,Float64}
+
     function UnifiedLagrangianDuality(;
         atol = 1e-8,
         rtol = 1e-8,
@@ -412,11 +415,14 @@ mutable struct UnifiedLagrangianDuality <: AbstractDualityRegime
         normalization_regime = L₁_Deep(),
         dual_space_regime = NoDualSpaceRestriction(),
         copy_regime = ConvexHullCopy(),
+        user_dual_objective_bound = nothing,
+        user_dual_multiplier_bound = nothing,
     )
         return new(atol, rtol, iteration_limit,
             dual_initialization_regime, dual_bound_regime,
             dual_solution_regime, dual_choice_regime, dual_status_regime,
-            normalization_regime, dual_space_regime, copy_regime)
+            normalization_regime, dual_space_regime, copy_regime,
+            user_dual_objective_bound, user_dual_multiplier_bound)
     end
 end
 
@@ -666,6 +672,7 @@ mutable struct AlgoParams
     silent::Bool
     infiltrate_state::Symbol
     seed::Union{Nothing,Int}
+    run_description::String
     solver_approach::Union{DynamicSDDiP.GAMS_Solver,DynamicSDDiP.Direct_Solver}
 
     function AlgoParams(;
@@ -690,6 +697,7 @@ mutable struct AlgoParams
         silent = true,
         infiltrate_state = :none,
         seed = nothing,
+        run_description = "",
         solver_approach = DynamicSDDiP.GAMS_Solver(),
     )
         return new(
@@ -714,6 +722,7 @@ mutable struct AlgoParams
             silent,
             infiltrate_state,
             seed,
+            run_description,
             solver_approach
         )
     end

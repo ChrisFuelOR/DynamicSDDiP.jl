@@ -638,6 +638,8 @@ function lagrangian_status_check(
         error("Solving Lagrangian dual exceeded iteration limit.")
     elseif lag_status == :unbounded
         error("Normalized Lagrangian dual unbounded and reached artificial bound.")
+    elseif lag_status == :issues
+        error("Lagrangian LB > UB due to numerical issues.")
     end
 
     return

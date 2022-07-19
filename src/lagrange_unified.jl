@@ -143,29 +143,43 @@ function solve_unified_lagrangian_dual(
         # s modifies the sense appropriately
         JuMP.@variable(approx_model, t)
         JuMP.@objective(approx_model, Max, t)
-        # We cannot use the primal_obj as an obj_bound in the unified framework,
-        # so we use an arbitrarily chosen upper bound.
-        set_objective_bound!(approx_model, s, 1e4)
 
         # Create the dual variables
         # Note that the real dual multipliers are split up into two non-negative
         # variables here, which is required for the Norm Minimization part later
         JuMP.@variable(approx_model, π⁺[1:number_of_states] >= 0)
         JuMP.@variable(approx_model, π⁻[1:number_of_states] >= 0)
-
-        #JuMP.@constraint(approx_model, π⁺[1:number_of_states] .<= 20.0)
-        #JuMP.@constraint(approx_model, π⁻[1:number_of_states] .<= 20.0)
-        #JuMP.@variable(approx_model, 20.0 >= π₀ >= 0)
-
         JuMP.@expression(approx_model, π, π⁺ .- π⁻) # not required to be a constraint
         JuMP.@variable(approx_model, π₀ >= 0)
+
+        # User-specific bounds
+        ########################################################################
+        # We cannot use the primal_obj as an obj_bound in the unified framework,
+        # so we use an arbitrarily chosen upper bound or bound the dual multipliers.
+        if !isnothing(cut_generation_regime.duality_regime.user_dual_objective_bound)
+            set_objective_bound!(approx_model, s, cut_generation_regime.duality_regime.user_dual_objective_bound)
+        end
+
+        if !isnothing(cut_generation_regime.duality_regime.user_dual_multiplier_bound)
+            bound = cut_generation_regime.duality_regime.user_dual_multiplier_bound
+            JuMP.@constraint(approx_model, π⁺[1:number_of_states] .<= bound)
+            JuMP.@constraint(approx_model, π⁻[1:number_of_states] .<= bound)
+            JuMP.set_upper_bound(π₀, bound)
+        end
+
+        # Algorithm-specific bounds, e.g. due to regularization
+        ########################################################################
         set_multiplier_bounds!(node, approx_model, number_of_states, bound_results.dual_bound,
             algo_params.regularization_regime, cut_generation_regime.state_approximation_regime,
             cut_generation_regime.duality_regime)
 
+        # Space restriction by Chen & Luedtke
+        ########################################################################
         # Add dual space restriction (span of earlier multipliers)
         dual_space_restriction!(node, approx_model, i, cut_generation_regime.state_approximation_regime, cut_generation_regime.duality_regime.dual_space_regime)
 
+        # Normalization of Lagrangian dual
+        ########################################################################
         # Add normalization constraint depending on abstract normalization regime
         add_normalization_constraint!(node, approx_model, number_of_states, normalization_coeff, cut_generation_regime.duality_regime.normalization_regime)
 
@@ -251,10 +265,15 @@ function solve_unified_lagrangian_dual(
     ############################################################################
     # CONVERGENCE ANALYSIS
     ############################################################################
+    obj_bound = 1e15
+    if !isnothing(cut_generation_regime.duality_regime.user_dual_objective_bound)
+        obj_bound = cut_generation_regime.duality_regime.user_dual_objective_bound
+    end
+
     TimerOutputs.@timeit DynamicSDDiP_TIMER "convergence_check" begin
-        if isapprox(L_star, t_k, atol = atol, rtol = rtol) && isapprox(L_star, 1e15, rtol=1e-4)
+        if isapprox(L_star, t_k, atol = atol, rtol = rtol) && isapprox(L_star, obj_bound, rtol=1e-4)
             # UNBOUNDEDNESS DETECTED, which is only bounded by artificial
-            # objective bound 1e-9
+            # objective bound
             # Leads still to a valid cut, but no vertex of the reverse polar set
             lag_status = :unbounded
         elseif isapprox(L_star, t_k, atol = atol, rtol = rtol)
@@ -269,16 +288,21 @@ function solve_unified_lagrangian_dual(
             # TERMINATION DUE TO ITERATION LIMIT
             # stil leads to a valid cut
             lag_status = :iter
+        elseif L_star > t_k + atol/10.0
+            # NUMERICAL ISSUES, LOWER BOUND EXCEEDS UPPER BOUND
+            lag_status = :issues
         end
     end
 
     ############################################################################
     # APPLY MINIMAL NORM CHOICE APPROACH IF INTENDED
     ############################################################################
+    Infiltrator.@infiltrate
     TimerOutputs.@timeit DynamicSDDiP_TIMER "minimal_norm" begin
-        minimal_norm_choice_unified!(node, node_index, approx_model, π_k, π_star, π0_k, π0_star, t_k, h_expr, h_k, w_expr, w_k, s, L_star,
+        iter = minimal_norm_choice_unified!(node, node_index, approx_model, π_k, π_star, π0_k, π0_star, t_k, h_expr, h_k, w_expr, w_k, s, L_star,
             iteration_limit, atol, rtol, cut_generation_regime.duality_regime.dual_choice_regime, iter, algo_params, applied_solvers)
     end
+    Infiltrator.@infiltrate
 
     ############################################################################
     # RESTORE THE COPY CONSTRAINT x.in = value(x.in) (̄x = z)
@@ -625,7 +649,7 @@ function solve_unified_lagrangian_dual(
     # APPLY MINIMAL NORM CHOICE APPROACH IF INTENDED
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "minimal_norm" begin
-        minimal_norm_choice_unified!(node, node_index, approx_model, π_k, π_star, π0_k, π0_star, t_k, h_expr, h_k, w_expr, w_k, s, L_star,
+        iter = minimal_norm_choice_unified!(node, node_index, approx_model, π_k, π_star, π0_k, π0_star, t_k, h_expr, h_k, w_expr, w_k, s, L_star,
             iteration_limit, atol, rtol, cut_generation_regime.duality_regime.dual_choice_regime, iter, algo_params)
     end
 
@@ -706,7 +730,7 @@ function minimal_norm_choice_unified!(
     # The worst-case scenario in this for-loop is that we run through the
     # iterations without finding a new dual solution. However if that happens
     # we can just keep our current λ_star.
-    for _ in (iter+1):iteration_limit
+    for it in (iter+1):iteration_limit
         JuMP.optimize!(approx_model)
 
         try
@@ -730,14 +754,13 @@ function minimal_norm_choice_unified!(
             # problem, and it returned the optimal dual objective value. No
             # other optimal dual vector can have a smaller norm.
             π_star .= π_k
-            return
+            return it
         end
         JuMP.@constraint(approx_model, t <= s * (L_k + h_k' * (π .- π_k) + w_k * (π₀ - π0_k)))
         # note that the last term is always zero, since π₀ is fixed
 
     end
 
-    return
 end
 
 
@@ -765,5 +788,5 @@ function minimal_norm_choice_unified!(
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     )
 
-    return
+    return iter
 end

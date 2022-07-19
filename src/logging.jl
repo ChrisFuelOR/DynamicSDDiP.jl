@@ -160,6 +160,10 @@ function print_parameters(io, algo_params::DynamicSDDiP.AlgoParams, applied_solv
         println(io)
     end
 
+    println(io, "||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||")
+    println(io, "RUN DESCRIPTION")
+    println(io, algo_params.run_description)
+
     flush(io)
 end
 
