@@ -583,10 +583,6 @@ function iteration(
         )
     end
 
-    # if model.ext[:iteration] == 2
-    #   Infiltrator.@infiltrate
-    # end
-
     ############################################################################
     # CALCULATE LOWER BOUND
     ############################################################################
@@ -594,8 +590,6 @@ function iteration(
         first_stage_results = calculate_bound(model)
     end
     bound = first_stage_results.bound
-
-    #Infiltrator.@infiltrate
 
     ############################################################################
     # CHECK IF BEST KNOWN SOLUTION HAS BEEN IMPROVED
