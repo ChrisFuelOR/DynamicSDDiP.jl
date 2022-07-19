@@ -34,7 +34,7 @@ function model_config(
     dual_solution_regime = DynamicSDDiP.Kelley()
     dual_bound_regime = DynamicSDDiP.BothBounds()
     dual_status_regime = DynamicSDDiP.Lax()
-    dual_choice_regime = DynamicSDDiP.StandardChoice()
+    dual_choice_regime = DynamicSDDiP.MinimalNormChoice()
     #dual_subproblemace_regime = DynamicSDDiP.BendersSpanSpaceRestriction(10, :multi_cut)
     dual_space_regime = DynamicSDDiP.NoDualSpaceRestriction()
     copy_regime = DynamicSDDiP.ConvexHullCopy()
@@ -52,6 +52,7 @@ function model_config(
             normalization_regime = normalization_regime,
             dual_space_regime = dual_space_regime,
             copy_regime = copy_regime,
+            user_dual_objective_bound = 1e4,
         )
     elseif duality_regime_sym == :lag
         duality_regime = DynamicSDDiP.LagrangianDuality(
@@ -121,6 +122,7 @@ function model_config(
         numerical_focus = false,
         run_numerical_stability_report = false,
         seed = seed,
+        run_description = "SLDP Example with finer binary approximation and minimal norm choice"
     )
 
     # Start model with used configuration
