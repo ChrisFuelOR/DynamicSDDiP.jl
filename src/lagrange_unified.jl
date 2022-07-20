@@ -764,7 +764,7 @@ function minimal_norm_choice_unified!(
 
     end
 
-    return it
+    return iteration_limit
 
 end
 
