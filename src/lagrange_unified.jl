@@ -297,9 +297,13 @@ function solve_unified_lagrangian_dual(
     ############################################################################
     # APPLY MINIMAL NORM CHOICE APPROACH IF INTENDED
     ############################################################################
-    TimerOutputs.@timeit DynamicSDDiP_TIMER "minimal_norm" begin
-        iter = minimal_norm_choice_unified!(node, node_index, approx_model, π_k, π_star, π0_k, π0_star, t_k, h_expr, h_k, w_expr, w_k, s, L_star,
+    if lag_status == :opt || lag_status == :unbounded
+    # In other cases we do not have an optimal solution from Kelley's method,
+    # so finding the minimal norm optimal solution does not make sense.
+        TimerOutputs.@timeit DynamicSDDiP_TIMER "minimal_norm" begin
+            iter = minimal_norm_choice_unified!(node, node_index, approx_model, π_k, π_star, π0_k, π0_star, t_k, h_expr, h_k, w_expr, w_k, s, L_star,
             iteration_limit, atol, rtol, cut_generation_regime.duality_regime.dual_choice_regime, iter, algo_params, applied_solvers)
+        end
     end
 
     ############################################################################
@@ -717,8 +721,8 @@ function minimal_norm_choice_unified!(
     # We actually would have to solve with the objective (π⁺ + π⁻)/π₀
     # To avoid a nonlinear problem, we fix the scaling factor π₀ to its optimal
     # value from the previous solution method.
-    JuMP.fix(π₀, π0_k, force=true)
-    #JuMP.fix(π₀, π0_star, force=true)
+    #JuMP.fix(π₀, π0_k, force=true)
+    JuMP.fix(π₀, π0_star, force=true)
     #π0_k = π0_star
 
     # Reset objective
