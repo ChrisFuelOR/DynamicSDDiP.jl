@@ -732,27 +732,16 @@ function minimal_norm_choice_unified!(
     JuMP.@objective(approx_model, Min, sum(π⁺) + sum(π⁻))
     JuMP.set_lower_bound(t, t_k)
 
-    if iter == 41
-        Infiltrator.@infiltrate
-    end
-
     # The worst-case scenario in this for-loop is that we run through the
     # iterations without finding a new dual solution. However if that happens
     # we can just keep our current λ_star.
     for it in (iter+1):iteration_limit
         JuMP.optimize!(approx_model)
 
-        if iter == 41
-            Infiltrator.@infiltrate
-        end
-
         try
             @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
         catch err
             println("Proceeding without minimal norm choice.")
-            if iter == 41
-                Infiltrator.@infiltrate
-            end
             return it
         end
 
@@ -777,6 +766,8 @@ function minimal_norm_choice_unified!(
         # note that the last term is always zero, since π₀ is fixed
 
     end
+
+    return it
 
 end
 
