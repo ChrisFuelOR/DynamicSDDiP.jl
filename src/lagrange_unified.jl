@@ -308,7 +308,6 @@ function solve_unified_lagrangian_dual(
     else
         println("Proceeding without minimal norm choice.")
     end
-    println(iter_old, iter)
 
     ############################################################################
     # RESTORE THE COPY CONSTRAINT x.in = value(x.in) (̄x = z)
@@ -733,16 +732,27 @@ function minimal_norm_choice_unified!(
     JuMP.@objective(approx_model, Min, sum(π⁺) + sum(π⁻))
     JuMP.set_lower_bound(t, t_k)
 
+    if iter == 41
+        Infiltrator.@infiltrate
+    end
+
     # The worst-case scenario in this for-loop is that we run through the
     # iterations without finding a new dual solution. However if that happens
     # we can just keep our current λ_star.
     for it in (iter+1):iteration_limit
         JuMP.optimize!(approx_model)
 
+        if iter == 41
+            Infiltrator.@infiltrate
+        end
+
         try
             @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
         catch err
             println("Proceeding without minimal norm choice.")
+            if iter == 41
+                Infiltrator.@infiltrate
+            end
             return it
         end
 
@@ -758,6 +768,9 @@ function minimal_norm_choice_unified!(
             # problem, and it returned the optimal dual objective value. No
             # other optimal dual vector can have a smaller norm.
             π_star .= π_k
+            if iter == 41
+                Infiltrator.@infiltrate
+            end
             return it
         end
         JuMP.@constraint(approx_model, t <= s * (L_k + h_k' * (π .- π_k) + w_k * (π₀ - π0_k)))
