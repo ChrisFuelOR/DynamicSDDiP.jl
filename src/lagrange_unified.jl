@@ -297,6 +297,7 @@ function solve_unified_lagrangian_dual(
     ############################################################################
     # APPLY MINIMAL NORM CHOICE APPROACH IF INTENDED
     ############################################################################
+    iter_old = iter
     if lag_status == :opt || lag_status == :unbounded
     # In other cases we do not have an optimal solution from Kelley's method,
     # so finding the minimal norm optimal solution does not make sense.
@@ -304,7 +305,10 @@ function solve_unified_lagrangian_dual(
             iter = minimal_norm_choice_unified!(node, node_index, approx_model, π_k, π_star, π0_k, π0_star, t_k, h_expr, h_k, w_expr, w_k, s, L_star,
             iteration_limit, atol, rtol, cut_generation_regime.duality_regime.dual_choice_regime, iter, algo_params, applied_solvers)
         end
+    else
+        println("Proceeding without minimal norm choice.")
     end
+    println(iter_old, iter)
 
     ############################################################################
     # RESTORE THE COPY CONSTRAINT x.in = value(x.in) (̄x = z)
@@ -738,8 +742,6 @@ function minimal_norm_choice_unified!(
         try
             @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
         catch err
-            #showerror(stdout, err, catch_backtrace())
-            println()
             println("Proceeding without minimal norm choice.")
             return it
         end
