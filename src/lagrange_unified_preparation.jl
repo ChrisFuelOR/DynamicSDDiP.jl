@@ -94,8 +94,13 @@ function get_Benders_list!(
     elseif  number_of_Benders_cuts <= K
             Benders_list = node.ext[:Benders_cuts_binary]
     else
-            Benders_list = node.ext[:Benders_cuts_binary][number_of_Benders_cuts-K:number_of_Benders_cuts]
+            Benders_list = node.ext[:Benders_cuts_binary][number_of_Benders_cuts-K+1:number_of_Benders_cuts]
     end
+
+	# Make sure that only the last K entries will be used
+	if number_of_Benders_cuts > K
+		number_of_Benders_cuts = K
+	end
 
     return (Benders_list = Benders_list, number_of_Benders_cuts = number_of_Benders_cuts)
 
@@ -114,8 +119,13 @@ function get_Benders_list!(
     elseif  number_of_Benders_cuts <= K
             Benders_list = node.ext[:Benders_cuts_original]
     else
-            Benders_list = node.ext[:Benders_cuts_original][number_of_Benders_cuts-K:number_of_Benders_cuts]
+            Benders_list = node.ext[:Benders_cuts_original][number_of_Benders_cuts-K+1:number_of_Benders_cuts]
     end
+
+	# Make sure that only the last K entries will be used
+	if number_of_Benders_cuts > K
+		number_of_Benders_cuts = K
+	end
 
     return (Benders_list = Benders_list, number_of_Benders_cuts = number_of_Benders_cuts)
 
@@ -166,6 +176,8 @@ function dual_space_restriction!(
     ############################################################################
     π = approx_model[:π]
     span_constraint = JuMP.@constraint(approx_model, π .== expr)
+
+    # Infiltrator.@infiltrate
 
     return
 end
