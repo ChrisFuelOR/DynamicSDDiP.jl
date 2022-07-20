@@ -757,9 +757,6 @@ function minimal_norm_choice_unified!(
             # problem, and it returned the optimal dual objective value. No
             # other optimal dual vector can have a smaller norm.
             π_star .= π_k
-            if iter == 41
-                Infiltrator.@infiltrate
-            end
             return it
         end
         JuMP.@constraint(approx_model, t <= s * (L_k + h_k' * (π .- π_k) + w_k * (π₀ - π0_k)))
