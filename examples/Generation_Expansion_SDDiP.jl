@@ -183,8 +183,9 @@ function model_definition()
     # Demand penalty
     demand_penalty = 100000
 
-    K = 11
-    beta = 20/(2^K -1)
+    # Define number of binary expansion for each generator type
+    # (we do not need beta, since the states are pure integer)
+    K = [3, 4, 4, 1, 6, 3]
 
     model = SDDP.LinearPolicyGraph(
         stages = number_of_stages,
@@ -193,16 +194,44 @@ function model_definition()
         sense = :Min,
     ) do subproblem, t
 
-        # STATE VARIABLES
+        # BINARY STATE VARIABLES
+        ########################################################################
+        # Note that we introduce a different number of binary variables for each generator type
+        JuMP.@variable(
+            subproblem,
+            λ[i in 1:num_gen_types, j in 1:K[i]],
+            SDDP.State,
+            Bin,
+            initial_value = 0
+        )
+
+        # ORIGINAL STATE VARIABLES
         ########################################################################
         # Number of generators built up to (and including) stage t
         JuMP.@variable(
             subproblem,
-            0 <= gen_built_agg[i in 1:num_gen_types] <= generators[i][:maximum_number],
-            SDDP.State,
+            0 <= gen_built_agg_out[i in 1:num_gen_types] <= generators[i][:maximum_number],
+            #SDDP.State,
             Int,
             initial_value = 0
         )
+
+        JuMP.@variable(
+            subproblem,
+            0 <= gen_built_agg_in[i in 1:num_gen_types] <= generators[i][:maximum_number],
+            #SDDP.State,
+            Int,
+            initial_value = 0
+        )
+
+        # BINARY EXPANSION CONSTRAINTS
+        ########################################################################
+        JuMP.@constraint(subproblem, [i in 1:num_gen_types], gen_built_agg_out == sum(2^(k-1) * λ[i,k].out for k in 1:K[i]))
+        if t==1
+            JuMP.@constraint(subproblem, gen_built_agg_in == 0.0)
+        else
+            JuMP.@constraint(subproblem, [i in 1:num_gen_types], gen_built_agg_in == sum(2^(k-1) * λ[i,k].in for k in 1:K[i]))
+        end
 
         # LOCAL VARIABLES
         ########################################################################
@@ -219,7 +248,7 @@ function model_definition()
             0 <= production[i in 1:num_gen_types]
         )
 
-        # Slack variable for unmet demand
+        # Slack variable for unmet demand (ensure complete continuous recourse)
         JuMP.@variable(
             subproblem,
             0 <= unmet_demand
