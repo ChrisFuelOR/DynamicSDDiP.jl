@@ -19,13 +19,11 @@ struct GeneratorType
     build_cost::Float64
     fuel_price::Float64
     heat_rate::Float64
-    effiency::Float64
+    efficiency::Float64
     om_cost::Float64
     av_capacity::Float64
     maximum_number::Int
 end
-
-
 
 function model_config(
     duality_regime_sym::Symbol,
@@ -149,33 +147,84 @@ function model_starter(
 )
 
     ############################################################################
+    # DEFINE PROBLEM PARAMS
+    ############################################################################
+    problem_params = DynamicSDDiP.ProblemParams(8, 3, tree_seed = 12345)
+
+    ############################################################################
+    # GET FINITE SCENARIO TREE FOR MODEL
+    ############################################################################
+    scenario_tree = get_scenario_tree(algo_params, problem_params)
+
+    ############################################################################
     # DEFINE MODEL
     ############################################################################
-    model = model_definition()
+    model = model_definition(problem_params, scenario_tree)
 
     ############################################################################
     # SOLVE MODEL
     ############################################################################
-    DynamicSDDiP.solve(model, algo_params, applied_solvers)
+    DynamicSDDiP.solve(model, algo_params, applied_solvers, problem_params)
 end
 
 
-function model_definition()
+function get_scenario_tree(algo_params::DynamicSDDiP.AlgoParams, problem_params::DynamicSDDiP.ProblemParams)
+
+    # Set the seed from algo_params
+    Random.seed!(problem_params.tree_seed)
+
+    # Define arrays for support and probabilities
+    support_array = Vector{Array{NamedTuple{(:dem, :gas),Tuple{Float64,Float64}},1}}(undef,problem_params.number_of_stages)
+    probabilities_array = Vector{Array{Float64,1}}(undef,problem_params.number_of_stages)
+
+    # SAMPLE FOR EACH STAGE SEPARATELY (STAGEWISE INDEPENDENCE)
+    ############################################################################
+    for t in 1:problem_params.number_of_stages
+        # Demand follows a uniform distribution
+        demand_distribution = Distributions.Uniform(0,1) #TODO
+
+        # Sample from this distribution
+        support_demand = rand(demand_distribution, problem_params.number_of_realizations)
+        probability_demand = 1/problem_params.number_of_realizations * ones(problem_params.number_of_realizations)
+
+        ########################################################################
+        # Gas prices follow a truncated normal distribution
+        gas_price_distribution = Distributions.truncated(Distributions.Normal(9.37,1.0), 6, 12) #TODO
+
+        # Sample from this distribution
+        support_gas = rand(gas_price_distribution, problem_params.number_of_realizations)
+        probability_gas = 1/problem_params.number_of_realizations * ones(problem_params.number_of_realizations)
+
+        ########################################################################
+        # Get the Cartesian product of the two supports and probabilities
+        support = [(dem = a, gas = b) for a in support_demand for b in support_gas]
+        probability = [pdem * pgas for pdem in probability_demand for pgas in probability_gas]
+
+        ########################################################################
+        # Add both to a list of support and probablities for all stages
+        support_array[t] = support
+        probabilities_array[t] = probability
+
+    end
+
+    return (support_array = support_array, probabilities_array = probabilities_array)
+
+end
+
+
+function model_definition(problem_params::DynamicSDDiP.ProblemParams, scenario_tree)
 
     # Generator definition (there are six types: Base load, CC, CT, Nuclear, Wind, IGCC)
     generators = [
-        Generator(1446000.0, 3.37, 8844.0, 0.4, 4.7, 1130.0, 4), # Base load
-        Generator(795000.0, 9.11, 7196.0, 0.56, 2.11, 390.0, 10), # CC
-        Generator(575000.0, 9.11, 10842.0, 0.4, 3.66, 380.0, 10), # CT
-        Generator(1613000.0, 0.00093, 10400.0, 0.45, 0.51, 1180.0, 1), # Nuclear
-        Generator(1650000.0, 0.0, 1.0, 1.0, 5.0, 175.0, 45), # Wind
-        Generator(1671000.0, 3.37, 8613.0, 0.48, 2.98, 560.0, 4), #IGCC
+        GeneratorType(1446000.0, 3.37, 8844.0, 0.4, 4.7, 1130.0, 4), # Base load
+        GeneratorType(795000.0, 9.11, 7196.0, 0.56, 2.11, 390.0, 10), # CC
+        GeneratorType(575000.0, 9.11, 10842.0, 0.4, 3.66, 380.0, 10), # CT
+        GeneratorType(1613000.0, 0.00093, 10400.0, 0.45, 0.51, 1180.0, 1), # Nuclear
+        GeneratorType(1650000.0, 0.0, 1.0, 1.0, 5.0, 175.0, 45), # Wind
+        GeneratorType(1671000.0, 3.37, 8613.0, 0.48, 2.98, 560.0, 4), #IGCC
     ]
 
     num_gen_types = length(generators)
-
-    # Time horizon
-    number_of_stages = 8
 
     # Annual interest rate
     r = 0.08
@@ -188,7 +237,7 @@ function model_definition()
     K = [3, 4, 4, 1, 6, 3]
 
     model = SDDP.LinearPolicyGraph(
-        stages = number_of_stages,
+        stages = problem_params.number_of_stages,
         lower_bound = 0.0,
         optimizer = GAMS.Optimizer,
         sense = :Min,
@@ -210,27 +259,27 @@ function model_definition()
         # Number of generators built up to (and including) stage t
         JuMP.@variable(
             subproblem,
-            0 <= gen_built_agg_out[i in 1:num_gen_types] <= generators[i][:maximum_number],
+            0 <= gen_built_agg_out[i in 1:num_gen_types] <= generators[i].maximum_number,
             #SDDP.State,
-            Int,
-            initial_value = 0
+            Int
+            #initial_value = 0
         )
 
         JuMP.@variable(
             subproblem,
-            0 <= gen_built_agg_in[i in 1:num_gen_types] <= generators[i][:maximum_number],
+            0 <= gen_built_agg_in[i in 1:num_gen_types] <= generators[i].maximum_number,
             #SDDP.State,
-            Int,
-            initial_value = 0
+            Int
+            #initial_value = 0
         )
 
         # BINARY EXPANSION CONSTRAINTS
         ########################################################################
-        JuMP.@constraint(subproblem, [i in 1:num_gen_types], gen_built_agg_out == sum(2^(k-1) * λ[i,k].out for k in 1:K[i]))
+        JuMP.@constraint(subproblem, [i in 1:num_gen_types], gen_built_agg_out[i] == sum(2^(k-1) * λ[i,k].out for k in 1:K[i]))
         if t==1
-            JuMP.@constraint(subproblem, gen_built_agg_in == 0.0)
+            JuMP.@constraint(subproblem, [i in 1:num_gen_types], gen_built_agg_in[i] == 0.0)
         else
-            JuMP.@constraint(subproblem, [i in 1:num_gen_types], gen_built_agg_in == sum(2^(k-1) * λ[i,k].in for k in 1:K[i]))
+            JuMP.@constraint(subproblem, [i in 1:num_gen_types], gen_built_agg_in[i] == sum(2^(k-1) * λ[i,k].in for k in 1:K[i]))
         end
 
         # LOCAL VARIABLES
@@ -262,13 +311,19 @@ function model_definition()
             demand
         )
 
+        # fuel cost variable
+        JuMP.@variable(
+            subproblem,
+            fuel_cost[i in 1:num_gen_types]
+        )
+
         # CONSTRAINTS
         ########################################################################
         # Generation capacity constraint
         JuMP.@constraint(
             subproblem,
             capacity[i in 1:num_gen_types],
-            gen_built_agg[i].out * generators[i][:av_capacity] >= production[i]
+            gen_built_agg_out[i] * generators[i].av_capacity >= production[i]
         )
 
         # # Limitation on total number of generators
@@ -282,37 +337,48 @@ function model_definition()
         JuMP.@constraint(
             subproblem,
             load,
-            sum(production[i].out for i in 1:num_gen_types) + unmet_demand == demand
+            sum(production[i] for i in 1:num_gen_types) + unmet_demand == demand
         )
 
         # State equation
         JuMP.@constraint(
             subproblem,
             state_equation[i in 1:num_gen_types],
-            gen_built_agg[i].out == gen_built_agg[i].in + gen_built[i]
+            gen_built_agg_out[i] == gen_built_agg_in[i] + gen_built[i]
         )
+
+        # PARAMETERIZE THE RANDOM VARIABLES
+        ########################################################################
+        # Determine the original fuel costs for all (especially non-gas) generators
+        JuMP.@variable(subproblem, fuel_costs[i in 1:num_gen_types])
+        JuMP.@constraint(subproblem, fuel_cost_con[i in 1:num_gen_types], fuel_costs[i] == (generators[i].fuel_price * generators[i].heat_rate * 1/generators[i].efficiency + generators[i].om_cost) * production[i] )
+
+        # Get the support and probability for the current stage
+        support = scenario_tree.support_array[t]
+        probability = scenario_tree.probabilities_array[t]
+
+        # Parameterize the model using the uncertain demand and the natural gas prices
+        SDDP.parameterize(subproblem, support, probability) do ω
+               JuMP.fix(demand, ω.dem)
+               JuMP.set_normalized_coefficient(fuel_cost_con[2], production[2], ω.gas / 1.028 * generators[2].heat_rate * 1/generators[2].efficiency + generators[2].om_cost)
+               JuMP.set_normalized_coefficient(fuel_cost_con[3], production[3], ω.gas / 1.028 * generators[3].heat_rate * 1/generators[3].efficiency + generators[3].om_cost)
+        end
 
         # STAGE OBJECTIVE
         ########################################################################
-        # First define the fuel costs
-        fuel_costs = Array{Float64,1}(undef, num_gen_types)
-
-        for i in num_gen_types
-            fuel_costs[i] = generators[i][:fuel_price] * generators[i][:heat_rate] * 1/generators[i][:efficiency]
-        end
-
         SDDP.@stageobjective(
             subproblem,
-            (sum((fuel_costs[i] + generators[i][:om_cost]) * production[i].out + generators[i][:build_cost] * gen_built[i] for i in 1:num_gen_types)
+            (sum(fuel_costs[i] + generators[i].build_cost * gen_built[i] for i in 1:num_gen_types)
             + unmet_demand * demand_penalty) / (1+r)^(t-1)
         )
 
-
-
+        # Switch the model to silent mode
         JuMP.set_silent(subproblem)
 
         return
     end
+
+    Infiltrator.@infiltrate
 
     return model
 end
@@ -377,7 +443,7 @@ function model_starter_server()
     # model_starter_single(26,:uni_lag, DynamicSDDiP.Core_Relint(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/sldp_binary_relint.log", 3600, 11112)
     # model_starter_single(27,:uni_lag, DynamicSDDiP.Core_Relint(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/sldp_binary_relint.log", 3600, 11113)
 
-    model_starter_single(28,:uni_lag, DynamicSDDiP.Core_Optimal(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/sldp_binary_opt.log", 3600, 11111)
+    # model_starter_single(28,:uni_lag, DynamicSDDiP.Core_Optimal(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/sldp_binary_opt.log", 3600, 11111)
     # model_starter_single(29,:uni_lag, DynamicSDDiP.Core_Optimal(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/sldp_binary_opt.log", 3600, 11112)
     # model_starter_single(30,:uni_lag, DynamicSDDiP.Core_Optimal(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/sldp_binary_opt.log", 3600, 11113)
 

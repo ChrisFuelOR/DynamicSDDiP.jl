@@ -729,6 +729,32 @@ mutable struct AlgoParams
 end
 
 ################################################################################
+# DEFINING STRUCT FOR CONFIGURATION OF TEST PROBLEM PARAMETERS
+################################################################################
+"""
+Stores some parameters of the test problem that is solved.
+This is mainly used for logging purposes.
+"""
+
+struct ProblemParams
+    number_of_stages::Int
+    number_of_realizations::Int
+    tree_seed::Union{Nothing,Int}
+
+    function ProblemParams(
+        number_of_stages,
+        number_of_realizations;
+        tree_seed = nothing,
+    )
+        return new(
+            number_of_stages,
+            number_of_realizations,
+            tree_seed
+        )
+    end
+end
+
+################################################################################
 # DEFINING CUTS
 ################################################################################
 

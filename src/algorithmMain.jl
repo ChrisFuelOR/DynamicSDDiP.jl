@@ -24,7 +24,8 @@ the algorithm are given (and possibly pre-defined) in algo_params.
 function solve(
     model::SDDP.PolicyGraph,
     algo_params::DynamicSDDiP.AlgoParams,
-    applied_solvers::DynamicSDDiP.AppliedSolvers
+    applied_solvers::DynamicSDDiP.AppliedSolvers,
+    problem_params::DynamicSDDiP.ProblemParams
     )
 
     ############################################################################
@@ -52,7 +53,7 @@ function solve(
     end
 
     if algo_params.print_level > 1
-        print_helper(print_parameters, log_file_handle, algo_params, applied_solvers)
+        print_helper(print_parameters, log_file_handle, algo_params, applied_solvers, problem_params)
     end
 
     # Maybe add run_numerical_stability_report as in SDDP.jl later

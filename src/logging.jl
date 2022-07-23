@@ -102,7 +102,7 @@ function print_banner(io)
     flush(io)
 end
 
-function print_parameters(io, algo_params::DynamicSDDiP.AlgoParams, applied_solvers::DynamicSDDiP.AppliedSolvers)
+function print_parameters(io, algo_params::DynamicSDDiP.AlgoParams, applied_solvers::DynamicSDDiP.AppliedSolvers, problem_params::DynamicSDDiP.ProblemParams)
 
     # Printint the file name
     println(io, "||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||")
@@ -163,6 +163,15 @@ function print_parameters(io, algo_params::DynamicSDDiP.AlgoParams, applied_solv
     println(io, "||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||")
     println(io, "RUN DESCRIPTION")
     println(io, algo_params.run_description)
+
+    println(io, "||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||")
+    println(io, "PROBLEM DESCRIPTION")
+    println(io, "Number of stages: ", problem_params.number_of_stages)
+    println(io, "Number of realizations per stage: ", problem_params.number_of_realizations)
+
+    if !isnothing(problem_params.tree_seed)
+            println(io, "Seed for scenario tree sampling: ", problem_params.tree_seed)
+    end
 
     flush(io)
 end
