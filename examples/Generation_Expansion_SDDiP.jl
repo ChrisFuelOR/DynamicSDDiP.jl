@@ -13,6 +13,7 @@ import Infiltrator
 import Random
 import Distributions
 using Printf
+import Gurobi
 
 
 struct GeneratorType
@@ -34,8 +35,6 @@ function model_config(
     time_limit::Int,
     seed::Int,
     )
-
-    Random.seed!(seed)
 
     # Stopping rules to be used
     stopping_rules = [SDDP.TimeLimit(time_limit)]
@@ -137,19 +136,20 @@ function model_config(
     )
 
     # Start model with used configuration
-    model_starter(algo_params, applied_solvers)
+    model_starter(algo_params, applied_solvers, seed)
 end
 
 
 function model_starter(
     algo_params::DynamicSDDiP.AlgoParams = DynamicSDDiP.AlgoParams(),
     applied_solvers::DynamicSDDiP.AppliedSolvers = DynamicSDDiP.AppliedSolvers(),
+    seed::Int = 11111
 )
 
     ############################################################################
     # DEFINE PROBLEM PARAMS
     ############################################################################
-    problem_params = DynamicSDDiP.ProblemParams(8, 3, tree_seed = 12345)
+    problem_params = DynamicSDDiP.ProblemParams(2, 2, tree_seed = 12345)
 
     ############################################################################
     # GET FINITE SCENARIO TREE FOR MODEL
@@ -164,6 +164,12 @@ function model_starter(
     ############################################################################
     # SOLVE MODEL
     ############################################################################
+    Random.seed!(seed)
+
+    det_equiv = SDDP.deterministic_equivalent(model, Gurobi.Optimizer)
+    JuMP.optimize!(det_equiv)
+    print(JuMP.objective_value(det_equiv))
+
     DynamicSDDiP.solve(model, algo_params, applied_solvers, problem_params)
 end
 
@@ -185,7 +191,6 @@ function get_scenario_tree(algo_params::DynamicSDDiP.AlgoParams, problem_params:
 
         # Sample from this distribution
         support_demand = rand(demand_distribution, problem_params.number_of_realizations)
-        probability_demand = 1/problem_params.number_of_realizations * ones(problem_params.number_of_realizations)
 
         ########################################################################
         # Gas prices follow a truncated normal distribution
@@ -193,12 +198,11 @@ function get_scenario_tree(algo_params::DynamicSDDiP.AlgoParams, problem_params:
 
         # Sample from this distribution
         support_gas = rand(gas_price_distribution, problem_params.number_of_realizations)
-        probability_gas = 1/problem_params.number_of_realizations * ones(problem_params.number_of_realizations)
 
         ########################################################################
         # Get the Cartesian product of the two supports and probabilities
-        support = [(dem = a, gas = b) for a in support_demand for b in support_gas]
-        probability = [pdem * pgas for pdem in probability_demand for pgas in probability_gas]
+        support = [(dem = support_demand[i], gas = support_gas[i]) for i in 1:problem_params.number_of_realizations]
+        probability = 1/problem_params.number_of_realizations * ones(problem_params.number_of_realizations)
 
         ########################################################################
         # Add both to a list of support and probablities for all stages
@@ -219,9 +223,9 @@ function model_definition(problem_params::DynamicSDDiP.ProblemParams, scenario_t
         GeneratorType(1446000.0, 3.37, 8844.0, 0.4, 4.7, 1130.0, 4), # Base load
         GeneratorType(795000.0, 9.11, 7196.0, 0.56, 2.11, 390.0, 10), # CC
         GeneratorType(575000.0, 9.11, 10842.0, 0.4, 3.66, 380.0, 10), # CT
-        GeneratorType(1613000.0, 0.00093, 10400.0, 0.45, 0.51, 1180.0, 1), # Nuclear
-        GeneratorType(1650000.0, 0.0, 1.0, 1.0, 5.0, 175.0, 45), # Wind
-        GeneratorType(1671000.0, 3.37, 8613.0, 0.48, 2.98, 560.0, 4), #IGCC
+        #GeneratorType(1613000.0, 0.00093, 10400.0, 0.45, 0.51, 1180.0, 1), # Nuclear
+        #GeneratorType(1650000.0, 0.0, 1.0, 1.0, 5.0, 175.0, 45), # Wind
+        #GeneratorType(1671000.0, 3.37, 8613.0, 0.48, 2.98, 560.0, 4), #IGCC
     ]
 
     num_gen_types = length(generators)
