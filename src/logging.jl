@@ -394,3 +394,14 @@ function print_lag_iteration(io, iter::Int, f_approx::Float64, best_actual::Floa
     println(io)
     flush(io)
 end
+
+function print_simulation(io, algo_params::DynamicSDDiP.AlgoParams, μ::Float64, ci::Float64, lower_bound::Float64)
+
+    println(io)
+    println(io, "||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||")
+    println(io, "SIMULATION RESULTS")
+    println(io, algo_params.simulation_regime)
+    println(io, "Lower bound: ", lower_bound)
+    println(io, "Statistical upper bound (confidence interval): ", μ, " ± ", ci )
+    flush(io)
+end

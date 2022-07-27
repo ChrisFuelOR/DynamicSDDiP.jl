@@ -599,6 +599,55 @@ copy_regime defines the constraints that the copy variable z of the state x has
 #TODO: Maybe define the copy_regime one time in a completeley separate way.
 
 ################################################################################
+# SIMULATION
+################################################################################
+# Sampling schemes (similar to the ones in SDDP.jl)
+abstract type AbstractSamplingScheme end
+
+mutable struct InSampleMonteCarlo <: AbstractSamplingScheme end
+
+mutable struct OutOfSampleMonteCarlo <: AbstractSamplingScheme
+    number_of_realizations :: Int
+    simulation_seed :: Int
+
+    function OutOfSampleMonteCarlo(;
+        number_of_realizations = 10,
+        simulation_seed = 121212,
+    )
+        return new(simulation_seed)
+    end
+end
+
+# Simulation regimes
+abstract type AbstractSimulationRegime end
+
+mutable struct Simulation <: AbstractSimulationRegime
+    sampling_scheme :: DynamicSDDiP.AbstractSamplingScheme
+    number_of_replications :: Int
+
+    function Simulation(;
+        sampling_scheme = DynamicSDDiP.InSampleMonteCarlo,
+        number_of_replications = 1000,
+    )
+        return new(sampling_scheme, number_of_replications)
+    end
+end
+
+mutable struct NoSimulation <: AbstractSimulationRegime end
+
+"""
+Simulation means that after training the model we perform a simulation with
+    number_of_replications. This can be either an in-sample simulation
+    (SDDP.InSampleMonteCarlo) or an out-of-sample simulation
+    (SDDP.OutOfSampleMonteCarlo). In the latter case, we have to provide a
+    method to generate new scenario trees. Different sampling schemes from
+    SDDP.jl such as HistoricalSampling or PSRSampling are not supported yet.
+NoSimulation means that we do not perform a simulation after training the model,
+    either because we do not want to or because we solve a determinist model.
+Default is NoSimulation.
+"""
+
+################################################################################
 # DEFINING STRUCT FOR SOLVERS TO BE USED
 ################################################################################
 """
@@ -654,6 +703,7 @@ mutable struct AlgoParams
     cut_aggregation_regime::AbstractCutAggregationRegime
     cut_selection_regime::AbstractCutSelectionRegime
     cut_generation_regimes::Vector{CutGenerationRegime}
+    simulation_regime::AbstractSimulationRegime
     ############################################################################
     risk_measure::SDDP.AbstractRiskMeasure
     forward_pass::SDDP.AbstractForwardPass
@@ -681,6 +731,7 @@ mutable struct AlgoParams
         cut_aggregation_regime = SingleCutRegime(),
         cut_selection_regime = CutSelection(),
         cut_generation_regimes = [CutGenerationRegime()],
+        simulation_regime = NoSimulation(),
         risk_measure = SDDP.Expectation(),
         forward_pass = SDDP.DefaultForwardPass(),
         sampling_scheme = SDDP.InSampleMonteCarlo(),
@@ -706,6 +757,7 @@ mutable struct AlgoParams
             cut_aggregation_regime,
             cut_selection_regime,
             cut_generation_regimes,
+            simulation_regime,
             risk_measure,
             forward_pass,
             sampling_scheme,
