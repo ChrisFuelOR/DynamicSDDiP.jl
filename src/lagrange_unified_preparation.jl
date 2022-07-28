@@ -392,7 +392,7 @@ function get_core_point(
 	core_point_x = get_state_space_midpoint(node, number_of_states, state_approximation_regime)
 
 	# Get optimal value to core point
-	core_point_theta = evaluate_approx_value_function(node, core_point_x, number_of_states, state_approximation_regime)
+	core_point_theta = evaluate_approx_value_function(node, core_point_x, number_of_states, normalization_regime.integer_relax, state_approximation_regime)
 
     return (x = core_point_x, theta = core_point_theta)
 end
@@ -409,7 +409,7 @@ function get_core_point(
 	core_point_x = get_state_space_midpoint(node, number_of_states, state_approximation_regime)
 
 	# Get optimal value to core point
-	core_point_theta = evaluate_approx_value_function(node, core_point_x, number_of_states, state_approximation_regime)
+	core_point_theta = evaluate_approx_value_function(node, core_point_x, number_of_states, normalization_regime.integer_relax, state_approximation_regime)
 
     return (x = core_point_x, theta = core_point_theta)
 end
@@ -440,7 +440,7 @@ function get_core_point(
 	end
 
 	# Get optimal value to core point
-	core_point_theta = evaluate_approx_value_function(node, core_point_x, number_of_states, state_approximation_regime)
+	core_point_theta = evaluate_approx_value_function(node, core_point_x, number_of_states, normalization_regime.integer_relax, state_approximation_regime)
 
     return (x = core_point_x, theta = core_point_theta)
 end
@@ -474,7 +474,7 @@ function get_core_point(
 	end
 
 	# Get optimal value to core point
-	core_point_theta = evaluate_approx_value_function(node, core_point_x, number_of_states, state_approximation_regime)
+	core_point_theta = evaluate_approx_value_function(node, core_point_x, number_of_states, normalization_regime.integer_relax, state_approximation_regime)
 
     return (x = core_point_x, theta = core_point_theta)
 end
@@ -500,7 +500,7 @@ function get_core_point(
 	# Get the current incumbent.
 	incumbent = zeros(number_of_states)
 	for (i, (_, state)) in enumerate(node.ext[:backward_data][:bin_states])
-		incumbent .= JuMP.fix_value(state)
+		incumbent[i] = JuMP.fix_value(state)
 	end
 
 	# Set the core point to the current incumbent in the first iteration,
@@ -515,7 +515,7 @@ function get_core_point(
 	node.ext[:last_core_point] = core_point_x
 
 	# Get optimal value to core point
-	core_point_theta = evaluate_approx_value_function(node, core_point_x, number_of_states, state_approximation_regime)
+	core_point_theta = evaluate_approx_value_function(node, core_point_x, number_of_states, normalization_regime.integer_relax, state_approximation_regime)
 
 	return (x = core_point_x, theta = core_point_theta)
 end
@@ -537,7 +537,7 @@ function get_core_point(
 	# Get the current incumbent.
 	incumbent = zeros(number_of_states)
 	for (i, (_, state)) in enumerate(node.states)
-		incumbent .= JuMP.fix_value(state.in)
+		incumbent[i] = JuMP.fix_value(state.in)
 	end
 
 	# Set the core point to the current incumbent in the first iteration,
@@ -552,7 +552,7 @@ function get_core_point(
 	node.ext[:last_core_point] = core_point_x
 
 	# Get optimal value to core point
-	core_point_theta = evaluate_approx_value_function(node, core_point_x, number_of_states, state_approximation_regime)
+	core_point_theta = evaluate_approx_value_function(node, core_point_x, number_of_states, normalization_regime.integer_relax, state_approximation_regime)
 
 	return (x = core_point_x, theta = core_point_theta)
 end
@@ -570,7 +570,7 @@ function get_core_point(
     )
 
 	# Get core point and corresponding optimal value
-	core_point = evaluate_approx_value_function_no_fix(node, number_of_states, state_approximation_regime, copy_regime)
+	core_point = evaluate_approx_value_function_no_fix(node, number_of_states, normalization_regime.integer_relax, state_approximation_regime, copy_regime)
 
 	return (x = core_point.x, theta = core_point.theta)
 end
@@ -686,6 +686,7 @@ function evaluate_approx_value_function(
 	node::SDDP.Node,
 	core_point_x::Vector{Float64},
 	number_of_states::Int,
+	integer_relax::Bool,
 	state_approximation_regime::DynamicSDDiP.NoStateApproximation,
 	)
 
@@ -700,13 +701,18 @@ function evaluate_approx_value_function(
         JuMP.fix(state_comp.in, core_point_x[i], force=true)
     end
 
+	if integer_relax
+		undo_relax = JuMP.relax_integrality(subproblem)
+	end
+
 	# Solve the subproblem
 	TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_core" begin
         JuMP.optimize!(subproblem)
     end
+	Infiltrator.@infiltrate
 
     # Maybe attempt numerical recovery as in SDDP
-    core_obj = JuMP.objective_value(subproblem)
+	core_obj = JuMP.objective_value(subproblem)
     @assert JuMP.termination_status(subproblem) == MOI.OPTIMAL
 
 	# Restore the original state value
@@ -715,6 +721,10 @@ function evaluate_approx_value_function(
         JuMP.fix(state_comp.in, original_state_values[i], force=true)
     end
 
+	if integer_relax
+		undo_relax()
+	end
+
 	return core_obj
 end
 
@@ -722,6 +732,7 @@ function evaluate_approx_value_function(
 	node::SDDP.Node,
 	core_point_x::Vector{Float64},
 	number_of_states::Int,
+	integer_relax::Bool,
 	state_approximation_regime::DynamicSDDiP.BinaryApproximation,
 	)
 
@@ -735,6 +746,10 @@ function evaluate_approx_value_function(
 		original_state_values[i] = JuMP.fix_value(state)
         JuMP.fix(state, core_point_x[i], force=true)
     end
+
+	if integer_relax
+		undo_relax = JuMP.relax_integrality(subproblem)
+	end
 
 	# Solve the subproblem
 	TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_core" begin
@@ -751,6 +766,10 @@ function evaluate_approx_value_function(
         JuMP.fix(state, original_state_values[i], force=true)
     end
 
+	if integer_relax
+		undo_relax()
+	end
+
 	return core_obj
 end
 
@@ -762,6 +781,7 @@ Trivial case where no core point is required
 function evaluate_approx_value_function_no_fix(
 	node::SDDP.Node,
 	number_of_states::Int,
+	integer_relax::Bool,
 	state_approximation_regime::DynamicSDDiP.NoStateApproximation,
 	copy_regime::DynamicSDDiP.AbstractCopyRegime,
 	)
@@ -779,6 +799,10 @@ function evaluate_approx_value_function_no_fix(
         variable_info = node.ext[:state_info_storage][name].in
         follow_state_unfixing!(state, variable_info, copy_regime)
     end
+
+	if integer_relax
+		undo_relax = JuMP.relax_integrality(subproblem)
+	end
 
 	# Solve the subproblem
 	TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_core" begin
@@ -799,12 +823,17 @@ function evaluate_approx_value_function_no_fix(
         JuMP.fix(state_comp.in, original_state_values[i], force=true)
     end
 
+	if integer_relax
+		undo_relax()
+	end
+
 	return (x = core_point_x,  theta = core_obj)
 end
 
 function evaluate_approx_value_function_no_fix(
 	node::SDDP.Node,
 	number_of_states::Int,
+	integer_relax::Bool,
 	state_approximation_regime::DynamicSDDiP.BinaryApproximation,
 	copy_regime::DynamicSDDiP.AbstractCopyRegime,
 	)
@@ -822,6 +851,10 @@ function evaluate_approx_value_function_no_fix(
         variable_info = node.ext[:state_info_storage][name].in
         follow_state_unfixing_binary!(state, variable_info, copy_regime)
     end
+
+	if integer_relax
+		undo_relax = JuMP.relax_integrality(subproblem)
+	end
 
 	# Solve the subproblem
 	TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_core" begin
@@ -841,6 +874,10 @@ function evaluate_approx_value_function_no_fix(
         prepare_state_fixing!(node, state)
         JuMP.fix(state, original_state_values[i], force=true)
     end
+
+	if integer_relax
+		undo_relax()
+	end
 
 	return (x = core_point_x,  theta = core_obj)
 end

@@ -237,17 +237,51 @@ mutable struct L∞_Deep <: AbstractNormalizationRegime end
 mutable struct L₁∞_Deep <: AbstractNormalizationRegime end
 mutable struct Fischetti <: AbstractNormalizationRegime end #TODO
 mutable struct ChenLuedtke <: AbstractNormalizationRegime end
-mutable struct Core_Midpoint <: AbstractNormalizationRegime end
-mutable struct Core_In_Out <: AbstractNormalizationRegime end
-mutable struct Core_Optimal <: AbstractNormalizationRegime end
-mutable struct Core_Relint <: AbstractNormalizationRegime end
+
+mutable struct Core_Midpoint <: AbstractNormalizationRegime
+    integer_relax::Bool
+    function Core_Midpoint(;
+        integer_relax = false,
+        )
+            return new(integer_relax)
+    end
+end
+
+mutable struct Core_In_Out <: AbstractNormalizationRegime
+    integer_relax::Bool
+    function Core_In_Out(;
+        integer_relax = false,
+        )
+            return new(integer_relax)
+    end
+end
+
+mutable struct Core_Optimal <: AbstractNormalizationRegime
+    integer_relax::Bool
+    function Core_Optimal(;
+        integer_relax = false,
+        )
+            return new(integer_relax)
+    end
+end
+
+mutable struct Core_Relint <: AbstractNormalizationRegime
+    integer_relax::Bool
+    function Core_Relint(;
+        integer_relax = false,
+        )
+            return new(integer_relax)
+    end
+end
 
 mutable struct Core_Epsilon <: AbstractNormalizationRegime
     perturb::Float64
+    integer_relax::Bool
     function Core_Epsilon(;
         perturb = 1e-6,
+        integer_relax = false,
     )
-        return new(perturb)
+        return new(perturb, integer_relax),
     end
 end
 
@@ -301,6 +335,17 @@ Core_Relint means that the normalization is based on a core point which is
     that the point lies in the relative interior of the epigraph of the
     closed convex envelope of the value function. This approach is based on
     a similar strategy by Conforti & Wolsey.
+
+The parameter integer_relax is required because if we fix the state variables
+    to the coordinates of the core point and if the problem contains integer
+    original state or local variables, then these integer requirements may
+    not be satisfiable, resulting in an infeasible problem to compute the
+    y-coordinate of the core point. For instance, for Generation_Expansion,
+    the sum of the binary state variables are fixed to non-integer values for
+    the core point computation, but the original state variables still have to
+    satisfy integer constraints. To avoid infeasibility, we can consider the LP
+    relaxation of the subproblem. If the original state variables are continuous,
+    this is not required (see SLDP_Example_1).
 
 Default is L_1_Deep.
 """
