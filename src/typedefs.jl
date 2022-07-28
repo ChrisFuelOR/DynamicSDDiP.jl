@@ -243,7 +243,7 @@ mutable struct Core_Midpoint <: AbstractNormalizationRegime
     function Core_Midpoint(;
         integer_relax = false,
         )
-            return new(integer_relax)
+        return new(integer_relax)
     end
 end
 
@@ -252,7 +252,7 @@ mutable struct Core_In_Out <: AbstractNormalizationRegime
     function Core_In_Out(;
         integer_relax = false,
         )
-            return new(integer_relax)
+        return new(integer_relax)
     end
 end
 
@@ -265,14 +265,7 @@ mutable struct Core_Optimal <: AbstractNormalizationRegime
     end
 end
 
-mutable struct Core_Relint <: AbstractNormalizationRegime
-    integer_relax::Bool
-    function Core_Relint(;
-        integer_relax = false,
-        )
-            return new(integer_relax)
-    end
-end
+mutable struct Core_Relint <: AbstractNormalizationRegime end
 
 mutable struct Core_Epsilon <: AbstractNormalizationRegime
     perturb::Float64
@@ -281,7 +274,7 @@ mutable struct Core_Epsilon <: AbstractNormalizationRegime
         perturb = 1e-6,
         integer_relax = false,
     )
-        return new(perturb, integer_relax),
+            return new(perturb, integer_relax)
     end
 end
 
