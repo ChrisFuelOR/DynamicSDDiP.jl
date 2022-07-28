@@ -78,8 +78,8 @@ function algo_config(
     end
 
     # Simulation regime
-    simulation_regime = DynamicSDDiP.Simulation(sampling_scheme=DynamicSDDiP.OutOfSampleMonteCarlo(number_of_realizations=10,simulation_seed=232323),number_of_replications=1000)
-    #simulation_regime = DynamicSDDiP.Simulation(sampling_scheme=DynamicSDDiP.InSampleMonteCarlo(),number_of_replications=1000)
+    #simulation_regime = DynamicSDDiP.Simulation(sampling_scheme=DynamicSDDiP.OutOfSampleMonteCarlo(number_of_realizations=10,simulation_seed=232323),number_of_replications=1000)
+    simulation_regime = DynamicSDDiP.Simulation(sampling_scheme=DynamicSDDiP.InSampleMonteCarlo(),number_of_replications=1000)
 
     # Suppress solver output
     silent = true
