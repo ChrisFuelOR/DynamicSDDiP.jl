@@ -405,3 +405,42 @@ function print_simulation(io, algo_params::DynamicSDDiP.AlgoParams, μ::Float64,
     println(io, "Statistical upper bound (confidence interval): ", μ, " ± ", ci )
     flush(io)
 end
+
+function print_det_equiv(io, problem_params::DynamicSDDiP.ProblemParams, value::Float64)
+
+    println(io)
+    println(io)
+    println(io,"#########################################################################################################################################",)
+    println(io,"#########################################################################################################################################",)
+    println(io,"#########################################################################################################################################",)
+    println(io,"#########################################################################################################################################",)
+    println(io,"#########################################################################################################################################",)
+    println(io, "DynamicSDDiP.jl (c) Christian Füllner, 2021")
+    println(io, "re-uses code from SDDP.jl (c) Oscar Dowson, 2017-21")
+    flush(io)
+
+    # Printint the file name
+    println(io, "||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||")
+    println(io, "PATH")
+    println(io, "calling ")
+    println(io, @__DIR__)
+    println(io, Base.source_path())
+
+    # Printing the time
+    println(io, "DATETIME")
+    println(io, Dates.now())
+
+    println(io, "||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||")
+    println(io, "PROBLEM DESCRIPTION")
+    println(io, "Number of stages: ", problem_params.number_of_stages)
+    println(io, "Number of realizations per stage: ", problem_params.number_of_realizations)
+
+    if !isnothing(problem_params.tree_seed)
+            println(io, "Seed for scenario tree sampling: ", problem_params.tree_seed)
+    end
+
+    println(io, "SOLVED DETERMINISTIC EQUIVALENT")
+    println(io, "Optimal value: ", value)
+
+    flush(io)
+end
