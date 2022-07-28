@@ -572,8 +572,6 @@ function get_core_point(
 	# Get core point and corresponding optimal value
 	core_point = evaluate_approx_value_function_no_fix(node, number_of_states, normalization_regime.integer_relax, state_approximation_regime, copy_regime)
 
-	println(core_point)
-
 	return (x = core_point.x, theta = core_point.theta)
 end
 

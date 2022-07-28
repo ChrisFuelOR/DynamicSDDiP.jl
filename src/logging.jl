@@ -403,6 +403,7 @@ function print_simulation(io, algo_params::DynamicSDDiP.AlgoParams, μ::Float64,
     println(io, algo_params.simulation_regime)
     println(io, "Lower bound: ", lower_bound)
     println(io, "Statistical upper bound (confidence interval): ", μ, " ± ", ci )
+    println(io, "Pessimistic upper bound: ", μ + ci )
     flush(io)
 end
 
