@@ -76,34 +76,46 @@ function det_equiv_starter(
     tree_seed::Int
 )
 
-    ############################################################################
-    # DEFINE ALGO PARAMS
-    ############################################################################
-    algo_config_output = algo_config(duality_regime_sym, normalization_regime, cut_aggregation_regime, cut_selection_regime, log_file, time_limit, forward_seed)
-    algo_params = algo_config_output.algo_params
-    applied_solvers = algo_config_output.applied_solvers
+    try
+        ############################################################################
+        # DEFINE ALGO PARAMS
+        ############################################################################
+        algo_config_output = algo_config(duality_regime_sym, normalization_regime, cut_aggregation_regime, cut_selection_regime, log_file, time_limit, forward_seed)
+        algo_params = algo_config_output.algo_params
+        applied_solvers = algo_config_output.applied_solvers
 
-    ############################################################################
-    # DEFINE MODEL
-    ############################################################################
-    model_output = model_set_up(number_of_stages, number_of_realizations, algo_params=algo_params, applied_solvers=applied_solvers, tree_seed=tree_seed)
-    model = model_output.model
-    problem_params = model_output.problem_params
+        ############################################################################
+        # DEFINE MODEL
+        ############################################################################
+        model_output = model_set_up(number_of_stages, number_of_realizations, algo_params=algo_params, applied_solvers=applied_solvers, tree_seed=tree_seed)
+        model = model_output.model
+        problem_params = model_output.problem_params
 
-    ############################################################################
-    # SOLVE (TRAIN) MODEL
-    ############################################################################
-    det_equiv = SDDP.deterministic_equivalent(model, Gurobi.Optimizer)
-    JuMP.set_objective_sense(det_equiv, MathOptInterface.MIN_SENSE)
-    JuMP.optimize!(det_equiv)
-    print(JuMP.objective_value(det_equiv))
+        ############################################################################
+        # SOLVE (TRAIN) MODEL
+        ############################################################################
+        det_equiv = SDDP.deterministic_equivalent(model, Gurobi.Optimizer)
+        JuMP.set_objective_sense(det_equiv, MathOptInterface.MIN_SENSE)
+        JuMP.optimize!(det_equiv)
+        print(JuMP.objective_value(det_equiv))
 
-    ############################################################################
-    # LOGGING
-    ############################################################################
-    log_file_handle = open(algo_params.log_file, "a")
-    DynamicSDDiP.print_helper(DynamicSDDiP.print_det_equiv, log_file_handle, problem_params, JuMP.objective_value(det_equiv))
-    close(log_file_handle)
+        ############################################################################
+        # LOGGING
+        ############################################################################
+        log_file_handle = open(algo_params.log_file, "a")
+        DynamicSDDiP.print_helper(DynamicSDDiP.print_det_equiv, log_file_handle, problem_params, JuMP.objective_value(det_equiv))
+        close(log_file_handle)
+
+    catch e
+        @printf "Case %d (deterministic equivalent) terminated with error" num
+        println()
+        #throw(error(e))
+        showerror(stdout, e, catch_backtrace())
+        println()
+        println("#############################################################")
+        println()
+    end
+
 
 end
 
