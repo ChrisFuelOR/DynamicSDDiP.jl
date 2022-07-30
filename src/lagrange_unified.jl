@@ -521,6 +521,12 @@ function solve_unified_lagrangian_dual(
         # Get a bound from the approximate model
         TimerOutputs.@timeit DynamicSDDiP_TIMER "outer_sol" begin
             JuMP.optimize!(approx_model)
+
+            # Try recovering from numerical issues
+            if (JuMP.termination_status(approx_model) != MOI.OPTIMAL)
+                #Infiltrator.@infiltrate
+                elude_numerical_issues!(approx_model, algo_params)
+            end
         end
         @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
         t_k = JuMP.objective_value(approx_model)
@@ -610,6 +616,7 @@ function solve_unified_lagrangian_dual(
         stop here.
         """
         #@assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
+        # TODO: Maybe change this in the future again
 
         π_k .= JuMP.value.(π)
         π0_k = JuMP.value.(π₀)
@@ -618,19 +625,34 @@ function solve_unified_lagrangian_dual(
         # Delete the level lower bound for the original approx_model again
         JuMP.delete_lower_bound(t)
 
-        Infiltrator.@infiltrate
+        # Sometimes the solver (e.g. Gurobi) provides a float point approximation
+        # of zero, which is slightly negative, e.g. 1.144917E-16, even though
+        # π0_k >= 0 is enforced as a constraint.
+        # In such case, the inner problem of the Lagrangian relaxation may
+        # become unbounded. Therefore, we set π0_k manually to 0 then.
+        if π0_k < 0
+            π0_k = 0.0
+        end
+
+        Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
         ########################################################################
         if L_star > t_k + atol/10.0
-            error("Could not solve for Lagrangian duals. LB > UB.")
+            # error("Could not solve for Lagrangian duals. LB > UB.")
+            break
         end
     end
 
     ############################################################################
     # CONVERGENCE ANALYSIS
     ############################################################################
+    obj_bound = 1e15
+    if !isnothing(cut_generation_regime.duality_regime.user_dual_objective_bound)
+        obj_bound = cut_generation_regime.duality_regime.user_dual_objective_bound
+    end
+
     TimerOutputs.@timeit DynamicSDDiP_TIMER "convergence_check" begin
-        if isapprox(L_star, t_k, atol = atol, rtol = rtol) && L_star == 1e9
+        if isapprox(L_star, t_k, atol = atol, rtol = rtol) && isapprox(L_star, obj_bound, rtol=1e-4)
             # UNBOUNDEDNESS DETECTED, which is only bounded by artificial
             # objective bound 1e-9
             # Leads still to a valid cut, but no vertex of the reverse polar set
@@ -647,16 +669,27 @@ function solve_unified_lagrangian_dual(
             # TERMINATION DUE TO ITERATION LIMIT
             # stil leads to a valid cut
             lag_status = :iter
+        elseif L_star > t_k + atol/10.0
+            # NUMERICAL ISSUES, LOWER BOUND EXCEEDS UPPER BOUND
+            lag_status = :issues
         end
     end
 
     ############################################################################
     # APPLY MINIMAL NORM CHOICE APPROACH IF INTENDED
     ############################################################################
-    TimerOutputs.@timeit DynamicSDDiP_TIMER "minimal_norm" begin
-        iter = minimal_norm_choice_unified!(node, node_index, approx_model, π_k, π_star, π0_k, π0_star, t_k, h_expr, h_k, w_expr, w_k, s, L_star,
-            iteration_limit, atol, rtol, cut_generation_regime.duality_regime.dual_choice_regime, iter, algo_params)
+    iter_old = iter
+    if lag_status == :opt || lag_status == :unbounded
+        # In other cases we do not have an optimal solution from Kelley's method,
+        # so finding the minimal norm optimal solution does not make sense.
+        TimerOutputs.@timeit DynamicSDDiP_TIMER "minimal_norm" begin
+            iter = minimal_norm_choice_unified!(node, node_index, approx_model, π_k, π_star, π0_k, π0_star, t_k, h_expr, h_k, w_expr, w_k, s, L_star,
+            iteration_limit, atol, rtol, cut_generation_regime.duality_regime.dual_choice_regime, iter, algo_params, applied_solvers)
+        end
+    elseif isa(cut_generation_regime.duality_regime.dual_choice_regime, DynamicSDDiP.MinimalNormChoice)
+        println("Proceeding without minimal norm choice.")
     end
+
 
     ############################################################################
     # RESTORE THE COPY CONSTRAINT x.in = value(x.in) (̄x = z)
