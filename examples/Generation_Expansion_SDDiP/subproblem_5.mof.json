@@ -912,7 +912,7 @@
         "type": "ScalarAffineFunction",
         "terms": [
           {
-            "coefficient": -139.90668148611869,
+            "coefficient": -126.44699575087331,
             "variable": "production[2]"
           },
           {
@@ -933,7 +933,7 @@
         "type": "ScalarAffineFunction",
         "terms": [
           {
-            "coefficient": -295.9012569401749,
+            "coefficient": -267.51022333287324,
             "variable": "production[3]"
           },
           {
@@ -1145,7 +1145,7 @@
       },
       "set": {
         "type": "EqualTo",
-        "value": 0.9999998749716428
+        "value": 0.0
       }
     },
     {
@@ -1178,7 +1178,7 @@
       },
       "set": {
         "type": "EqualTo",
-        "value": -0.0
+        "value": 0.999998866517371
       }
     },
     {
@@ -1189,7 +1189,7 @@
       },
       "set": {
         "type": "EqualTo",
-        "value": 0.9999997382317115
+        "value": -0.0
       }
     },
     {
@@ -1200,7 +1200,7 @@
       },
       "set": {
         "type": "EqualTo",
-        "value": 2.607682884061195e-7
+        "value": 1.0
       }
     },
     {
@@ -1211,7 +1211,7 @@
       },
       "set": {
         "type": "EqualTo",
-        "value": -0.0
+        "value": 0.0
       }
     },
     {
@@ -1222,7 +1222,7 @@
       },
       "set": {
         "type": "EqualTo",
-        "value": -0.0
+        "value": 2.3561565023976354e-7
       }
     },
     {
@@ -1233,7 +1233,7 @@
       },
       "set": {
         "type": "EqualTo",
-        "value": 0.0
+        "value": -0.0
       }
     },
     {
@@ -1244,7 +1244,7 @@
       },
       "set": {
         "type": "EqualTo",
-        "value": 0.0
+        "value": -0.0
       }
     },
     {
@@ -1255,7 +1255,7 @@
       },
       "set": {
         "type": "EqualTo",
-        "value": 0.0
+        "value": -0.0
       }
     },
     {
@@ -1277,7 +1277,7 @@
       },
       "set": {
         "type": "EqualTo",
-        "value": -0.0
+        "value": 0.0
       }
     },
     {
@@ -1288,7 +1288,7 @@
       },
       "set": {
         "type": "EqualTo",
-        "value": 0.0
+        "value": -0.0
       }
     },
     {
@@ -1299,7 +1299,7 @@
       },
       "set": {
         "type": "EqualTo",
-        "value": 0.0
+        "value": -0.0
       }
     },
     {
@@ -1365,7 +1365,7 @@
       },
       "set": {
         "type": "EqualTo",
-        "value": 2.682513296849815e-7
+        "value": -0.0
       }
     },
     {
@@ -1376,7 +1376,7 @@
       },
       "set": {
         "type": "EqualTo",
-        "value": 1.1339709349660752
+        "value": 0.8000902327624113
       }
     },
     {
