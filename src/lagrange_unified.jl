@@ -439,11 +439,7 @@ function solve_unified_lagrangian_dual(
         # Note that it is always formulated as a maximization problem, but that
         # s modifies the sense appropriately
         JuMP.@variable(approx_model, t)
-        set_objective_bound!(approx_model, s, bound_results.obj_bound)
         JuMP.@objective(approx_model, Max, t)
-        # We cannot use the primal_obj as an obj_bound in the unified framework,
-        # so we use an arbitrarily chosen upper bound.
-        set_objective_bound!(approx_model, s, 1e9)
 
         # Create the dual variables
         # Note that the real dual multipliers are split up into two non-negative
@@ -452,13 +448,35 @@ function solve_unified_lagrangian_dual(
         JuMP.@variable(approx_model, π⁻[1:number_of_states] >= 0)
         JuMP.@expression(approx_model, π, π⁺ .- π⁻) # not required to be a constraint
         JuMP.@variable(approx_model, π₀ >= 0)
+
+        # User-specific bounds
+        ########################################################################
+        # We cannot use the primal_obj as an obj_bound in the unified framework,
+        # so we use an arbitrarily chosen upper bound or bound the dual multipliers.
+        if !isnothing(cut_generation_regime.duality_regime.user_dual_objective_bound)
+            set_objective_bound!(approx_model, s, cut_generation_regime.duality_regime.user_dual_objective_bound)
+        end
+
+        if !isnothing(cut_generation_regime.duality_regime.user_dual_multiplier_bound)
+            bound = cut_generation_regime.duality_regime.user_dual_multiplier_bound
+            JuMP.@constraint(approx_model, π⁺[1:number_of_states] .<= bound)
+            JuMP.@constraint(approx_model, π⁻[1:number_of_states] .<= bound)
+            JuMP.set_upper_bound(π₀, bound)
+        end
+
+        # Algorithm-specific bounds, e.g. due to regularization
+        ########################################################################
         set_multiplier_bounds!(node, approx_model, number_of_states, bound_results.dual_bound,
             algo_params.regularization_regime, cut_generation_regime.state_approximation_regime,
             cut_generation_regime.duality_regime)
 
+        # Space restriction by Chen & Luedtke
+        ########################################################################
         # Add dual space restriction (span of earlier multipliers)
         dual_space_restriction!(node, approx_model, i, cut_generation_regime.state_approximation_regime, cut_generation_regime.duality_regime.dual_space_regime)
 
+        # Normalization of Lagrangian dual
+        ########################################################################
         # Add normalization constraint depending on abstract normalization regime
         add_normalization_constraint!(node, approx_model, number_of_states, normalization_coeff, cut_generation_regime.duality_regime.normalization_regime)
 
@@ -481,7 +499,7 @@ function solve_unified_lagrangian_dual(
         ########################################################################
         # Evaluate the inner problem and determine a subgradient
         TimerOutputs.@timeit DynamicSDDiP_TIMER "inner_sol" begin
-            relax_results = _solve_unified_Lagrangian_relaxation!(node, π_k, π0_k, h_expr, h_k, w_expr, w_k, true)
+            relax_results = _solve_unified_Lagrangian_relaxation!(node, π_k, π0_k, h_expr, h_k, w_expr, w_k, algo_params, applied_solvers, true)
         end
         L_k = relax_results.L_k
         w_k = relax_results.w_k
@@ -606,6 +624,8 @@ function solve_unified_lagrangian_dual(
             JuMP.optimize!(approx_model)
         end
 
+        Infiltrator.@infiltrate
+
         """ This is removed, as sometimes the QCP is solved to optimality, but
         Gurobi is not able to get an optimality certificate
         (QCP status(13): Unable to satisfy optimality tolerances;
@@ -636,6 +656,8 @@ function solve_unified_lagrangian_dual(
 
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
+        println(L_k, ", ", L_star, ", ", t_k)
+
         ########################################################################
         if L_star > t_k + atol/10.0
             # error("Could not solve for Lagrangian duals. LB > UB.")
@@ -643,6 +665,8 @@ function solve_unified_lagrangian_dual(
         end
     end
 
+    println()
+    
     ############################################################################
     # CONVERGENCE ANALYSIS
     ############################################################################
@@ -689,7 +713,6 @@ function solve_unified_lagrangian_dual(
     elseif isa(cut_generation_regime.duality_regime.dual_choice_regime, DynamicSDDiP.MinimalNormChoice)
         println("Proceeding without minimal norm choice.")
     end
-
 
     ############################################################################
     # RESTORE THE COPY CONSTRAINT x.in = value(x.in) (̄x = z)
