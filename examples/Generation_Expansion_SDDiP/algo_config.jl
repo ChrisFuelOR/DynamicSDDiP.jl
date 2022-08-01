@@ -16,7 +16,7 @@ function algo_config(
     )
 
     # Stopping rules to be used
-    stopping_rules = [SDDP.TimeLimit(time_limit), SDDP.IterationLimit(1000)]
+    stopping_rules = [SDDP.TimeLimit(time_limit), SDDP.IterationLimit(1000), SDDP.BoundStalling(20,1e-4)]
 
     # Duality / Cut computation configuration
     dual_initialization_regime = DynamicSDDiP.ZeroDuals()
