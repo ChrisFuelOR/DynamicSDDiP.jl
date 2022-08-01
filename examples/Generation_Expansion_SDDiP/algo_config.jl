@@ -16,7 +16,8 @@ function algo_config(
     )
 
     # Stopping rules to be used
-    stopping_rules = [SDDP.TimeLimit(time_limit), SDDP.IterationLimit(1000), SDDP.BoundStalling(20,1e-4)]
+    #stopping_rules = [SDDP.TimeLimit(time_limit), SDDP.IterationLimit(1000), SDDP.BoundStalling(20,1e-4)]
+    stopping_rules = [SDDP.TimeLimit(time_limit)]
 
     # Duality / Cut computation configuration
     dual_initialization_regime = DynamicSDDiP.ZeroDuals()
@@ -118,7 +119,7 @@ function algo_config(
         silent = silent,
         infiltrate_state = infiltrate_state,
         solver_approach = solver_approach,
-        numerical_focus = false,
+        numerical_focus = true,
         run_numerical_stability_report = false,
         seed = forward_seed,
         run_description = ""
