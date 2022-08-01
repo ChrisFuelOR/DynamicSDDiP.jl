@@ -646,6 +646,7 @@ function iteration(
              model.ext[:lag_status],
              model.ext[:total_cuts],
              model.ext[:active_cuts],
+             model.ext[:total_solves],
          ),
      )
 

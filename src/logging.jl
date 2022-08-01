@@ -37,6 +37,7 @@ struct Log
     lag_status::Union{Vector{String},Nothing}
     total_cuts::Int
     active_cuts::Int
+    total_solves::Int
 end
 
 # Internal struct: storage for SDDP options and cached data. Users shouldn't
@@ -151,6 +152,8 @@ function print_parameters(io, algo_params::DynamicSDDiP.AlgoParams, applied_solv
     println(io, "APPLIED SOLVERS (LP, MILP, MIQCP, MINLP, NLP, Lagrange)")
     println(io, applied_solvers)
     println(io, algo_params.solver_approach)
+    println(io, algo_params.numerical_focus)
+    println(io, algo_params.silent)
 
     if !isnothing(algo_params.seed)
         println(io, "||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||")

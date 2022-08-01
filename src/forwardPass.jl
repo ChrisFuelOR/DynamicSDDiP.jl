@@ -153,6 +153,11 @@ function solve_subproblem_forward(
     #     Infiltrator.@infiltrate
     # end
 
+    if haskey(model.ext, :total_solves)
+        model.ext[:total_solves] += 1
+    else
+        model.ext[:total_solves] = 1
+    end
     ############################################################################
     # DE-REGULARIZE SUBPROBLEM IF REQUIRED
     ############################################################################
