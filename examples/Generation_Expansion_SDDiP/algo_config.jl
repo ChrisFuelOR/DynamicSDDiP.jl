@@ -56,6 +56,10 @@ function algo_config(
             dual_status_regime = dual_status_regime,
             copy_regime = copy_regime,
         )
+    elseif duality_regime_sym == :SB
+        duality_regime = DynamicSDDiP.StrengthenedDuality()
+    elseif duality_regime_sym == :B
+        duality_regime = DynamicSDDiP.LinearDuality()
     end
 
     # State approximation and cut projection configuration
@@ -114,7 +118,7 @@ function algo_config(
         silent = silent,
         infiltrate_state = infiltrate_state,
         solver_approach = solver_approach,
-        numerical_focus = true,
+        numerical_focus = false,
         run_numerical_stability_report = false,
         seed = forward_seed,
         run_description = ""
