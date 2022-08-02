@@ -71,6 +71,7 @@ function model_definition(problem_params::DynamicSDDiP.ProblemParams, scenario_t
 
             # Parameterize the model using the uncertain demand and the natural gas prices
             SDDP.parameterize(φ -> JuMP.fix(ω, φ), subproblem, support, probability)
+            Infiltrator.@infiltrate
         end
 
         # Switch the model to silent mode
@@ -105,6 +106,8 @@ function model_set_up(
     # DEFINE MODEL
     ############################################################################
     model = model_definition(problem_params, scenario_tree)
+
+    Infiltrator.@infiltrate
 
     return (model = model, problem_params = problem_params)
 end

@@ -31,13 +31,15 @@ function get_recombining_scenario_tree(algo_params::DynamicSDDiP.AlgoParams, pro
 
         # Use the same fixed values for each stage
         # TODO: This should be changed later on.
-        support = [
+        points = [
             -0.3089653673606697,
             -0.2718277412744214,
             -0.09611178608243474,
             0.24645863921577763,
             0.5204224537256875,
         ]
+
+        support = [points; -points]
 
         probability = 1/problem_params.number_of_realizations * ones(problem_params.number_of_realizations)
 
