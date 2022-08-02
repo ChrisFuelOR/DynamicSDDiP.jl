@@ -152,8 +152,8 @@ function print_parameters(io, algo_params::DynamicSDDiP.AlgoParams, applied_solv
     println(io, "APPLIED SOLVERS (LP, MILP, MIQCP, MINLP, NLP, Lagrange)")
     println(io, applied_solvers)
     println(io, algo_params.solver_approach)
-    println(io, algo_params.numerical_focus)
-    println(io, algo_params.silent)
+    println(io, "Numerical focus: ", algo_params.numerical_focus)
+    println(io, "Silent: ", algo_params.silent)
 
     if !isnothing(algo_params.seed)
         println(io, "||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||")
