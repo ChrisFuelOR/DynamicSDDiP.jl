@@ -218,8 +218,13 @@ function solve_lagrangian_dual(
         # Get a bound from the approximate model
         TimerOutputs.@timeit DynamicSDDiP_TIMER "outer_sol" begin
             JuMP.optimize!(approx_model)
+
+            # Try recovering from numerical issues
+            if (JuMP.termination_status(approx_model) != MOI.OPTIMAL)
+                elude_numerical_issues!(approx_model, algo_params)
+            end
         end
-        @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
+        # @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
         t_k = JuMP.objective_value(approx_model)
         π_k .= JuMP.value.(π)
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
@@ -254,15 +259,27 @@ function solve_lagrangian_dual(
             # TERMINATION DUE TO ITERATION LIMIT
             # stil leads to a valid cut
             lag_status = :iter
+        elseif L_star > t_k + atol/10.0
+            # NUMERICAL ISSUES, LOWER BOUND EXCEEDS UPPER BOUND
+            lag_status = :issues
         end
     end
 
     ############################################################################
     # APPLY MINIMAL NORM CHOICE APPROACH IF INTENDED
     ############################################################################
-    TimerOutputs.@timeit DynamicSDDiP_TIMER "minimal_norm" begin
-        minimal_norm_choice!(node, node_index, approx_model, π_k, π_star, t_k, h_expr, h_k, s, L_star,
-            iteration_limit, atol, rtol, cut_generation_regime.duality_regime.dual_choice_regime, iter, augmented, algo_params)
+    if lag_status == :opt || lag_status == :unbounded
+    # In other cases we do not have an optimal solution from Kelley's method,
+    # so finding the minimal norm optimal solution does not make sense.
+        TimerOutputs.@timeit DynamicSDDiP_TIMER "minimal_norm" begin
+            mn_results = minimal_norm_choice!(node, node_index, approx_model, π_k, π_star, t_k, h_expr, h_k, s, L_star,
+                iteration_limit, atol, rtol, cut_generation_regime.duality_regime.dual_choice_regime, iter, lag_status, augmented, algo_params)
+
+            iter = mn_results.iter
+            lag_status = mn_results.lag_status
+        end
+    elseif isa(cut_generation_regime.duality_regime.dual_choice_regime, DynamicSDDiP.MinimalNormChoice)
+        println("Proceeding without minimal norm choice.")
     end
 
     ############################################################################
@@ -314,6 +331,7 @@ function minimal_norm_choice!(
     rtol::Float64,
     dual_choice_regime::DynamicSDDiP.MinimalNormChoice,
     iter::Int,
+    lag_status::Symbol,
     augmented::Bool,
     algo_params::DynamicSDDiP.AlgoParams,
     )
@@ -332,7 +350,14 @@ function minimal_norm_choice!(
     # we can just keep our current λ_star.
     for _ in (iter+1):iteration_limit
         JuMP.optimize!(approx_model)
-        @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
+
+        try
+            @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
+        catch err
+            println("Proceeding without minimal norm choice.")
+            return (iter=it, lag_status=:mn_issue)
+        end
+
         π_k .= JuMP.value.(π)
 
         if !augmented
@@ -345,13 +370,13 @@ function minimal_norm_choice!(
             # problem, and it returned the optimal dual objective value. No
             # other optimal dual vector can have a smaller norm.
             π_star .= π_k
-            return
+            return (iter=it, lag_status=:mn_opt)
         end
         JuMP.@constraint(approx_model, t <= s * (L_k + h_k' * (π .- π_k)))
 
     end
 
-    return
+    return (iter=iteration_limit, lag_status=:mn_iter)
 end
 
 
@@ -371,11 +396,12 @@ function minimal_norm_choice!(
     rtol::Float64,
     dual_choice_regime::DynamicSDDiP.StandardChoice,
     iter::Int,
+    lag_status::Symbol,
     augmented::Bool,
     algo_params::DynamicSDDiP.AlgoParams,
     )
 
-    return
+    return (iter=iter, lag_status=lag_status)
 end
 
 
@@ -530,8 +556,14 @@ function solve_lagrangian_dual(
         # Get a bound from the approximate model
         TimerOutputs.@timeit DynamicSDDiP_TIMER "outer_sol" begin
             JuMP.optimize!(approx_model)
+
+            # Try recovering from numerical issues
+            if (JuMP.termination_status(approx_model) != MOI.OPTIMAL)
+                #Infiltrator.@infiltrate
+                elude_numerical_issues!(approx_model, algo_params)
+            end
         end
-        @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
+        #@assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
         t_k = JuMP.objective_value(approx_model)
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
@@ -622,6 +654,7 @@ function solve_lagrangian_dual(
         stop here.
         """
         #@assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
+        # TODO: Maybe change this in the future again
 
         π_k .= JuMP.value.(π)
 
@@ -633,7 +666,8 @@ function solve_lagrangian_dual(
 
         ########################################################################
         if L_star > t_k + atol/10.0
-            error("Could not solve for Lagrangian duals. LB > UB.")
+            #error("Could not solve for Lagrangian duals. LB > UB.")
+            break
         end
     end
 
@@ -660,16 +694,27 @@ function solve_lagrangian_dual(
             # TERMINATION DUE TO ITERATION LIMIT
             # stil leads to a valid cut
             lag_status = :iter
+        elseif L_star > t_k + atol/10.0
+            # NUMERICAL ISSUES, LOWER BOUND EXCEEDS UPPER BOUND
+            lag_status = :issues
         end
     end
 
     ############################################################################
     # APPLY MINIMAL NORM CHOICE APPROACH IF INTENDED
     ############################################################################
-    TimerOutputs.@timeit DynamicSDDiP_TIMER "minimal_norm" begin
-        minimal_norm_choice!(node, node_index, approx_model, π_k, π_star, t_k, h_expr, h_k, s, L_star,
-            iteration_limit, atol, rtol, cut_generation_regime.duality_regime.dual_choice_regime, iter,
-            augmented, algo_params)
+    if lag_status == :opt || lag_status == :unbounded
+    # In other cases we do not have an optimal solution from Kelley's method,
+    # so finding the minimal norm optimal solution does not make sense.
+        TimerOutputs.@timeit DynamicSDDiP_TIMER "minimal_norm" begin
+            mn_results = minimal_norm_choice!(node, node_index, approx_model, π_k, π_star, t_k, h_expr, h_k, s, L_star,
+                iteration_limit, atol, rtol, cut_generation_regime.duality_regime.dual_choice_regime, iter, lag_status, augmented, algo_params)
+
+            iter = mn_results.iter
+            lag_status = mn_results.lag_status
+        end
+    elseif isa(cut_generation_regime.duality_regime.dual_choice_regime, DynamicSDDiP.MinimalNormChoice)
+        println("Proceeding without minimal norm choice.")
     end
 
     ############################################################################

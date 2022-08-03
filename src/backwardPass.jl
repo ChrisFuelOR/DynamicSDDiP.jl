@@ -178,6 +178,11 @@ function backward_pass(
                 #TODO: lag_status and lag_iterations have to be stored for each
                 #cut_generation_regime separately.
 
+                #TODO: Maybe this whole approach of storing lag_status should be deleted
+                #later, since we count the number of times different ones occur
+                #now, anyway. We would just lose the ability to print each lag_status,
+                #which is usually not required and inefficient.
+
             end
         end
 

@@ -296,7 +296,7 @@ function get_dual_solution(
         # CHECK STATUS FOR ABNORMAL BEHAVIOR
         ########################################################################
         # if status is not as intended, the algorithm terminates with an error
-        lagrangian_status_check(lag_status, duality_regime.dual_status_regime)
+        lagrangian_status_check(subproblem.ext[:sddp_policy_graph], lag_status, duality_regime.dual_status_regime)
 
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
@@ -466,7 +466,7 @@ function get_dual_solution(
         # CHECK STATUS FOR ABNORMAL BEHAVIOR
         ########################################################################
         # if status is not as intended, the algorithm terminates with an error
-        lagrangian_status_check(lag_status, duality_regime.dual_status_regime)
+        lagrangian_status_check(subproblem.ext[:sddp_policy_graph], lag_status, duality_regime.dual_status_regime)
 
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
@@ -626,14 +626,17 @@ end
 
 """
 Checking the status of the Lagrangian dual solution and throw an error if required
-under rigorous regime.
+under rigorous regime. Moreover, we log the number of times a specific lag_status occured.
 """
 function lagrangian_status_check(
+    model::SDDP.PolicyGraph,
     lag_status::Symbol,
     dual_status_regime::DynamicSDDiP.Rigorous,
     )
 
-    if lag_status == :conv
+    if lag_status == :opt
+        model.ext[:lag_status_dict][:opt] += 1
+    elseif lag_status == :conv
         error("Lagrangian dual converged to value < solver_obj.")
     elseif lag_status == :sub
         error("Lagrangian dual had subgradients zero without LB=UB.")
@@ -643,6 +646,13 @@ function lagrangian_status_check(
         error("Normalized Lagrangian dual unbounded and reached artificial bound.")
     elseif lag_status == :issues
         error("Lagrangian LB > UB due to numerical issues.")
+    elseif lag_status == :mn_opt
+        model.ext[:lag_status_dict][:mn_opt] += 1
+    elseif lag_status == :mn_iter
+        error("Solving Lagrangian dual with minimal norm choice exceeded iteration limit.")
+    elseif lag_status == :mn_issue
+        error("Numerical issue with minimal norm choice. Proceeded without this step.")
+        # TODO: Should this be an error?
     end
 
     return
@@ -651,11 +661,33 @@ end
 
 """
 Trivial check of the status of the Lagrangian dual solution under lax regime.
+Moreover, we log the number of times a specific lag_status occured.
 """
 function lagrangian_status_check(
+    model::SDDP.PolicyGraph,
     lag_status::Symbol,
     dual_status_regime::DynamicSDDiP.Lax,
     )
+
+    if lag_status == :opt
+        model.ext[:lag_status_dict][:opt] += 1
+    elseif lag_status == :conv
+        model.ext[:lag_status_dict][:conv] += 1
+    elseif lag_status == :sub
+        model.ext[:lag_status_dict][:sub] += 1
+    elseif lag_status == :iter
+        model.ext[:lag_status_dict][:iter] += 1
+    elseif lag_status == :unbounded
+        model.ext[:lag_status_dict][:unbounded] += 1
+    elseif lag_status == :issues
+        model.ext[:lag_status_dict][:issues] += 1
+    elseif lag_status == :mn_opt
+        model.ext[:lag_status_dict][:mn_opt] += 1
+    elseif lag_status == :mn_iter
+        model.ext[:lag_status_dict][:mn_iter] += 1
+    elseif lag_status == :mn_issue
+        model.ext[:lag_status_dict][:mn_issue] += 1
+    end
 
     return
 end

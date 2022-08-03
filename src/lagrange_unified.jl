@@ -297,13 +297,15 @@ function solve_unified_lagrangian_dual(
     ############################################################################
     # APPLY MINIMAL NORM CHOICE APPROACH IF INTENDED
     ############################################################################
-    iter_old = iter
     if lag_status == :opt || lag_status == :unbounded
     # In other cases we do not have an optimal solution from Kelley's method,
     # so finding the minimal norm optimal solution does not make sense.
         TimerOutputs.@timeit DynamicSDDiP_TIMER "minimal_norm" begin
-            iter = minimal_norm_choice_unified!(node, node_index, approx_model, π_k, π_star, π0_k, π0_star, t_k, h_expr, h_k, w_expr, w_k, s, L_star,
-            iteration_limit, atol, rtol, cut_generation_regime.duality_regime.dual_choice_regime, iter, algo_params, applied_solvers)
+            mn_results = minimal_norm_choice_unified!(node, node_index, approx_model, π_k, π_star, π0_k, π0_star, t_k, h_expr, h_k, w_expr, w_k, s, L_star,
+            iteration_limit, atol, rtol, cut_generation_regime.duality_regime.dual_choice_regime, iter, lag_status, algo_params, applied_solvers)
+
+            iter = mn_results.iter
+            lag_status = mn_results.lag_status
         end
     elseif isa(cut_generation_regime.duality_regime.dual_choice_regime, DynamicSDDiP.MinimalNormChoice)
         println("Proceeding without minimal norm choice.")
@@ -666,7 +668,7 @@ function solve_unified_lagrangian_dual(
     end
 
     println()
-    
+
     ############################################################################
     # CONVERGENCE ANALYSIS
     ############################################################################
@@ -702,13 +704,15 @@ function solve_unified_lagrangian_dual(
     ############################################################################
     # APPLY MINIMAL NORM CHOICE APPROACH IF INTENDED
     ############################################################################
-    iter_old = iter
     if lag_status == :opt || lag_status == :unbounded
         # In other cases we do not have an optimal solution from Kelley's method,
         # so finding the minimal norm optimal solution does not make sense.
         TimerOutputs.@timeit DynamicSDDiP_TIMER "minimal_norm" begin
-            iter = minimal_norm_choice_unified!(node, node_index, approx_model, π_k, π_star, π0_k, π0_star, t_k, h_expr, h_k, w_expr, w_k, s, L_star,
-            iteration_limit, atol, rtol, cut_generation_regime.duality_regime.dual_choice_regime, iter, algo_params, applied_solvers)
+            mn_results = minimal_norm_choice_unified!(node, node_index, approx_model, π_k, π_star, π0_k, π0_star, t_k, h_expr, h_k, w_expr, w_k, s, L_star,
+            iteration_limit, atol, rtol, cut_generation_regime.duality_regime.dual_choice_regime, iter, lag_status, algo_params, applied_solvers)
+
+            iter = mn_results.iter
+            lag_status = mn_results.lag_status
         end
     elseif isa(cut_generation_regime.duality_regime.dual_choice_regime, DynamicSDDiP.MinimalNormChoice)
         println("Proceeding without minimal norm choice.")
@@ -767,6 +771,7 @@ function minimal_norm_choice_unified!(
     rtol::Float64,
     dual_choice_regime::DynamicSDDiP.MinimalNormChoice,
     iter::Int,
+    lag_status::Symbol,
     algo_params::DynamicSDDiP.AlgoParams,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     )
@@ -798,7 +803,7 @@ function minimal_norm_choice_unified!(
             @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
         catch err
             println("Proceeding without minimal norm choice.")
-            return it
+            return (iter=it, lag_status=:mn_issue)
         end
 
         π_k .= JuMP.value.(π)
@@ -813,14 +818,14 @@ function minimal_norm_choice_unified!(
             # problem, and it returned the optimal dual objective value. No
             # other optimal dual vector can have a smaller norm.
             π_star .= π_k
-            return it
+            return (iter=it, lag_status=:mn_opt)
         end
         JuMP.@constraint(approx_model, t <= s * (L_k + h_k' * (π .- π_k) + w_k * (π₀ - π0_k)))
         # note that the last term is always zero, since π₀ is fixed
 
     end
 
-    return iteration_limit
+    return (iter=iteration_limit, lag_status=:mn_iter)
 
 end
 
@@ -845,9 +850,10 @@ function minimal_norm_choice_unified!(
     rtol::Float64,
     dual_choice_regime::DynamicSDDiP.StandardChoice,
     iter::Int,
+    lag_status::Symbol,
     algo_params::DynamicSDDiP.AlgoParams,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     )
 
-    return iter
+    return (iter=iter, lag_status=lag_status)
 end

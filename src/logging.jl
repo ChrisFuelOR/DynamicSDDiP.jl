@@ -398,6 +398,26 @@ function print_lag_iteration(io, iter::Int, f_approx::Float64, best_actual::Floa
     flush(io)
 end
 
+function print_lag_status(io, lag_status_dict::Dict{Symbol,Int})
+
+    # Determine the total number of Lagrangian solves
+    total_lag_solves = 0
+    for (key, value) in lag_status_dict
+        total_lag_solves += value
+    end
+
+    println(io)
+    println(io, "||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||")
+    println(io, "LAGRANGIAN DUAL SOLUTION RESULTS")
+    for (key, value) in lag_status_dict
+        share = value / total_lag_solves * 100
+        print(io, key, ": ", value, " times (")
+        print(io, Printf.@sprintf("%2.1f", share))
+        println(io, "%)")
+    end
+    flush(io)
+end
+
 function print_simulation(io, algo_params::DynamicSDDiP.AlgoParams, μ::Float64, ci::Float64, lower_bound::Float64)
 
     println(io)
