@@ -27,7 +27,7 @@ function get_recombining_scenario_tree(algo_params::DynamicSDDiP.AlgoParams, pro
 
     # SAMPLE FOR EACH STAGE SEPARATELY (STAGEWISE INDEPENDENCE)
     ############################################################################
-    for t in 2:problem_params.number_of_stages
+    for t in 1:problem_params.number_of_stages
 
         # Use the same fixed values for each stage
         # TODO: This should be changed later on.
