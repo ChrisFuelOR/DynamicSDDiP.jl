@@ -64,15 +64,12 @@ function model_definition(problem_params::DynamicSDDiP.ProblemParams, scenario_t
         end)
 
         # Parameterize the random variable
-        if t >= 2
-            # Get the support and probability for the current stage
-            support = scenario_tree.support_array[t]
-            probability = scenario_tree.probabilities_array[t]
+        # Get the support and probability for the current stage
+        support = scenario_tree.support_array[t]
+        probability = scenario_tree.probabilities_array[t]
 
-            # Parameterize the model using the uncertain demand and the natural gas prices
-            SDDP.parameterize(φ -> JuMP.fix(ω, φ), subproblem, support, probability)
-            Infiltrator.@infiltrate
-        end
+        # Parameterize the model using the uncertain demand and the natural gas prices
+        SDDP.parameterize(φ -> JuMP.fix(ω, φ), subproblem, support, probability)
 
         # Switch the model to silent mode
         JuMP.set_silent(subproblem)
@@ -106,8 +103,6 @@ function model_set_up(
     # DEFINE MODEL
     ############################################################################
     model = model_definition(problem_params, scenario_tree)
-
-    Infiltrator.@infiltrate
 
     return (model = model, problem_params = problem_params)
 end

@@ -17,13 +17,13 @@ function get_recombining_scenario_tree(algo_params::DynamicSDDiP.AlgoParams, pro
 
     # DETERMINISTIC VALUES FOR STAGE 1
     ############################################################################
-    # NOTE: Note that these values are not used in the model anyway
-    support = [0]
-    probability = [1.0]
-
-    # Add both to a list of support and probablities for all stages
-    support_array[1] = support
-    probabilities_array[1] = probability
+    # # NOTE: Note that these values are not used in the model anyway
+    # support = [0]
+    # probability = [1.0]
+    #
+    # # Add both to a list of support and probablities for all stages
+    # support_array[1] = support
+    # probabilities_array[1] = probability
 
     # SAMPLE FOR EACH STAGE SEPARATELY (STAGEWISE INDEPENDENCE)
     ############################################################################
