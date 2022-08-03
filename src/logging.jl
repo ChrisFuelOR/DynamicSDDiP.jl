@@ -34,7 +34,6 @@ struct Log
     algo_params::DynamicSDDiP.AlgoParams
     agg_lag_iterations::Int64
     lag_iterations::Union{Vector{Int},Vector{Float64},Nothing}
-    lag_status::Union{Vector{String},Nothing}
     total_cuts::Int
     active_cuts::Int
     total_solves::Int
@@ -325,12 +324,6 @@ function print_iteration(io, log::Log, start_time::Float64)
 
     # if !isnothing(log.lag_iterations)
     #     print(io, log.lag_iterations)
-    # else
-    #     print(io, lpad(Printf.@sprintf(""), 19))
-    # end
-    # print(io, "  ")
-    # if !isnothing(log.lag_status)
-    #     print(io, log.lag_status)
     # else
     #     print(io, lpad(Printf.@sprintf(""), 19))
     # end

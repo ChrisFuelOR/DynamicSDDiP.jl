@@ -968,7 +968,6 @@ struct BackwardPassItems{T,U}
     belief::Vector{Float64}
     bin_state::Vector{Dict{Symbol,BinaryState}}
     lag_iterations::Vector{Int}
-    lag_status::Vector{Symbol}
 
     function BackwardPassItems(T, U)
         return new{T,U}(
@@ -981,8 +980,7 @@ struct BackwardPassItems{T,U}
             Float64[],
             Float64[],
             Dict{Symbol,Float64}[],
-            Int[],
-            Symbol[]
+            Int[]
         )
     end
 end

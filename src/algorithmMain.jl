@@ -649,7 +649,6 @@ function iteration(
              algo_params,
              model.ext[:agg_lag_iterations],
              model.ext[:lag_iterations],
-             model.ext[:lag_status],
              model.ext[:total_cuts],
              model.ext[:active_cuts],
              model.ext[:total_solves],

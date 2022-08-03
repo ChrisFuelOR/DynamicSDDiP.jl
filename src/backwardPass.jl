@@ -38,7 +38,6 @@ function backward_pass(
     # storage for data on solving Lagrangian dual
     model.ext[:agg_lag_iterations] = 0
     model.ext[:lag_iterations] = Float64[]
-    model.ext[:lag_status] = String[]
 
     ############################################################################
     # TRAVERSE THE STAGES BACKWARDS
@@ -164,24 +163,10 @@ function backward_pass(
                 ################################################################
                 # LOGGING
                 ################################################################
-                # Logging of lag_iterations and lag_status
-                lag_status_string = ""
-                for i in items.lag_status
-                    lag_status_string = string(lag_status_string, i, ", ")
-                end
-
+                # Logging of lag_iterations
                 if isa(cut_generation_regime.duality_regime, Union{DynamicSDDiP.LagrangianDuality,DynamicSDDiP.UnifiedLagrangianDuality})
-                    push!(model.ext[:lag_status], lag_status_string)
                     push!(model.ext[:lag_iterations], Statistics.mean(items.lag_iterations))
                 end
-
-                #TODO: lag_status and lag_iterations have to be stored for each
-                #cut_generation_regime separately.
-
-                #TODO: Maybe this whole approach of storing lag_status should be deleted
-                #later, since we count the number of times different ones occur
-                #now, anyway. We would just lose the ability to print each lag_status,
-                #which is usually not required and inefficient.
 
             end
         end

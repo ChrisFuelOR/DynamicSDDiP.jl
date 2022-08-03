@@ -142,7 +142,6 @@ function solve_all_children(
                 push!(items.belief, belief)
                 push!(items.bin_state, items.bin_state[sol_index])
                 push!(items.lag_iterations, items.lag_iterations[sol_index])
-                push!(items.lag_status, items.lag_status[sol_index])
             else
                 ################################################################
                 # DETERMINE ASSOCIATED EPI_STATE
@@ -182,7 +181,6 @@ function solve_all_children(
                 push!(items.belief, belief)
                 push!(items.bin_state, subproblem_results.bin_state)
                 push!(items.lag_iterations, subproblem_results.iterations)
-                push!(items.lag_status, subproblem_results.lag_status)
                 items.cached_solutions[(child.term, noise.term)] = length(items.duals)
             end
         end
@@ -271,7 +269,6 @@ function solve_subproblem_backward(
         bin_state = dual_results.bin_state,
         objective = dual_results.intercept,
         iterations = dual_results.iterations,
-        lag_status = dual_results.lag_status,
     )
 
 end
