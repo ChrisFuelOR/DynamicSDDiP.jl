@@ -260,7 +260,9 @@ function solve_first_stage_problem(
     ############################################################################
     # SOLUTION
     ############################################################################
-    JuMP.optimize!(subproblem)
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "solver_call_first" begin
+        JuMP.optimize!(subproblem)
+    end
 
     # Maybe attempt numerical recovery as in SDDP
     @assert JuMP.termination_status(subproblem) == MOI.OPTIMAL

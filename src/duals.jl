@@ -93,7 +93,9 @@ function solve_LP_relaxation(
     # Define appropriate solver
     set_solver!(subproblem, algo_params, applied_solvers, :LP_relax, algo_params.solver_approach)
 
-    JuMP.optimize!(subproblem)
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "solver_call_LP_relax" begin
+        JuMP.optimize!(subproblem)
+    end
 
     # Solve LP Relaxation
     @assert JuMP.termination_status(subproblem) == MOI.OPTIMAL
@@ -737,7 +739,9 @@ function initialize_duals(
     set_solver!(subproblem, algo_params, applied_solvers, :LP_relax, algo_params.solver_approach)
 
     # Solve LP Relaxation
-    JuMP.optimize!(subproblem)
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "solver_call_LP_relax" begin
+        JuMP.optimize!(subproblem)
+    end
     @assert JuMP.termination_status(subproblem) == MOI.OPTIMAL
     # or MOI.FEASIBLE_POINT???
 

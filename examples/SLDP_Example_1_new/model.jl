@@ -22,7 +22,7 @@ function model_definition(problem_params::DynamicSDDiP.ProblemParams, scenario_t
     model = SDDP.LinearPolicyGraph(
         stages = problem_params.number_of_stages,
         lower_bound = 0.0,
-        optimizer = GAMS.Optimizer,
+        optimizer = Gurobi.Optimizer,
         sense = :Min,
     ) do subproblem, t
 

@@ -52,13 +52,13 @@ function forward_pass(model::SDDP.PolicyGraph{T}, options::DynamicSDDiP.Options,
         ########################################################################
         # SET SOLVER
         ########################################################################
-        DynamicSDDiP.set_solver!(node.subproblem, algo_params, applied_solvers, :forward_pass, algo_params.solver_approach)
+        #DynamicSDDiP.set_solver!(node.subproblem, algo_params, applied_solvers, :forward_pass, algo_params.solver_approach)
 
         ########################################################################
         # SUBPROBLEM SOLUTION
         ########################################################################
         # Solve the subproblem, note that `require_duals = false`.
-        TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_FP" begin
+        TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_subproblem_FP" begin
             subproblem_results = solve_subproblem_forward(
                 model,
                 node,
@@ -136,16 +136,22 @@ function solve_subproblem_forward(
     ############################################################################
     # SOLUTION
     ############################################################################
+    #Infiltrator.@infiltrate
     Infiltrator.@infiltrate algo_params.infiltrate_state in [:all]
-    JuMP.optimize!(subproblem)
+    #println(JuMP.backend(subproblem).optimizer.model)
+    #println(subproblem)
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "solver_call_FP" begin
+        @time JuMP.optimize!(subproblem)
 
-    if (JuMP.termination_status(subproblem) != MOI.OPTIMAL)
-        elude_numerical_issues!(subproblem, algo_params)
+        if (JuMP.termination_status(subproblem) != MOI.OPTIMAL)
+            elude_numerical_issues!(subproblem, algo_params)
+        end
     end
 
     state = get_outgoing_state(node)
     objective = JuMP.objective_value(subproblem)
     stage_objective = objective - JuMP.value(bellman_term(node.bellman_function))
+
     get_epi_states(node, epi_states_stage, algo_params.cut_aggregation_regime)
     Infiltrator.@infiltrate algo_params.infiltrate_state in [:all]
 

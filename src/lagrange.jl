@@ -61,8 +61,11 @@ function _solve_Lagrangian_relaxation!(
 
     JuMP.set_objective_function(model, JuMP.@expression(model, old_obj - π_k' * h_expr))
 
+    #Infiltrator.@infiltrate
     # Optimization
-    JuMP.optimize!(model)
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "solver_call_Lag_inner" begin
+        JuMP.optimize!(model)
+    end
     @assert JuMP.termination_status(model) == MOI.OPTIMAL
 
     # Update the correct values
@@ -149,7 +152,12 @@ function solve_lagrangian_dual(
     TimerOutputs.@timeit DynamicSDDiP_TIMER "init_approx_model" begin
         # Approximation of Lagrangian dual by cutting planes
         # Optimizer is re-set anyway
-        approx_model = JuMP.Model(GAMS.Optimizer)
+        approx_model = JuMP.Model()
+        JuMP.set_optimizer(approx_model, JuMP.optimizer_with_attributes(
+            () -> Gurobi.Optimizer(GURB_ENV),"MIPGap"=>1e-4
+        ))
+        JuMP.set_silent(approx_model)
+
         approx_model.ext[:sddp_policy_graph] = node.subproblem.ext[:sddp_policy_graph]
         set_solver!(approx_model, algo_params, applied_solvers, :kelley, algo_params.solver_approach)
 
@@ -480,7 +488,7 @@ function solve_lagrangian_dual(
     TimerOutputs.@timeit DynamicSDDiP_TIMER "init_approx_model" begin
         # Approximation of Lagrangian dual by cutting planes
         # Optimizer is re-set anyway
-        approx_model = JuMP.Model(GAMS.Optimizer)
+        approx_model = JuMP.Model(Gurobi.Optimizer)
         approx_model.ext[:sddp_policy_graph] = node.subproblem.ext[:sddp_policy_graph]
 
         # Create the objective

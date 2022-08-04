@@ -23,7 +23,9 @@ function _solve_unified_Lagrangian_relaxation!(
     #Infiltrator.@infiltrate
 
     # Optimization
-    JuMP.optimize!(model)
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "solver_call_Lag_inner" begin
+        JuMP.optimize!(model)
+    end
 
     # Try recovering from numerical issues
     if (JuMP.termination_status(model) != MOI.OPTIMAL)
@@ -129,7 +131,7 @@ function solve_unified_lagrangian_dual(
     TimerOutputs.@timeit DynamicSDDiP_TIMER "init_approx_model" begin
         # Approximation of Lagrangian dual by cutting planes
         # Optimizer is re-set anyway
-        approx_model = JuMP.Model(GAMS.Optimizer)
+        approx_model = JuMP.Model(Gurobi.Optimizer)
         approx_model.ext[:sddp_policy_graph] = node.subproblem.ext[:sddp_policy_graph]
 
         if isa(cut_generation_regime.duality_regime.normalization_regime, DynamicSDDiP.L₂_Deep)
@@ -428,7 +430,7 @@ function solve_unified_lagrangian_dual(
     TimerOutputs.@timeit DynamicSDDiP_TIMER "init_approx_model" begin
         # Approximation of Lagrangian dual by cutting planes
         # Optimizer is re-set anyway
-        approx_model = JuMP.Model(GAMS.Optimizer)
+        approx_model = JuMP.Model(Gurobi.Optimizer)
         approx_model.ext[:sddp_policy_graph] = node.subproblem.ext[:sddp_policy_graph]
 
         if isa(cut_generation_regime.duality_regime.normalization_regime, DynamicSDDiP.L₂_Deep)

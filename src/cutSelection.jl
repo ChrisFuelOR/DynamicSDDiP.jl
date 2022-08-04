@@ -475,7 +475,9 @@ function _eval_height(node::SDDP.Node, cut::DynamicSDDiP.NonlinearCut,
     ############################################################################
     # SOLVE MODEL AND RETURN SOLUTION
     ############################################################################
-    JuMP.optimize!(model)
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "solver_call_cut_selection" begin
+        JuMP.optimize!(model)
+    end
     height = JuMP.objective_value(model)
 
     # redo scaling by π₀ cause otherwise, cuts are not comparable to each other

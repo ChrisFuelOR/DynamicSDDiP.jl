@@ -17,7 +17,8 @@ function algo_config(
 
     # Stopping rules to be used
     #stopping_rules = [SDDP.TimeLimit(time_limit), SDDP.IterationLimit(1000), SDDP.BoundStalling(20,1e-4)]
-    stopping_rules = [SDDP.TimeLimit(time_limit), SDDP.BoundStalling(20,1e-4)]
+    #stopping_rules = [SDDP.TimeLimit(time_limit), SDDP.BoundStalling(20,1e-4)]
+    stopping_rules = [ SDDP.IterationLimit(20), SDDP.BoundStalling(20,1e-4)]
 
     # Duality / Cut computation configuration
     dual_initialization_regime = DynamicSDDiP.ZeroDuals()
@@ -85,7 +86,8 @@ function algo_config(
 
     # Simulation regime
     #simulation_regime = DynamicSDDiP.Simulation(sampling_scheme=DynamicSDDiP.OutOfSampleMonteCarlo(number_of_realizations=10,simulation_seed=232323),number_of_replications=1000)
-    simulation_regime = DynamicSDDiP.Simulation(sampling_scheme=DynamicSDDiP.InSampleMonteCarlo(),number_of_replications=1000)
+    #simulation_regime = DynamicSDDiP.Simulation(sampling_scheme=DynamicSDDiP.InSampleMonteCarlo(),number_of_replications=1000)
+    simulation_regime = DynamicSDDiP.NoSimulation()
 
     # Suppress solver output
     silent = true
