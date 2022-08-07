@@ -92,8 +92,6 @@ function model_definition(problem_params::DynamicSDDiP.ProblemParams, scenario_t
         support = scenario_tree.support_array[t]
         probability = scenario_tree.probabilities_array[t]
 
-        Infiltrator.@infiltrate
-
         # Parameterize the demand
         SDDP.parameterize(subproblem, support, probability) do ω
                JuMP.fix(demand[1], ω.xi1 * demand_avg[t,1])
@@ -133,8 +131,6 @@ function model_set_up(
     # DEFINE MODEL
     ############################################################################
     model = model_definition(problem_params, scenario_tree)
-
-    Infiltrator.@infiltrate
 
     return (model = model, problem_params = problem_params)
 end
