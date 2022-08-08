@@ -7,6 +7,7 @@ using Printf
 include("algo_config.jl")
 include("scenario_tree.jl")
 include("model.jl")
+include("model_no_bin.jl")
 include("simulation.jl")
 
 function model_starter(
