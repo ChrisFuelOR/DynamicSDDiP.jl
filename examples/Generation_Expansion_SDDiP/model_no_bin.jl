@@ -65,7 +65,7 @@ function model_no_bin_definition(problem_params::DynamicSDDiP.ProblemParams, sce
             subproblem,
             0 <= gen_built_agg[i in 1:num_gen_types] <= generators[i].maximum_number,
             SDDP.State,
-            Int
+            Int,
             initial_value = 0
         )
 
