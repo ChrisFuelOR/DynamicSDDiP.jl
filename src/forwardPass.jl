@@ -141,7 +141,7 @@ function solve_subproblem_forward(
     #println(JuMP.backend(subproblem).optimizer.model)
     #println(subproblem)
     TimerOutputs.@timeit DynamicSDDiP_TIMER "solver_call_FP" begin
-        @time JuMP.optimize!(subproblem)
+        JuMP.optimize!(subproblem)
 
         if (JuMP.termination_status(subproblem) != MOI.OPTIMAL)
             elude_numerical_issues!(subproblem, algo_params)

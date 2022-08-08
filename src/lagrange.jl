@@ -154,7 +154,7 @@ function solve_lagrangian_dual(
         # Optimizer is re-set anyway
         approx_model = JuMP.Model()
         JuMP.set_optimizer(approx_model, JuMP.optimizer_with_attributes(
-            () -> Gurobi.Optimizer(GURB_ENV),"MIPGap"=>1e-4
+            () -> Gurobi.Optimizer(GURB_ENV[]),"MIPGap"=>1e-4
         ))
         JuMP.set_silent(approx_model)
 
