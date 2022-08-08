@@ -16,8 +16,8 @@ function model_definition(problem_params::DynamicSDDiP.ProblemParams, scenario_t
     """
 
     # Define number of binary expansion variables
-    K = 15
-    beta = 600/32767
+    K = 20
+    beta = 600/(2^K-1)
 
     # Further parameters
     number_of_products = 3
