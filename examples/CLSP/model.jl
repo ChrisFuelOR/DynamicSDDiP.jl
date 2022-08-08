@@ -16,8 +16,8 @@ function model_definition(problem_params::DynamicSDDiP.ProblemParams, scenario_t
     """
 
     # Define number of binary expansion variables
-    K = 25
-    beta = 600/(2^K-1)
+    K = 10
+    beta = 1.0 #600/(2^K-1)
 
     # Further parameters
     number_of_products = 3
@@ -55,11 +55,11 @@ function model_definition(problem_params::DynamicSDDiP.ProblemParams, scenario_t
         JuMP.@variable(subproblem, inventory_in[1:number_of_products], lower_bound = 0.0, upper_bound = 600.0)
 
         # Add binary approximation constraints
-        JuMP.@constraint(subproblem, [i=1:number_of_products], inventory_out[i] == sum(2^(k-1) * beta * λ[k].out for k in 1:K))
+        JuMP.@constraint(subproblem, [i=1:number_of_products], inventory_out[i] == sum(2^(k-1) * beta * λ[i,k].out for k in 1:K))
         if t==1
             JuMP.@constraint(subproblem, [i=1:number_of_products], inventory_in[i] == 0.0)
         else
-            JuMP.@constraint(subproblem, [i=1:number_of_products], inventory_in[i] == sum(2^(k-1) * beta * λ[k].in for k in 1:K))
+            JuMP.@constraint(subproblem, [i=1:number_of_products], inventory_in[i] == sum(2^(k-1) * beta * λ[i,k].in for k in 1:K))
         end
 
         # Production variables
