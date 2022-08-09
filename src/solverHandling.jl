@@ -221,11 +221,11 @@ function set_solver!(
     #     @warn("Numerical focus only works with Gurobi or CPLEX.")
     # end
     #
-    if algo_params.silent
-        JuMP.set_silent(subproblem)
-    else
-        JuMP.unset_silent(subproblem)
-    end
+    # if algo_params.silent
+    #     JuMP.set_silent(subproblem)
+    # else
+    #     JuMP.unset_silent(subproblem)
+    # end
 
     return
 end
