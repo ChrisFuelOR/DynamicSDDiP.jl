@@ -131,11 +131,11 @@ function solve_unified_lagrangian_dual(
     TimerOutputs.@timeit DynamicSDDiP_TIMER "init_approx_model" begin
         # Approximation of Lagrangian dual by cutting planes
         # Optimizer is re-set anyway
-        JuMP.set_optimizer(node.subproblem, JuMP.optimizer_with_attributes(
+        JuMP.set_optimizer(approx_model, JuMP.optimizer_with_attributes(
             () -> Gurobi.Optimizer(GURB_ENV[]),"MIPGap"=>1e-4
         ))
         JuMP.set_silent(node.subproblem)
-        
+
         approx_model.ext[:sddp_policy_graph] = node.subproblem.ext[:sddp_policy_graph]
 
         if isa(cut_generation_regime.duality_regime.normalization_regime, DynamicSDDiP.L₂_Deep)
