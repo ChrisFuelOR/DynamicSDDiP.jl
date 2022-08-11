@@ -25,7 +25,7 @@ function algo_config(
     dual_solution_regime = DynamicSDDiP.Kelley()
     dual_bound_regime = DynamicSDDiP.BothBounds()
     dual_status_regime = DynamicSDDiP.Lax()
-    dual_choice_regime = DynamicSDDiP.StandardChoice()
+    dual_choice_regime = DynamicSDDiP.MinimalNormChoice()
     #dual_space_regime = DynamicSDDiP.BendersSpanSpaceRestriction(10, :multi_cut)
     dual_space_regime = DynamicSDDiP.NoDualSpaceRestriction()
     copy_regime = DynamicSDDiP.ConvexHullCopy()
@@ -86,8 +86,8 @@ function algo_config(
 
     # Simulation regime
     #simulation_regime = DynamicSDDiP.Simulation(sampling_scheme=DynamicSDDiP.OutOfSampleMonteCarlo(number_of_realizations=10,simulation_seed=232323),number_of_replications=1000)
-    #simulation_regime = DynamicSDDiP.Simulation(sampling_scheme=DynamicSDDiP.InSampleMonteCarlo(),number_of_replications=1000)
-    simulation_regime = DynamicSDDiP.NoSimulation()
+    simulation_regime = DynamicSDDiP.Simulation(sampling_scheme=DynamicSDDiP.InSampleMonteCarlo(),number_of_replications=1000)
+    #simulation_regime = DynamicSDDiP.NoSimulation()
 
     # Suppress solver output
     silent = true
