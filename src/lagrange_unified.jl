@@ -314,8 +314,8 @@ function solve_unified_lagrangian_dual(
             iter = mn_results.iter
             lag_status = mn_results.lag_status
         end
-    elseif isa(cut_generation_regime.duality_regime.dual_choice_regime, DynamicSDDiP.MinimalNormChoice)
-        #println("Proceeding without minimal norm choice.")
+    # elseif isa(cut_generation_regime.duality_regime.dual_choice_regime, DynamicSDDiP.MinimalNormChoice)
+        # println("Proceeding without minimal norm choice.")
     end
 
     ############################################################################
@@ -721,7 +721,7 @@ function solve_unified_lagrangian_dual(
             iter = mn_results.iter
             lag_status = mn_results.lag_status
         end
-    elseif isa(cut_generation_regime.duality_regime.dual_choice_regime, DynamicSDDiP.MinimalNormChoice)
+    # elseif isa(cut_generation_regime.duality_regime.dual_choice_regime, DynamicSDDiP.MinimalNormChoice)
         # println("Proceeding without minimal norm choice.")
     end
 
@@ -809,7 +809,6 @@ function minimal_norm_choice_unified!(
         try
             @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
         catch err
-            # println("Proceeding without minimal norm choice.")
             return (iter=it, lag_status=:mn_issue)
         end
 

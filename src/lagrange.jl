@@ -286,8 +286,8 @@ function solve_lagrangian_dual(
             iter = mn_results.iter
             lag_status = mn_results.lag_status
         end
-    elseif isa(cut_generation_regime.duality_regime.dual_choice_regime, DynamicSDDiP.MinimalNormChoice)
-        #println("Proceeding without minimal norm choice.")
+    # elseif isa(cut_generation_regime.duality_regime.dual_choice_regime, DynamicSDDiP.MinimalNormChoice)
+        # println("Proceeding without minimal norm choice.")
     end
 
     ############################################################################
@@ -356,13 +356,12 @@ function minimal_norm_choice!(
     # The worst-case scenario in this for-loop is that we run through the
     # iterations without finding a new dual solution. However if that happens
     # we can just keep our current λ_star.
-    for _ in (iter+1):iteration_limit
+    for it in (iter+1):iteration_limit
         JuMP.optimize!(approx_model)
 
         try
             @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
         catch err
-            #println("Proceeding without minimal norm choice.")
             return (iter=it, lag_status=:mn_issue)
         end
 
@@ -721,8 +720,8 @@ function solve_lagrangian_dual(
             iter = mn_results.iter
             lag_status = mn_results.lag_status
         end
-    elseif isa(cut_generation_regime.duality_regime.dual_choice_regime, DynamicSDDiP.MinimalNormChoice)
-        #println("Proceeding without minimal norm choice.")
+    # elseif isa(cut_generation_regime.duality_regime.dual_choice_regime, DynamicSDDiP.MinimalNormChoice)
+        # println("Proceeding without minimal norm choice.")
     end
 
     ############################################################################
