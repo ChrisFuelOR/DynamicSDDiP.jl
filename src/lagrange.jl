@@ -287,7 +287,7 @@ function solve_lagrangian_dual(
             lag_status = mn_results.lag_status
         end
     elseif isa(cut_generation_regime.duality_regime.dual_choice_regime, DynamicSDDiP.MinimalNormChoice)
-        println("Proceeding without minimal norm choice.")
+        #println("Proceeding without minimal norm choice.")
     end
 
     ############################################################################
@@ -362,7 +362,7 @@ function minimal_norm_choice!(
         try
             @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
         catch err
-            println("Proceeding without minimal norm choice.")
+            #println("Proceeding without minimal norm choice.")
             return (iter=it, lag_status=:mn_issue)
         end
 
@@ -722,7 +722,7 @@ function solve_lagrangian_dual(
             lag_status = mn_results.lag_status
         end
     elseif isa(cut_generation_regime.duality_regime.dual_choice_regime, DynamicSDDiP.MinimalNormChoice)
-        println("Proceeding without minimal norm choice.")
+        #println("Proceeding without minimal norm choice.")
     end
 
     ############################################################################
