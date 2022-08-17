@@ -801,3 +801,240 @@ function _getStrengtheningInformation(
 
     return lag_obj
 end
+
+
+"""
+Subgradient method to solve Lagrangian dual
+"""
+function solve_lagrangian_dual(
+    node::SDDP.Node,
+    node_index::Int64,
+    primal_obj::Float64,
+    π_k::Vector{Float64},
+    bound_results::NamedTuple{(:obj_bound, :dual_bound),Tuple{Float64,Float64}},
+    algo_params::DynamicSDDiP.AlgoParams,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
+    applied_solvers::DynamicSDDiP.AppliedSolvers,
+    dual_solution_regime::DynamicSDDiP.Subgradient
+    )
+
+    ############################################################################
+    # INITIALIZATION
+    ############################################################################
+    # A sign bit that is used to avoid if-statements in the models (see SDDP.jl)
+    s = JuMP.objective_sense(node.subproblem) == MOI.MIN_SENSE ? 1 : -1
+
+    # Storage for the cutting-plane method
+    #---------------------------------------------------------------------------
+    number_of_states = get_number_of_states(node, cut_generation_regime.state_approximation_regime)
+    # The original value for x (former old_rhs)
+    x_in_value = zeros(number_of_states)
+    # The current estimate for π (in our case determined in initialization)
+    # π_k
+    # The best estimate for π (former best_mult)
+    π_star = zeros(number_of_states)
+    # The best estimate for the dual objective value (ignoring optimization sense)
+    L_star = -Inf
+    # The expression for ̄x-z (former slacks)
+    h_expr = Vector{JuMP.AffExpr}(undef, number_of_states)
+    # The current value of ̄x-z (former subgradients)
+    h_k = zeros(number_of_states)
+
+    # Set tolerances
+    #---------------------------------------------------------------------------
+    atol = cut_generation_regime.duality_regime.atol
+    rtol = cut_generation_regime.duality_regime.rtol
+    iteration_limit = cut_generation_regime.duality_regime.iteration_limit
+
+    # As in SDDiP.jl we check whether the lower bound has improved in an iteration.
+    # If it hasn't, we reduce the step-size parameter γ. If it hasn't for a
+    # predefined number of times, the algorithm stops due to bounds stalling.
+    times_unchanged = 0
+    wait = cut_generation_regime.duality_regime.dual_solution_regime.wait
+    max_times_unchanged = cut_generation_regime.duality_regime.dual_solution_regime.max_times_unchanged
+    gamma_step = cut_generation_regime.duality_regime.dual_solution_regime.gamma
+
+    # Cache for lower bound for these checks
+    cached_bound = -Inf
+
+    # Set solver for inner problem
+    #---------------------------------------------------------------------------
+    set_solver!(node.subproblem, algo_params, applied_solvers, :lagrange_relax, algo_params.solver_approach)
+
+    # Augmented Lagrangian dual using 1-norm?
+    #---------------------------------------------------------------------------
+    # NOTE: We only allow the augmented Lagrangian for Kelley's method and the Bundle method so far.
+    @assert cut_generation_regime.duality_regime.augmented != true
+
+    ############################################################################
+    # RELAXING THE COPY CONSTRAINTS
+    ############################################################################
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "relax_copy" begin
+        relax_copy_constraints!(node, x_in_value, h_expr, cut_generation_regime.state_approximation_regime, cut_generation_regime.duality_regime.copy_regime)
+    end
+    node.ext[:backward_data][:old_rhs] = x_in_value
+
+    ############################################################################
+    # SET-UP THE PROJECTION MODEL
+    ############################################################################
+    """ Note that if we use bounds on the dual multipliers (e.g. when a regularization
+    is applied or if we have sign conditions on the multipliers), we have to make
+    sure that the new incumbent reached by the subgradient step is feasible.
+    If it isn't, we have to project it to the feasible set Π.
+    To this end, we solve a projection problem, which finds the point in Π
+    that is closest to the computed point π_k.
+
+    Even if this problem is quadratic, it should be really easy to solve in
+    most cases, and even trivially if we do not consider any bounds on π.
+    """
+
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "init_proj_model" begin
+        # Optimizer is re-set anyway
+        proj_model = JuMP.Model(Gurobi.Optimizer)
+        proj_model.ext[:sddp_policy_graph] = node.subproblem.ext[:sddp_policy_graph]
+
+        # Create the dual variables
+        # Note that the real dual multipliers are split up into two non-negative
+        # variables here, which is required for the Norm Minimization part later
+        JuMP.@variable(approx_model, π⁺[1:number_of_states] >= 0)
+        JuMP.@variable(approx_model, π⁻[1:number_of_states] >= 0)
+        JuMP.@expression(approx_model, π, π⁺ .- π⁻) # not required to be a constraint
+        set_multiplier_bounds!(node, approx_model, number_of_states, bound_results.dual_bound,
+            algo_params.regularization_regime, cut_generation_regime.state_approximation_regime,
+            cut_generation_regime.duality_regime)
+
+        # Create the objective
+        JuMP.@objective(approx_model, Min, sum((π_k[i] - π[i])^2 for i in 1:number_of_states))
+    end
+
+    ############################################################################
+    # CUTTING-PLANE METHOD
+    ############################################################################
+    iter = 0
+    lag_status = :none
+
+    # In this case, we initialize t_k directly as the primal objective
+    t_k = s * primal_obj
+    # TODO: Maybe change this later.
+
+    while iter < iteration_limit && !isapprox(L_star, t_k, atol = atol, rtol = rtol) && times_unchanged <= max_times_unchanged
+        iter += 1
+
+        ########################################################################
+        # CHECK FOR TIMES UNCHANGED
+        ########################################################################
+        # We check if the lower bound has improved every wait-th iteration
+        if mod(iter, wait) == 0
+            if cached_bound < best_bound
+                cached_bound = best_bound
+                times_unchanged = 0
+            else
+                gamma_step = gamma_step / 2
+                times_unchanged += 1
+            end
+        end
+
+        ########################################################################
+        # SOLVE LAGRANGIAN RELAXATION FOR GIVEN DUAL_VARS
+        ########################################################################
+        # Evaluate the inner problem and determine a subgradient
+        TimerOutputs.@timeit DynamicSDDiP_TIMER "inner_sol" begin
+            L_k = _solve_Lagrangian_relaxation!(node, π_k, h_expr, h_k, true)
+        end
+        Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
+
+        ########################################################################
+        # UPDATE BEST FOUND SOLUTION SO FAR
+        ########################################################################
+        if s * L_k >= L_star
+            L_star = s * L_k
+            π_star .= π_k
+        end
+
+        ########################################################################
+        # GET A NEW INCUMBENT
+        ########################################################################
+        # t_k = JuMP.objective_value(approx_model)
+
+        # Calculate the new step-size
+        step = gamma_step * (t_k - L_star) / sum(h_k.^2)
+
+        # Update the multipliers by doing a subgradient step
+        π_k .+= step * h_k
+
+        # Solve the projection problem
+        set_solver!(proj_model, algo_params, applied_solvers, :level_bundle, algo_params.solver_approach)
+        TimerOutputs.@timeit DynamicSDDiP_TIMER "bundle_sol" begin
+            JuMP.optimize!(proj_model)
+        end
+
+        @assert JuMP.termination_status(proj_model) == JuMP.MOI.OPTIMAL
+
+        # Get the new incumbent as the projection of the original point
+        π_k .= JuMP.value.(π)
+
+        Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
+
+        ########################################################################
+        if L_star > t_k + atol/10.0
+            #error("Could not solve for Lagrangian duals. LB > UB.")
+            break
+        end
+    end
+
+    ############################################################################
+    # CONVERGENCE ANALYSIS
+    ############################################################################
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "convergence_check" begin
+        if isapprox(L_star, t_k, atol = atol, rtol = rtol)
+            # CONVERGENCE ACHIEVED
+            if isapprox(L_star, s * primal_obj, atol = atol, rtol = rtol)
+                # CONVERGENCE TO TRUE OPTIMUM (APPROXIMATELY)
+                lag_status = :opt
+            else
+                # CONVERGENCE TO A SMALLER VALUE THAN THE PRIMAL OBJECTIVE
+                # sometimes this occurs due to numerical issues
+                # still leads to a valid cut
+                # NOTE: In the current setting this can't happen, as we set
+                # t_k = primal_obj initially and never change it
+                lag_status = :conv
+            end
+        elseif all(h_k .== 0)
+            # NO OPTIMALITY ACHIEVED, BUT STILL ALL SUBGRADIENTS ARE ZERO
+            # may occur due to numerical issues
+            lag_status = :sub
+        elseif iter == iteration_limit
+            # TERMINATION DUE TO ITERATION LIMIT
+            # stil leads to a valid cut
+            lag_status = :iter
+        elseif L_star > t_k + atol/10.0
+            # NUMERICAL ISSUES, LOWER BOUND EXCEEDS UPPER BOUND
+            lag_status = :issues
+        end
+    end
+
+    ############################################################################
+    # APPLY MINIMAL NORM CHOICE APPROACH IF INTENDED
+    ############################################################################
+    if isa(cut_generation_regime.duality_regime.dual_choice_regime, DynamicSDDiP.MinimalNormChoice)
+        lag_status = :mn_issue
+        #println("Proceeding without minimal norm choice.")
+
+    ############################################################################
+    # RESTORE THE COPY CONSTRAINT x.in = value(x.in) (̄x = z)
+    ############################################################################
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "restore_copy" begin
+        restore_copy_constraints!(node, x_in_value, cut_generation_regime.state_approximation_regime)
+    end
+
+    ############################################################################
+    # RESET SOLVER
+    ############################################################################
+    set_solver!(node.subproblem, algo_params, applied_solvers, :forward_pass, algo_params.solver_approach)
+
+    # Set dual_vars (here π_k) to the optimal solution
+    π_k .= π_star
+
+    return (lag_obj = s * L_star, iterations = iter, lag_status = lag_status)
+
+end

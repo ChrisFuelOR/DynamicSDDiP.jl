@@ -79,6 +79,8 @@ Kelley means that a classical cutting-plane method is used to solve the dual
     problem.
 LevelBundle means that a level bundle method with specified parameters is
     used to solve the dual problem.
+Subgradient means that a basic subgradient method (as in Bertsekas "Nonlinear
+    Programming") is used to solve the dual problem.
 Default is Kelley.
 """
 
@@ -110,6 +112,21 @@ mutable struct LevelBundle <: AbstractDualSolutionRegime
         return new(level_factor)
     end
 end
+
+mutable struct Subgradient <: AbstractDualSolutionRegime
+    gamma::Float64
+    wait::Int
+    max_times_unchanged::Int
+    function Subgradient(;
+        gamma = 1,
+        wait = 5,
+        max_times_unchanged::20,
+        )
+        return new(gamma, wait, max_times_unchanged)
+    end
+end
+
+
 
 ################################################################################
 # BOUNDS IN LAGRANGIAL DUAL
