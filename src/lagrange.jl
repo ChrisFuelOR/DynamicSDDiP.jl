@@ -846,6 +846,8 @@ function solve_lagrangian_dual(
     rtol = cut_generation_regime.duality_regime.rtol
     iteration_limit = cut_generation_regime.duality_regime.iteration_limit
 
+    # Set subgradient parameters
+    #---------------------------------------------------------------------------
     # As in SDDiP.jl we check whether the lower bound has improved in an iteration.
     # If it hasn't, we reduce the step-size parameter γ. If it hasn't for a
     # predefined number of times, the algorithm stops due to bounds stalling.
@@ -914,7 +916,7 @@ function solve_lagrangian_dual(
     end
 
     ############################################################################
-    # CUTTING-PLANE METHOD
+    # SUBGRADIENT METHOD
     ############################################################################
     iter = 0
     lag_status = :none
@@ -979,7 +981,7 @@ function solve_lagrangian_dual(
         JuMP.@objective(proj_model, Min, sum((π_k[i] - π[i])^2 for i in 1:number_of_states))
 
         # Solve the projection problem
-        TimerOutputs.@timeit DynamicSDDiP_TIMER "bundle_sol" begin
+        TimerOutputs.@timeit DynamicSDDiP_TIMER "proj_sol" begin
             JuMP.optimize!(proj_model)
         end
 

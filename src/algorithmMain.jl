@@ -603,7 +603,7 @@ function iteration(
     end
     bound = first_stage_results.bound
 
-    Infiltrator.@infiltrate
+    #Infiltrator.@infiltrate
 
     ############################################################################
     # CHECK IF BEST KNOWN SOLUTION HAS BEEN IMPROVED
