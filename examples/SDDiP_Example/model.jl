@@ -56,7 +56,7 @@ function model_definition(problem_params::DynamicSDDiP.ProblemParams)
 end
 
 
-function model_set_up(
+function model_set_up(;
     algo_params::DynamicSDDiP.AlgoParams = DynamicSDDiP.AlgoParams(),
     applied_solvers::DynamicSDDiP.AppliedSolvers = DynamicSDDiP.AppliedSolvers(),
 )
@@ -64,7 +64,7 @@ function model_set_up(
     ############################################################################
     # DEFINE PROBLEM PARAMS
     ############################################################################
-    problem_params = DynamicSDDiP.ProblemParams(2, 1, tree_seed = tree_seed)
+    problem_params = DynamicSDDiP.ProblemParams(2, 1, tree_seed = 11111) # the problem is deterministic
 
     ############################################################################
     # DEFINE MODEL

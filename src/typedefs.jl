@@ -120,7 +120,7 @@ mutable struct Subgradient <: AbstractDualSolutionRegime
     function Subgradient(;
         gamma = 1,
         wait = 5,
-        max_times_unchanged::20,
+        max_times_unchanged = 20,
         )
         return new(gamma, wait, max_times_unchanged)
     end

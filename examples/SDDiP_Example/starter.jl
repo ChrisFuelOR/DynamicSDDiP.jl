@@ -111,10 +111,10 @@ function model_starter_runs()
     Specification of model runs that should be run one after the other.
     """
 
-    # det_equiv_starter(0,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/SDDiP_Example.log", 2400, 11111)
+    # det_equiv_starter(0,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/SDDiP_Example.log", 2400)
 
     # Dummy run
-    model_starter(0,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/SDDiP_Example.log", 100, 11111)
+    model_starter(0,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/SDDiP_Example.log", 100)
 
 end
 

@@ -886,25 +886,31 @@ function solve_lagrangian_dual(
 
     Even if this problem is quadratic, it should be really easy to solve in
     most cases, and even trivially if we do not consider any bounds on π.
+
+    Note that the objective is created in each iteration.
     """
 
     TimerOutputs.@timeit DynamicSDDiP_TIMER "init_proj_model" begin
         # Optimizer is re-set anyway
-        proj_model = JuMP.Model(Gurobi.Optimizer)
+        proj_model = JuMP.Model()
         proj_model.ext[:sddp_policy_graph] = node.subproblem.ext[:sddp_policy_graph]
 
         # Create the dual variables
         # Note that the real dual multipliers are split up into two non-negative
         # variables here, which is required for the Norm Minimization part later
-        JuMP.@variable(approx_model, π⁺[1:number_of_states] >= 0)
-        JuMP.@variable(approx_model, π⁻[1:number_of_states] >= 0)
-        JuMP.@expression(approx_model, π, π⁺ .- π⁻) # not required to be a constraint
-        set_multiplier_bounds!(node, approx_model, number_of_states, bound_results.dual_bound,
+        JuMP.@variable(proj_model, π⁺[1:number_of_states] >= 0)
+        JuMP.@variable(proj_model, π⁻[1:number_of_states] >= 0)
+        JuMP.@expression(proj_model, π, π⁺ .- π⁻) # not required to be a constraint
+        set_multiplier_bounds!(node, proj_model, number_of_states, bound_results.dual_bound,
             algo_params.regularization_regime, cut_generation_regime.state_approximation_regime,
             cut_generation_regime.duality_regime)
 
-        # Create the objective
-        JuMP.@objective(approx_model, Min, sum((π_k[i] - π[i])^2 for i in 1:number_of_states))
+        # Set solver
+        JuMP.set_optimizer(proj_model, JuMP.optimizer_with_attributes(
+            () -> Gurobi.Optimizer(GURB_ENV[]),"MIPGap"=>1e-4
+        ))
+        JuMP.set_silent(proj_model)
+        #set_solver!(proj_model, algo_params, applied_solvers, :level_bundle, algo_params.solver_approach)
     end
 
     ############################################################################
@@ -925,8 +931,8 @@ function solve_lagrangian_dual(
         ########################################################################
         # We check if the lower bound has improved every wait-th iteration
         if mod(iter, wait) == 0
-            if cached_bound < best_bound
-                cached_bound = best_bound
+            if cached_bound < L_star
+                cached_bound = L_star
                 times_unchanged = 0
             else
                 gamma_step = gamma_step / 2
@@ -957,13 +963,22 @@ function solve_lagrangian_dual(
         # t_k = JuMP.objective_value(approx_model)
 
         # Calculate the new step-size
-        step = gamma_step * (t_k - L_star) / sum(h_k.^2)
+        if sum(h_k.^2) == 0
+            # If the subgradients are zero already, then we can set the step to
+            # 1 as we will not move anyway. Otherwise, in the below formula
+            # we would divide by zero.
+            step = 1
+        else
+            step = gamma_step * (t_k - L_star) / sum(h_k.^2)
+        end
 
         # Update the multipliers by doing a subgradient step
         π_k .+= step * h_k
 
+        # Create the objective
+        JuMP.@objective(proj_model, Min, sum((π_k[i] - π[i])^2 for i in 1:number_of_states))
+
         # Solve the projection problem
-        set_solver!(proj_model, algo_params, applied_solvers, :level_bundle, algo_params.solver_approach)
         TimerOutputs.@timeit DynamicSDDiP_TIMER "bundle_sol" begin
             JuMP.optimize!(proj_model)
         end
@@ -1019,6 +1034,7 @@ function solve_lagrangian_dual(
     if isa(cut_generation_regime.duality_regime.dual_choice_regime, DynamicSDDiP.MinimalNormChoice)
         lag_status = :mn_issue
         #println("Proceeding without minimal norm choice.")
+    end
 
     ############################################################################
     # RESTORE THE COPY CONSTRAINT x.in = value(x.in) (̄x = z)
