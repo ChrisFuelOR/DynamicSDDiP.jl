@@ -119,7 +119,7 @@ function solve(
 
     # Prepare dictionary to log status of Lagrangian dual solution
     #---------------------------------------------------------------------------
-    model.ext[:lag_status_dict] = Dict([(:opt, 0), (:conv, 0), (:sub, 0), (:iter, 0), (:unbounded, 0), (:issues, 0), (:mn_opt, 0), (:mn_iter, 0), (:mn_issue, 0)], (:subgr_stalling, 0))
+    model.ext[:lag_status_dict] = Dict([(:opt, 0), (:conv, 0), (:sub, 0), (:iter, 0), (:unbounded, 0), (:issues, 0), (:mn_opt, 0), (:mn_iter, 0), (:mn_issue, 0), (:subgr_stalling, 0)])
 
     ############################################################################
     # RE-INITIALIZE THE EXISTING VALUE FUNCTION AND PREPARE CUT SELECTION
