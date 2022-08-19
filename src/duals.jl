@@ -655,6 +655,8 @@ function lagrangian_status_check(
     elseif lag_status == :mn_issue
         error("Numerical issue with minimal norm choice. Proceeded without this step.")
         # TODO: Should this be an error?
+    elseif lag_status == :subgr_stalling
+        model.ext[:lag_status_dict][:subgr_stalling] += 1
     end
 
     return
@@ -689,6 +691,8 @@ function lagrangian_status_check(
         model.ext[:lag_status_dict][:mn_iter] += 1
     elseif lag_status == :mn_issue
         model.ext[:lag_status_dict][:mn_issue] += 1
+    elseif lag_status == :subgr_stalling
+        model.ext[:lag_status_dict][:subgr_stalling] += 1
     end
 
     return

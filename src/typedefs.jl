@@ -114,15 +114,17 @@ mutable struct LevelBundle <: AbstractDualSolutionRegime
 end
 
 mutable struct Subgradient <: AbstractDualSolutionRegime
-    gamma::Float64
+    beta_up::Float64
+    beta_down::Float64
     wait::Int
     max_times_unchanged::Int
     function Subgradient(;
-        gamma = 1,
-        wait = 5,
-        max_times_unchanged = 20,
+        beta_up = 1.5,
+        beta_down = 0.95,
+        wait = 10,
+        max_times_unchanged = 10,
         )
-        return new(gamma, wait, max_times_unchanged)
+        return new(beta_up, beta_down, wait, max_times_unchanged)
     end
 end
 

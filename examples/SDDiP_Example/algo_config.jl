@@ -19,8 +19,8 @@ function algo_config(
 
     # Duality / Cut computation configuration
     dual_initialization_regime = DynamicSDDiP.ZeroDuals()
-    dual_solution_regime = DynamicSDDiP.Kelley()
-    #dual_solution_regime = DynamicSDDiP.Subgradient()
+    #dual_solution_regime = DynamicSDDiP.Kelley()
+    dual_solution_regime = DynamicSDDiP.Subgradient()
     dual_bound_regime = DynamicSDDiP.BothBounds()
     dual_status_regime = DynamicSDDiP.Lax()
     dual_choice_regime = DynamicSDDiP.StandardChoice()
@@ -41,7 +41,7 @@ function algo_config(
             normalization_regime = normalization_regime,
             dual_space_regime = dual_space_regime,
             copy_regime = copy_regime,
-            # user_dual_multiplier_bound = 10.0, # 10.0
+            #user_dual_multiplier_bound = 10.0, # 10.0
             user_dual_objective_bound = 1e4,
         )
     elseif duality_regime_sym == :lag

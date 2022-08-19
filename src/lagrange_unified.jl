@@ -929,7 +929,8 @@ function solve_unified_lagrangian_dual(
     times_unchanged = 0
     wait = cut_generation_regime.duality_regime.dual_solution_regime.wait
     max_times_unchanged = cut_generation_regime.duality_regime.dual_solution_regime.max_times_unchanged
-    gamma_step = cut_generation_regime.duality_regime.dual_solution_regime.gamma
+    beta_up = cut_generation_regime.duality_regime.dual_solution_regime.beta_up
+    beta_down = cut_generation_regime.duality_regime.dual_solution_regime.beta_down
 
     # Cache for lower bound for these checks
     cached_bound = -Inf
@@ -973,9 +974,9 @@ function solve_unified_lagrangian_dual(
         proj_model.ext[:sddp_policy_graph] = node.subproblem.ext[:sddp_policy_graph]
 
         if isa(cut_generation_regime.duality_regime.normalization_regime, DynamicSDDiP.L₂_Deep)
-            set_solver!(approx_model, algo_params, applied_solvers, :l₂, algo_params.solver_approach)
+            set_solver!(proj_model, algo_params, applied_solvers, :l₂, algo_params.solver_approach)
         else
-            set_solver!(approx_model, algo_params, applied_solvers, :kelley, algo_params.solver_approach)
+            set_solver!(proj_model, algo_params, applied_solvers, :kelley, algo_params.solver_approach)
         end
 
         # Create the dual variables
@@ -988,12 +989,6 @@ function solve_unified_lagrangian_dual(
 
         # User-specific bounds
         ########################################################################
-        # We cannot use the primal_obj as an obj_bound in the unified framework,
-        # so we use an arbitrarily chosen upper bound or bound the dual multipliers.
-        if !isnothing(cut_generation_regime.duality_regime.user_dual_objective_bound)
-            set_objective_bound!(proj_model, s, cut_generation_regime.duality_regime.user_dual_objective_bound)
-        end
-
         if !isnothing(cut_generation_regime.duality_regime.user_dual_multiplier_bound)
             bound = cut_generation_regime.duality_regime.user_dual_multiplier_bound
             JuMP.@constraint(proj_model, π⁺[1:number_of_states] .<= bound)
@@ -1032,9 +1027,18 @@ function solve_unified_lagrangian_dual(
     lag_status = :none
 
     # set up optimal value of approx_model (former f_approx)
-    t_k = Inf
+    # We cannot use the primal_obj as an obj_bound in the unified framework,
+    # so we use an arbitrarily chosen upper bound or bound the dual multipliers.
+    # if !isnothing(cut_generation_regime.duality_regime.user_dual_objective_bound)
+    #     t_k = s * cut_generation_regime.duality_regime.user_dual_objective_bound
+    # else
+    #     t_k = 1e4
+    # end
 
-    while iter < iteration_limit && !isapprox(L_star, t_k, atol = atol, rtol = rtol) && times_unchanged <= max_times_unchanged
+    #alpha_k = 1
+    beta_k = 1
+
+    while iter < iteration_limit && times_unchanged <= max_times_unchanged #&& !isapprox(L_star, t_k, atol = atol, rtol = rtol) && times_unchanged <= max_times_unchanged
         iter += 1
 
         ########################################################################
@@ -1044,9 +1048,12 @@ function solve_unified_lagrangian_dual(
         if mod(iter, wait) == 0
             if cached_bound < L_star
                 cached_bound = L_star
-                times_unchanged = 0
+                beta_k = beta_k * beta_up
             else
-                gamma_step = gamma_step / 2
+                #gamma_step = gamma_step / 2
+                #alpha_k = 1/exp(times_unchanged)
+                #alpha_k = 1/2^(times_unchanged)
+                beta_k = beta_k * beta_down
                 times_unchanged += 1
             end
         end
@@ -1073,24 +1080,52 @@ function solve_unified_lagrangian_dual(
         end
 
         ########################################################################
+        # GET A NEW UPPER BOUND
+        ########################################################################
+        # We do not know the primal_obj to the Lagrangian dual here, so we have
+        # to come up with an upper bound in a different way
+
+        # Check if the solution from the inner problem is primal feasible
+        # feasible = true
+        # if !isapprox(w_k, 0, atol=1e-9)
+        #     feasible = false
+        # end
+        # for comp in h_k
+        #     if !isapprox(comp, 0, atol=1e-9)
+        #         feasible = false
+        #         break
+        #     end
+        # end
+        #
+        # # If we have primal feasibility, then we can compute a new upper bound
+        # # using the primal objective
+        # if feasible
+        #
+        #
+        # end
+
+        ########################################################################
         # GET A NEW INCUMBENT
         ########################################################################
-        # t_k = JuMP.objective_value(approx_model)
-
         # Calculate the new step-size
-        if sum(h_k.^2 + w_k^2) == 0
+        if sum(h_k.^2) + w_k^2 == 0
             # If the subgradients are zero already, then we can set the step to
             # 1 as we will not move anyway. Otherwise, in the below formula
             # we would divide by zero.
             step = 1
+        elseif L_star == 0
+            step = 1 / (sum(h_k.^2) + w_k^2)
         else
-            step = gamma_step * (t_k - L_star) / sum(h_k.^2 + w_k^2)
+            #step = gamma_step * (t_k - L_star) / (sum(h_k.^2) + w_k^2)
+            #step = alpha_k / (sum(h_k.^2) + w_k^2)
+            step = beta_k * L_star / (sum(h_k.^2) + w_k^2)
         end
 
         # Update the multipliers by doing a subgradient step
         π_k .+= step * h_k
         π0_k = step * w_k
 
+        #Infiltrator.@infiltrate
         # Create the objective
         JuMP.@objective(proj_model, Min, sum((π_k[i] - π[i])^2 for i in 1:number_of_states) + (π0_k - π₀)^2)
 
@@ -1110,6 +1145,7 @@ function solve_unified_lagrangian_dual(
         # π0_k >= 0 is enforced as a constraint.
         # In such case, the inner problem of the Lagrangian relaxation may
         # become unbounded. Therefore, we set π0_k manually to 0 then.
+        #Infiltrator.@infiltrate
         if π0_k < 0
             π0_k = 0.0
         end
@@ -1117,12 +1153,14 @@ function solve_unified_lagrangian_dual(
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
         ########################################################################
-        if L_star > t_k + atol/10.0
-            #error("Could not solve for Lagrangian duals. LB > UB.")
-            break
-        end
+        # if L_star > t_k + atol/10.0
+        #     #error("Could not solve for Lagrangian duals. LB > UB.")
+        #     break
+        # end
 
     end
+
+    Infiltrator.@infiltrate
 
     ############################################################################
     # CONVERGENCE ANALYSIS
@@ -1133,16 +1171,7 @@ function solve_unified_lagrangian_dual(
     end
 
     TimerOutputs.@timeit DynamicSDDiP_TIMER "convergence_check" begin
-        if isapprox(L_star, t_k, atol = atol, rtol = rtol) && isapprox(L_star, obj_bound, rtol=1e-4)
-            # UNBOUNDEDNESS DETECTED, which is only bounded by artificial
-            # objective bound
-            # Leads still to a valid cut, but no vertex of the reverse polar set
-            lag_status = :unbounded
-        elseif isapprox(L_star, t_k, atol = atol, rtol = rtol)
-            # CONVERGENCE ACHIEVED
-            # it does not make sense to compare with primal_obj here
-            lag_status = :opt
-        elseif all(h_k .== 0) && w_k == 0
+        if all(h_k .== 0) && w_k == 0
             # NO OPTIMALITY ACHIEVED, BUT STILL ALL SUBGRADIENTS ARE ZERO
             # may occur due to numerical issues
             lag_status = :sub
@@ -1150,9 +1179,9 @@ function solve_unified_lagrangian_dual(
             # TERMINATION DUE TO ITERATION LIMIT
             # stil leads to a valid cut
             lag_status = :iter
-        elseif L_star > t_k + atol/10.0
-            # NUMERICAL ISSUES, LOWER BOUND EXCEEDS UPPER BOUND
-            lag_status = :issues
+        elseif times_unchanged > max_times_unchanged
+            # SUBGRADIENT BOUND STALLED
+            lag_status = :subgr_stalling
         end
     end
 
@@ -1179,8 +1208,6 @@ function solve_unified_lagrangian_dual(
     # Set dual_vars (here π_k) to the optimal solution
     π_k .= -π_star
     π0_k = π0_star
-
-    #Infiltrator.@infiltrate
 
     return (lag_obj = s * L_star, iterations = iter, lag_status = lag_status, dual_0_var = π0_k)
 
