@@ -22,10 +22,15 @@ function algo_config(
 
     # Duality / Cut computation configuration
     dual_initialization_regime = DynamicSDDiP.ZeroDuals()
-    dual_solution_regime = DynamicSDDiP.Subgradient()
+    dual_solution_regime = DynamicSDDiP.Kelley()
     dual_bound_regime = DynamicSDDiP.BothBounds()
     dual_status_regime = DynamicSDDiP.Lax()
+
     dual_choice_regime = DynamicSDDiP.StandardChoice()
+    if isa(normalization_regime, DynamicSDDiP.L∞_Deep)
+        dual_choice_regime = DynamicSDDiP.MinimalNormChoice()
+    end
+
     #dual_space_regime = DynamicSDDiP.BendersSpanSpaceRestriction(10, :multi_cut)
     dual_space_regime = DynamicSDDiP.NoDualSpaceRestriction()
     copy_regime = DynamicSDDiP.ConvexHullCopy()
