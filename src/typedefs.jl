@@ -116,15 +116,17 @@ end
 mutable struct Subgradient <: AbstractDualSolutionRegime
     beta_up::Float64
     beta_down::Float64
+    gamma::Float64
     wait::Int
     max_times_unchanged::Int
     function Subgradient(;
         beta_up = 1.5,
         beta_down = 0.95,
+        gamma = 2,
         wait = 10,
         max_times_unchanged = 10,
         )
-        return new(beta_up, beta_down, wait, max_times_unchanged)
+        return new(beta_up, beta_down, gamma, wait, max_times_unchanged)
     end
 end
 
