@@ -154,7 +154,7 @@ function solve_lagrangian_dual(
         # Optimizer is re-set anyway
         approx_model = JuMP.Model()
         JuMP.set_optimizer(approx_model, JuMP.optimizer_with_attributes(
-            () -> Gurobi.Optimizer(GURB_ENV[]),"MIPGap"=>1e-4
+            () -> Gurobi.Optimizer(GURB_ENV[]),"MIPGap"=>1e-4,"TimeLimit"=>300
         ))
         JuMP.set_silent(approx_model)
 
@@ -309,6 +309,8 @@ function solve_lagrangian_dual(
 
     # Set dual_vars (here π_k) to the optimal solution
     π_k .= π_star
+
+    #Infiltrator.@infiltrate
 
     return (lag_obj = s * L_star, iterations = iter, lag_status = lag_status)
 
@@ -909,7 +911,7 @@ function solve_lagrangian_dual(
 
         # Set solver
         JuMP.set_optimizer(proj_model, JuMP.optimizer_with_attributes(
-            () -> Gurobi.Optimizer(GURB_ENV[]),"MIPGap"=>1e-4
+            () -> Gurobi.Optimizer(GURB_ENV[]),"MIPGap"=>1e-4,"TimeLimit"=>300
         ))
         JuMP.set_silent(proj_model)
         #set_solver!(proj_model, algo_params, applied_solvers, :level_bundle, algo_params.solver_approach)
@@ -1052,6 +1054,8 @@ function solve_lagrangian_dual(
 
     # Set dual_vars (here π_k) to the optimal solution
     π_k .= π_star
+
+    Infiltrator.@infiltrate
 
     return (lag_obj = s * L_star, iterations = iter, lag_status = lag_status)
 

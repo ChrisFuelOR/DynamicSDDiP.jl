@@ -133,7 +133,7 @@ function solve_unified_lagrangian_dual(
         # Optimizer is re-set anyway
         approx_model = JuMP.Model()
         JuMP.set_optimizer(approx_model, JuMP.optimizer_with_attributes(
-            () -> Gurobi.Optimizer(GURB_ENV[]),"MIPGap"=>1e-4
+            () -> Gurobi.Optimizer(GURB_ENV[]),"MIPGap"=>1e-4,"TimeLimit"=>300
         ))
         JuMP.set_silent(approx_model)
 
@@ -346,6 +346,7 @@ function solve_unified_lagrangian_dual(
     π0_k = π0_star
 
     #Infiltrator.@infiltrate
+    #println(L_star)
 
     return (lag_obj = s * L_star, iterations = iter, lag_status = lag_status, dual_0_var = π0_k)
 
@@ -1015,7 +1016,7 @@ function solve_unified_lagrangian_dual(
         # Set solver
         ########################################################################
         JuMP.set_optimizer(proj_model, JuMP.optimizer_with_attributes(
-            () -> Gurobi.Optimizer(GURB_ENV[]),"MIPGap"=>1e-4
+            () -> Gurobi.Optimizer(GURB_ENV[]),"MIPGap"=>1e-4,"TimeLimit"=>300
         ))
         JuMP.set_silent(proj_model)
     end
@@ -1035,8 +1036,8 @@ function solve_unified_lagrangian_dual(
     #     t_k = 1e4
     # end
 
-    #alpha_k = 1
-    beta_k = 1
+    alpha_k = 1
+    #beta_k = 1
 
     while iter < iteration_limit && times_unchanged <= max_times_unchanged #&& !isapprox(L_star, t_k, atol = atol, rtol = rtol) && times_unchanged <= max_times_unchanged
         iter += 1
@@ -1048,12 +1049,12 @@ function solve_unified_lagrangian_dual(
         if mod(iter, wait) == 0
             if cached_bound < L_star
                 cached_bound = L_star
-                beta_k = beta_k * beta_up
+                #beta_k = beta_k * beta_up
             else
                 #gamma_step = gamma_step / 2
-                #alpha_k = 1/exp(times_unchanged)
+                alpha_k = 1/exp(times_unchanged)
                 #alpha_k = 1/2^(times_unchanged)
-                beta_k = beta_k * beta_down
+                #beta_k = beta_k * beta_down
                 times_unchanged += 1
             end
         end
@@ -1113,12 +1114,12 @@ function solve_unified_lagrangian_dual(
             # 1 as we will not move anyway. Otherwise, in the below formula
             # we would divide by zero.
             step = 1
-        elseif L_star == 0
-            step = 1 / (sum(h_k.^2) + w_k^2)
+        #elseif L_star == 0
+        #    step = 1 / (sum(h_k.^2) + w_k^2)
         else
             #step = gamma_step * (t_k - L_star) / (sum(h_k.^2) + w_k^2)
-            #step = alpha_k / (sum(h_k.^2) + w_k^2)
-            step = beta_k * L_star / (sum(h_k.^2) + w_k^2)
+            step = alpha_k / (sum(h_k.^2) + w_k^2)
+            #step = beta_k * L_star / (sum(h_k.^2) + w_k^2)
         end
 
         # Update the multipliers by doing a subgradient step
@@ -1206,6 +1207,9 @@ function solve_unified_lagrangian_dual(
     # Set dual_vars (here π_k) to the optimal solution
     π_k .= -π_star
     π0_k = π0_star
+
+    #Infiltrator.@infiltrate
+    #println(L_star)
 
     return (lag_obj = s * L_star, iterations = iter, lag_status = lag_status, dual_0_var = π0_k)
 
