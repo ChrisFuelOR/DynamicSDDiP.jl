@@ -184,6 +184,7 @@ function solve_lagrangian_dual(
     ############################################################################
     iter = 0
     lag_status = :none
+    feas_flag = false
 
     # set up optimal value of approx_model (former f_approx)
     t_k = 0 # why zero?
@@ -229,7 +230,9 @@ function solve_lagrangian_dual(
 
             # Try recovering from numerical issues
             if (JuMP.termination_status(approx_model) != MOI.OPTIMAL)
-                elude_numerical_issues!(approx_model, algo_params)
+                #elude_numerical_issues!(approx_model, algo_params)
+                feas_flag = true
+                break
             end
         end
         # @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
@@ -269,7 +272,10 @@ function solve_lagrangian_dual(
             lag_status = :iter
         elseif L_star > t_k + atol/10.0
             # NUMERICAL ISSUES, LOWER BOUND EXCEEDS UPPER BOUND
-            lag_status = :issues
+            lag_status = :bound_issues
+        elseif feas_flag
+            # NUMERICAL ISSUES, SOME SUBPROBLEM BECAME INFEASIBLE (OR UNBOUNDED)
+            lag_status = :feas_issues
         end
     end
 
@@ -489,8 +495,16 @@ function solve_lagrangian_dual(
     TimerOutputs.@timeit DynamicSDDiP_TIMER "init_approx_model" begin
         # Approximation of Lagrangian dual by cutting planes
         # Optimizer is re-set anyway
-        approx_model = JuMP.Model(Gurobi.Optimizer)
+        # Approximation of Lagrangian dual by cutting planes
+        # Optimizer is re-set anyway
+        approx_model = JuMP.Model()
+        JuMP.set_optimizer(approx_model, JuMP.optimizer_with_attributes(
+            () -> Gurobi.Optimizer(GURB_ENV[]),"MIPGap"=>1e-4,"TimeLimit"=>300
+        ))
+        JuMP.set_silent(approx_model)
+
         approx_model.ext[:sddp_policy_graph] = node.subproblem.ext[:sddp_policy_graph]
+        set_solver!(approx_model, algo_params, applied_solvers, :kelley, algo_params.solver_approach)
 
         # Create the objective
         # Note that it is always formulated as a maximization problem, but that
@@ -516,6 +530,7 @@ function solve_lagrangian_dual(
     ############################################################################
     iter = 0
     lag_status = :none
+    feas_flag = false
 
     # set up optimal value of approx_model (former f_approx)
     t_k = 0 # why zero?
@@ -557,7 +572,7 @@ function solve_lagrangian_dual(
         # RESET OBJECTIVE FOR APPROX_MODEL AFTER NONLINEAR MODEL
         ########################################################################
         JuMP.@objective(approx_model, Max, t)
-        set_solver!(approx_model, algo_params, applied_solvers, :kelley, algo_params.solver_approach)
+        #set_solver!(approx_model, algo_params, applied_solvers, :kelley, algo_params.solver_approach)
 
         ########################################################################
         # SOLVE APPROXIMATION MODEL
@@ -569,7 +584,9 @@ function solve_lagrangian_dual(
             # Try recovering from numerical issues
             if (JuMP.termination_status(approx_model) != MOI.OPTIMAL)
                 #Infiltrator.@infiltrate
-                elude_numerical_issues!(approx_model, algo_params)
+                #elude_numerical_issues!(approx_model, algo_params)
+                feas_flag = true
+                break
             end
         end
         #@assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
@@ -648,7 +665,7 @@ function solve_lagrangian_dual(
         # Objective function of approx model has to be adapted to new center
         # TODO: Does this work with π[i]?
         JuMP.@objective(approx_model, Min, sum((π_k[i] - π[i])^2 for i in 1:number_of_states))
-        set_solver!(approx_model, algo_params, applied_solvers, :level_bundle, algo_params.solver_approach)
+        #set_solver!(approx_model, algo_params, applied_solvers, :level_bundle, algo_params.solver_approach)
         TimerOutputs.@timeit DynamicSDDiP_TIMER "bundle_sol" begin
             JuMP.optimize!(approx_model)
         end
@@ -662,8 +679,10 @@ function solve_lagrangian_dual(
         as it is feasible. Therefore, I think the algorithm should not
         stop here.
         """
-        #@assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
-        # TODO: Maybe change this in the future again
+        if (JuMP.termination_status(approx_model) != MOI.OPTIMAL && JuMP.termination_status(approx_model) != JuMP.MOI.LOCALLY_SOLVED)
+            feas_flag = true
+            break
+        end
 
         π_k .= JuMP.value.(π)
 
@@ -705,7 +724,10 @@ function solve_lagrangian_dual(
             lag_status = :iter
         elseif L_star > t_k + atol/10.0
             # NUMERICAL ISSUES, LOWER BOUND EXCEEDS UPPER BOUND
-            lag_status = :issues
+            lag_status = :bound_issues
+        elseif feas_flag
+            # NUMERICAL ISSUES, SOME SUBPROBLEM BECAME INFEASIBLE (OR UNBOUNDED)
+            lag_status = :feas_issues
         end
     end
 

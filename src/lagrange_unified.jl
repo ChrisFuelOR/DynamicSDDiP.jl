@@ -197,6 +197,7 @@ function solve_unified_lagrangian_dual(
     ############################################################################
     iter = 0
     lag_status = :none
+    feas_flag = false
 
     # set up optimal value of approx_model (former f_approx)
     t_k = Inf
@@ -242,7 +243,9 @@ function solve_unified_lagrangian_dual(
             # Try recovering from numerical issues
             if (JuMP.termination_status(approx_model) != MOI.OPTIMAL)
                 #Infiltrator.@infiltrate
-                elude_numerical_issues!(approx_model, algo_params)
+                #elude_numerical_issues!(approx_model, algo_params)
+                feas_flag = true
+                break
             end
         end
 
@@ -297,7 +300,10 @@ function solve_unified_lagrangian_dual(
             lag_status = :iter
         elseif L_star > t_k + atol/10.0
             # NUMERICAL ISSUES, LOWER BOUND EXCEEDS UPPER BOUND
-            lag_status = :issues
+            lag_status = :bound_issues
+        elseif feas_flag
+            # NUMERICAL ISSUES, SOME SUBPROBLEM BECAME INFEASIBLE (OR UNBOUNDED)
+            lag_status = :feas_issues
         end
     end
 
@@ -436,14 +442,19 @@ function solve_unified_lagrangian_dual(
     TimerOutputs.@timeit DynamicSDDiP_TIMER "init_approx_model" begin
         # Approximation of Lagrangian dual by cutting planes
         # Optimizer is re-set anyway
-        approx_model = JuMP.Model(Gurobi.Optimizer)
-        approx_model.ext[:sddp_policy_graph] = node.subproblem.ext[:sddp_policy_graph]
+        approx_model = JuMP.Model()
 
-        if isa(cut_generation_regime.duality_regime.normalization_regime, DynamicSDDiP.L₂_Deep)
-            set_solver!(approx_model, algo_params, applied_solvers, :l₂, algo_params.solver_approach)
-        else
-            set_solver!(approx_model, algo_params, applied_solvers, :kelley, algo_params.solver_approach)
-        end
+        # if isa(cut_generation_regime.duality_regime.normalization_regime, DynamicSDDiP.L₂_Deep)
+        #     set_solver!(approx_model, algo_params, applied_solvers, :l₂, algo_params.solver_approach)
+        # else
+        #     set_solver!(approx_model, algo_params, applied_solvers, :kelley, algo_params.solver_approach)
+        # end
+        JuMP.set_optimizer(approx_model, JuMP.optimizer_with_attributes(
+            () -> Gurobi.Optimizer(GURB_ENV[]),"MIPGap"=>1e-4,"TimeLimit"=>300
+        ))
+        JuMP.set_silent(approx_model)
+
+        approx_model.ext[:sddp_policy_graph] = node.subproblem.ext[:sddp_policy_graph]
 
         # Create the objective
         # Note that it is always formulated as a maximization problem, but that
@@ -497,6 +508,7 @@ function solve_unified_lagrangian_dual(
     ############################################################################
     iter = 0
     lag_status = :none
+    feas_flag = false
 
     # set up optimal value of approx_model (former f_approx)
     t_k = Inf
@@ -537,11 +549,11 @@ function solve_unified_lagrangian_dual(
         # RESET OBJECTIVE FOR APPROX_MODEL AFTER NONLINEAR MODEL
         ########################################################################
         JuMP.@objective(approx_model, Max, t)
-        if isa(cut_generation_regime.duality_regime.normalization_regime, DynamicSDDiP.L₂_Deep)
-            set_solver!(approx_model, algo_params, applied_solvers, :l₂, algo_params.solver_approach)
-        else
-            set_solver!(approx_model, algo_params, applied_solvers, :kelley, algo_params.solver_approach)
-        end
+        # if isa(cut_generation_regime.duality_regime.normalization_regime, DynamicSDDiP.L₂_Deep)
+        #     set_solver!(approx_model, algo_params, applied_solvers, :l₂, algo_params.solver_approach)
+        # else
+        #     set_solver!(approx_model, algo_params, applied_solvers, :kelley, algo_params.solver_approach)
+        # end
 
         ########################################################################
         # SOLVE APPROXIMATION MODEL
@@ -553,7 +565,9 @@ function solve_unified_lagrangian_dual(
             # Try recovering from numerical issues
             if (JuMP.termination_status(approx_model) != MOI.OPTIMAL)
                 #Infiltrator.@infiltrate
-                elude_numerical_issues!(approx_model, algo_params)
+                #elude_numerical_issues!(approx_model, algo_params)
+                feas_flag = true
+                break
             end
         end
         @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
@@ -628,13 +642,13 @@ function solve_unified_lagrangian_dual(
         ########################################################################
         # Objective function of approx model has to be adapted to new center
         JuMP.@objective(approx_model, Min, sum((π_k[i] - π[i])^2 for i in 1:number_of_states) + (π0_k - π₀)^2)
-        set_solver!(approx_model, algo_params, applied_solvers, :level_bundle, algo_params.solver_approach)
+        #set_solver!(approx_model, algo_params, applied_solvers, :level_bundle, algo_params.solver_approach)
 
         TimerOutputs.@timeit DynamicSDDiP_TIMER "bundle_sol" begin
             JuMP.optimize!(approx_model)
         end
 
-        Infiltrator.@infiltrate
+        #Infiltrator.@infiltrate
 
         """ This is removed, as sometimes the QCP is solved to optimality, but
         Gurobi is not able to get an optimality certificate
@@ -645,9 +659,14 @@ function solve_unified_lagrangian_dual(
         as it is feasible. Therefore, I think the algorithm should not
         stop here.
         """
-        #@assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
-        # TODO: Maybe change this in the future again
+        if (JuMP.termination_status(approx_model) != JuMP.MOI.OPTIMAL && JuMP.termination_status(approx_model) != JuMP.MOI.LOCALLY_SOLVED)
+             #Infiltrator.@infiltrate
+             feas_flag = true
+             break
+        end
 
+        #@assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL || JuMP.termination_status(approx_model) == JuMP.MOI.LOCALLY_SOLVED
+        
         π_k .= JuMP.value.(π)
         π0_k = JuMP.value.(π₀)
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
@@ -666,7 +685,7 @@ function solve_unified_lagrangian_dual(
 
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
-        println(L_k, ", ", L_star, ", ", t_k)
+        #println(L_k, ", ", L_star, ", ", t_k)
 
         ########################################################################
         if L_star > t_k + atol/10.0
@@ -675,7 +694,7 @@ function solve_unified_lagrangian_dual(
         end
     end
 
-    println()
+    #println()
 
     ############################################################################
     # CONVERGENCE ANALYSIS
@@ -705,7 +724,10 @@ function solve_unified_lagrangian_dual(
             lag_status = :iter
         elseif L_star > t_k + atol/10.0
             # NUMERICAL ISSUES, LOWER BOUND EXCEEDS UPPER BOUND
-            lag_status = :issues
+            lag_status = :bound_issues
+        elseif feas_flag
+            # NUMERICAL ISSUES, SOME SUBPROBLEM BECAME INFEASIBLE (OR UNBOUNDED)
+            lag_status = :feas_issues
         end
     end
 

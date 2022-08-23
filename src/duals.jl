@@ -646,8 +646,10 @@ function lagrangian_status_check(
         error("Solving Lagrangian dual exceeded iteration limit.")
     elseif lag_status == :unbounded
         error("Normalized Lagrangian dual unbounded and reached artificial bound.")
-    elseif lag_status == :issues
+    elseif lag_status == :bound_issues
         error("Lagrangian LB > UB due to numerical issues.")
+    elseif lag_status == :feas_issues
+        error("Lagrangian subproblem became infeasible.")
     elseif lag_status == :mn_opt
         model.ext[:lag_status_dict][:mn_opt] += 1
     elseif lag_status == :mn_iter
@@ -683,8 +685,10 @@ function lagrangian_status_check(
         model.ext[:lag_status_dict][:iter] += 1
     elseif lag_status == :unbounded
         model.ext[:lag_status_dict][:unbounded] += 1
-    elseif lag_status == :issues
-        model.ext[:lag_status_dict][:issues] += 1
+    elseif lag_status == :bound_issues
+        model.ext[:lag_status_dict][:bound_issues] += 1
+    elseif lag_status == :feas_issues
+        odel.ext[:lag_status_dict][:feas_issues] += 1
     elseif lag_status == :mn_opt
         model.ext[:lag_status_dict][:mn_opt] += 1
     elseif lag_status == :mn_iter
