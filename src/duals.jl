@@ -688,7 +688,7 @@ function lagrangian_status_check(
     elseif lag_status == :bound_issues
         model.ext[:lag_status_dict][:bound_issues] += 1
     elseif lag_status == :feas_issues
-        odel.ext[:lag_status_dict][:feas_issues] += 1
+        model.ext[:lag_status_dict][:feas_issues] += 1
     elseif lag_status == :mn_opt
         model.ext[:lag_status_dict][:mn_opt] += 1
     elseif lag_status == :mn_iter
