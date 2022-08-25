@@ -351,7 +351,6 @@ function solve_unified_lagrangian_dual(
     π_k .= -π_star
     π0_k = π0_star
 
-    #Infiltrator.@infiltrate
     #println(L_star)
 
     return (lag_obj = s * L_star, iterations = iter, lag_status = lag_status, dual_0_var = π0_k)
@@ -666,7 +665,7 @@ function solve_unified_lagrangian_dual(
         end
 
         #@assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL || JuMP.termination_status(approx_model) == JuMP.MOI.LOCALLY_SOLVED
-        
+
         π_k .= JuMP.value.(π)
         π0_k = JuMP.value.(π₀)
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]

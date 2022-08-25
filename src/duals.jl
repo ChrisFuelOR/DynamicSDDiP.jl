@@ -508,8 +508,8 @@ function get_dual_solution(
         any point in this unbounded set. Therefore, we are not guaranteed to
         obtain any meaningful cut.
 
-        Note that we artificially bound the dual objective with 1e-9, so that
-        we obtain valid, but usually very large cut coefficients.
+        Note that we artificially bound the dual objective, so that
+        we obtain valid, but possibly very large cut coefficients.
         However, experiments show that the cuts still tend to be invalid due
         to numerical issues for these large coefficients. Therefore, in this
         case we do not construct a new cut at all (or at least restrict

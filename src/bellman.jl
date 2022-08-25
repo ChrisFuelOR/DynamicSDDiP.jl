@@ -171,6 +171,7 @@ function refine_bellman_function(
     noise_supports::Vector,
     nominal_probability::Vector{Float64},
     objective_realizations::Vector{Float64},
+    add_cut_flags::Vector{Bool},
     cut_away::Bool,
     algo_params::DynamicSDDiP.AlgoParams,
     cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
@@ -220,6 +221,7 @@ function refine_bellman_function(
             dual_variables,
             dual_0_var,
             offset,
+            add_cut_flags,
             cut_away,
             algo_params,
             cut_generation_regime,
@@ -241,6 +243,7 @@ function refine_bellman_function(
             dual_variables,
             dual_0_var,
             offset,
+            add_cut_flags,
             cut_away,
             algo_params,
             cut_generation_regime,
@@ -266,6 +269,7 @@ function _add_average_cut(
     dual_variables::Vector{Dict{Symbol,Float64}},
     dual_0_var::Vector{Float64},
     offset::Float64,
+    add_cut_flags::Vector{Bool},
     cut_away::Bool,
     algo_params::DynamicSDDiP.AlgoParams,
     cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
@@ -273,71 +277,79 @@ function _add_average_cut(
     applied_solvers::DynamicSDDiP.AppliedSolvers,
 )
 
-    # Some initializations
-    N = length(risk_adjusted_probability)
-    @assert N == length(objective_realizations) == length(dual_variables)
-    @assert length(epi_states) == 1
+    # Here, the cut information is aggregated, so if at least one cut is meaningful,
+    # the aggregated cut should be added
+    if any(add_cut_flags)
 
-    ############################################################################
-    # EXPECTED INTERCEPT AND DUAL VARIABLES
-    ############################################################################
-    # Calculate the expected intercept and dual variables with respect to the
-    # risk-adjusted probability distribution.
-    πᵏ = set_up_dict_for_duals(bin_states, trial_points, cut_generation_regime.state_approximation_regime)
-    θᵏ = offset
+        # Some initializations
+        N = length(risk_adjusted_probability)
+        @assert N == length(objective_realizations) == length(dual_variables)
+        @assert length(epi_states) == 1
 
-    for i in 1:length(objective_realizations)
-        p = risk_adjusted_probability[i]
-        θᵏ += p * objective_realizations[i] / dual_0_var[i]
-        for (key, dual) in dual_variables[i]
-            πᵏ[key] += p * dual / dual_0_var[i]
+        ############################################################################
+        # EXPECTED INTERCEPT AND DUAL VARIABLES
+        ############################################################################
+        # Calculate the expected intercept and dual variables with respect to the
+        # risk-adjusted probability distribution.
+        πᵏ = set_up_dict_for_duals(bin_states, trial_points, cut_generation_regime.state_approximation_regime)
+        θᵏ = offset
+
+        for i in 1:length(objective_realizations)
+            p = risk_adjusted_probability[i]
+            θᵏ += p * objective_realizations[i] / dual_0_var[i]
+            for (key, dual) in dual_variables[i]
+                πᵏ[key] += p * dual / dual_0_var[i]
+            end
         end
-    end
 
-    ############################################################################
-    # GET CORRECT SIGMA
-    ############################################################################
-    # As cuts are created for the value function of the following state,
-    # we need the parameters for this stage.
-    if isa(algo_params.regularization_regime, DynamicSDDiP.NoRegularization)
-        sigma = nothing
+        ############################################################################
+        # GET CORRECT SIGMA
+        ############################################################################
+        # As cuts are created for the value function of the following state,
+        # we need the parameters for this stage.
+        if isa(algo_params.regularization_regime, DynamicSDDiP.NoRegularization)
+            sigma = nothing
+        else
+            sigma = algo_params.regularization_regime.sigma[node_index+1]
+        end
+
+        ############################################################################
+        # ADD THE CUT USING THE NEW EXPECTED COEFFICIENTS
+        ############################################################################
+        # Now add the average-cut to the subproblem. We include the objective-state
+        # component μᵀy and the belief state (if it exists).
+        #obj_y =
+        #    node.objective_state === nothing ? nothing : node.objective_state.state
+        #belief_y =
+        #    node.belief_state === nothing ? nothing : node.belief_state.belief
+
+        cut_away = _add_cut(
+            node,
+            node.bellman_function.global_theta,
+            θᵏ,
+            πᵏ,
+            1.0,
+            bin_states,
+            anchor_points,
+            trial_points,
+            epi_states[1],
+            # obj_y,
+            # belief_y,
+            sigma,
+            iteration,
+            cut_away,
+            algo_params.infiltrate_state,
+            algo_params,
+            cut_generation_regime,
+            applied_solvers,
+            cut_generation_regime.state_approximation_regime,
+        )
+
+        return cut_away
+
     else
-        sigma = algo_params.regularization_regime.sigma[node_index+1]
+        return cut_away
     end
-
-    ############################################################################
-    # ADD THE CUT USING THE NEW EXPECTED COEFFICIENTS
-    ############################################################################
-    # Now add the average-cut to the subproblem. We include the objective-state
-    # component μᵀy and the belief state (if it exists).
-    #obj_y =
-    #    node.objective_state === nothing ? nothing : node.objective_state.state
-    #belief_y =
-    #    node.belief_state === nothing ? nothing : node.belief_state.belief
-
-    cut_away = _add_cut(
-        node,
-        node.bellman_function.global_theta,
-        θᵏ,
-        πᵏ,
-        1.0,
-        bin_states,
-        anchor_points,
-        trial_points,
-        epi_states[1],
-        # obj_y,
-        # belief_y,
-        sigma,
-        iteration,
-        cut_away,
-        algo_params.infiltrate_state,
-        algo_params,
-        cut_generation_regime,
-        applied_solvers,
-        cut_generation_regime.state_approximation_regime,
-    )
-
-    return cut_away
 end
 
 """
@@ -355,6 +367,7 @@ function _add_multi_cut(
     dual_variables::Vector{Dict{Symbol,Float64}},
     dual_0_var::Vector{Float64},
     offset::Float64,
+    add_cut_flags::Vector{Bool},
     cut_away::Bool,
     algo_params::DynamicSDDiP.AlgoParams,
     cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
@@ -384,27 +397,36 @@ function _add_multi_cut(
     # ADD THE CUT FOR ALL REALIZATIONS
     ############################################################################
     for i in 1:length(dual_variables)
-        cut_away = _add_cut(
-            node,
-            node.bellman_function.local_thetas[i],
-            objective_realizations[i],
-            dual_variables[i],
-            dual_0_var[i],
-            bin_states,
-            anchor_points,
-            trial_points,
-            epi_states[i],
-            # obj_y,
-            # belief_y,
-            sigma,
-            iteration,
-            cut_away,
-            algo_params.infiltrate_state,
-            algo_params,
-            cut_generation_regime,
-            applied_solvers,
-            cut_generation_regime.state_approximation_regime,
-        )
+        # A cut is only added if the corresponding add_cut_flag is true
+        if add_cut_flags[i]
+            cut_away_single = _add_cut(
+                node,
+                node.bellman_function.local_thetas[i],
+                objective_realizations[i],
+                dual_variables[i],
+                dual_0_var[i],
+                bin_states,
+                anchor_points,
+                trial_points,
+                epi_states[i],
+                # obj_y,
+                # belief_y,
+                sigma,
+                iteration,
+                cut_away,
+                algo_params.infiltrate_state,
+                algo_params,
+                cut_generation_regime,
+                applied_solvers,
+                cut_generation_regime.state_approximation_regime,
+            )
+
+            # If at least one of the multi-cuts is cutting away the current
+            # incumbent, this is sufficient to set the overall cut_away to true
+            if cut_away_single
+                cut_away = true
+            end
+        end
     end
 
     ############################################################################
