@@ -34,11 +34,11 @@ function model_no_bin_definition(problem_params::DynamicSDDiP.ProblemParams, sce
                   45 35 60;
                   65 55 45;
                   35 35 80;
-                  40 35 0;
+                  #40 35 0;
                   45 35 60;
                   65 55 45;
                   35 35 80;
-                  40 35 0;
+                  #40 35 0;
                   45 35 60;
                   65 55 45;
                   35 35 80]
