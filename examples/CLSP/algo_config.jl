@@ -133,7 +133,7 @@ function algo_config(
         silent = silent,
         infiltrate_state = infiltrate_state,
         solver_approach = solver_approach,
-        numerical_focus = trues,
+        numerical_focus = true,
         run_numerical_stability_report = false,
         seed = forward_seed,
         run_description = ""
