@@ -291,8 +291,15 @@ function get_dual_solution(
 
         lag_obj = results.lag_obj
         lag_iterations = results.iterations
-        subproblem.ext[:sddp_policy_graph].ext[:agg_lag_iterations] += results.iterations
         lag_status = results.lag_status
+
+        subproblem.ext[:sddp_policy_graph].ext[:agg_lag_iterations] += results.iterations
+
+        # Counter to compare only number of iterations for converged cases
+        if lag_status in (:opt, :conv, :sub, :iter, :mn_opt, :mn_iter)
+            subproblem.ext[:sddp_policy_graph].ext[:corr_lag_iterations] += results.iterations
+            subproblem.ext[:sddp_policy_graph].ext[:corr_realizations] += 1
+        end
 
         ########################################################################
         # CHECK STATUS FOR ABNORMAL BEHAVIOR
@@ -453,12 +460,16 @@ function get_dual_solution(
 
         lag_obj = results.lag_obj
         lag_iterations = results.iterations
-
-        #Infiltrator.@infiltrate
-
-        subproblem.ext[:sddp_policy_graph].ext[:agg_lag_iterations] += results.iterations
         lag_status = results.lag_status
         dual_0_var = results.dual_0_var
+
+        subproblem.ext[:sddp_policy_graph].ext[:agg_lag_iterations] += results.iterations
+
+        # Counter to compare only number of iterations for converged cases
+        if lag_status in (:opt, :conv, :sub, :iter, :mn_opt, :mn_iter)
+            subproblem.ext[:sddp_policy_graph].ext[:corr_lag_iterations] += results.iterations
+            subproblem.ext[:sddp_policy_graph].ext[:corr_realizations] += 1
+        end
 
         #if node.subproblem.ext[:sddp_policy_graph].ext[:iteration] == 4
         #    Infiltrator.@infiltrate

@@ -33,6 +33,8 @@ struct Log
     subproblem_size::Union{Dict{Symbol,Int64},Nothing}
     algo_params::DynamicSDDiP.AlgoParams
     agg_lag_iterations::Int64
+    corr_lag_iterations::Int64
+    corr_realizations::Int64
     lag_iterations::Union{Vector{Int},Vector{Float64},Nothing}
     total_cuts::Int
     active_cuts::Int
@@ -221,7 +223,7 @@ function print_iteration_header(io)
     print(io, lpad(Printf.@sprintf("%s", header), 16))
     print(io, "       ")
     header = "Lagrangian Dual"
-    print(io, rpad(Printf.@sprintf("%s", header), 40))
+    print(io, rpad(Printf.@sprintf("%s", header), 60))
     print(io, "  ")
 
     println(io)
@@ -262,6 +264,12 @@ function print_iteration_header(io)
     print(io, lpad(Printf.@sprintf("%s", header), 7))
     print(io, "  ")
     header = "# It."
+    print(io, lpad(Printf.@sprintf("%s", header), 9))
+    print(io, "  ")
+    header = "# C-It."
+    print(io, lpad(Printf.@sprintf("%s", header), 9))
+    print(io, "  ")
+    header = "# C-Real."
     print(io, lpad(Printf.@sprintf("%s", header), 9))
     print(io, "  ")
 
@@ -320,6 +328,11 @@ function print_iteration(io, log::Log, start_time::Float64)
 
     print(io, "  ")
     print(io, lpad(Printf.@sprintf("%5d", log.agg_lag_iterations), 9))
+    print(io, "  ")
+    print(io, lpad(Printf.@sprintf("%5d", log.corr_lag_iterations), 9))
+    print(io, "  ")
+    print(io, lpad(Printf.@sprintf("%5d", log.corr_realizations), 9))
+
     #print(io, "       ")
 
     # if !isnothing(log.lag_iterations)

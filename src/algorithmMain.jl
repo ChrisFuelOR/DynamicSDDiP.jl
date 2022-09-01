@@ -655,6 +655,8 @@ function iteration(
              subproblem_size,
              algo_params,
              model.ext[:agg_lag_iterations],
+             model.ext[:corr_lag_iterations],
+             model.ext[:corr_realizations],
              model.ext[:lag_iterations],
              model.ext[:total_cuts],
              model.ext[:active_cuts],

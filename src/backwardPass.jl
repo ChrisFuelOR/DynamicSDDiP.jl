@@ -37,6 +37,8 @@ function backward_pass(
     ############################################################################
     # storage for data on solving Lagrangian dual
     model.ext[:agg_lag_iterations] = 0
+    model.ext[:corr_lag_iterations] = 0
+    model.ext[:corr_realizations] = 0
     model.ext[:lag_iterations] = Float64[]
 
     ############################################################################
