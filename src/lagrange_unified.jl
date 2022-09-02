@@ -508,6 +508,7 @@ function solve_unified_lagrangian_dual(
     iter = 0
     lag_status = :none
     feas_flag = false
+    π_k_dummy = zeros(length(π_k))
 
     # set up optimal value of approx_model (former f_approx)
     t_k = Inf
@@ -566,11 +567,15 @@ function solve_unified_lagrangian_dual(
                 #Infiltrator.@infiltrate
                 #elude_numerical_issues!(approx_model, algo_params)
                 feas_flag = true
+                Infiltrator.@infiltrate
                 break
             end
         end
         @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
         t_k = JuMP.objective_value(approx_model)
+        π_k_dummy .= JuMP.value.(π)
+        π0_k_dummy = JuMP.value(π₀)
+
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
         ########################################################################
@@ -659,15 +664,17 @@ function solve_unified_lagrangian_dual(
         stop here.
         """
         if (JuMP.termination_status(approx_model) != JuMP.MOI.OPTIMAL && JuMP.termination_status(approx_model) != JuMP.MOI.LOCALLY_SOLVED)
-             #Infiltrator.@infiltrate
-             feas_flag = true
-             break
+            #feas_flag = true
+            #break
+            π_k .= π_k_dummy
+            π0_k = π0_k_dummy
+        else
+            π_k .= JuMP.value.(π)
+            π0_k = JuMP.value.(π₀)
         end
 
         #@assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL || JuMP.termination_status(approx_model) == JuMP.MOI.LOCALLY_SOLVED
 
-        π_k .= JuMP.value.(π)
-        π0_k = JuMP.value.(π₀)
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
         # Delete the level lower bound for the original approx_model again
@@ -683,7 +690,6 @@ function solve_unified_lagrangian_dual(
         end
 
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
-
         #println(L_k, ", ", L_star, ", ", t_k)
 
         ########################################################################
