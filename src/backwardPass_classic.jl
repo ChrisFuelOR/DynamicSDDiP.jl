@@ -148,8 +148,8 @@ function solve_all_children(
                 # DETERMINE ASSOCIATED EPI_STATE
                 ################################################################
                 if algo_params.cut_type == SDDP.SINGLE_CUT
-                    #epi_state = epi_states[1]
-                    epi_state = Inf
+                    epi_state = epi_states[1]
+                    #epi_state = Inf
                 elseif algo_params.cut_type == SDDP.MULTI_CUT
                     epi_state = epi_states[i]
                 end

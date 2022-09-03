@@ -61,4 +61,11 @@ include("backwardPass_classic.jl")
 
 include("lagrange_unified.jl")
 
+include("backwardPass_aggregated.jl")
+include("duals_aggregated.jl")
+include("lagrange_unified_preparation_aggregated.jl")
+include("lagrange_unified_aggregated.jl")
+
+
+
 end

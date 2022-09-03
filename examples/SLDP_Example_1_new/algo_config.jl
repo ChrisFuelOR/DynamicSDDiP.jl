@@ -17,8 +17,8 @@ function algo_config(
 
     # Stopping rules to be used
     #stopping_rules = [SDDP.TimeLimit(time_limit), SDDP.IterationLimit(1000), SDDP.BoundStalling(20,1e-4)]
-    #stopping_rules = [SDDP.TimeLimit(time_limit), SDDP.BoundStalling(20,1e-4)]
-    stopping_rules = [ SDDP.IterationLimit(30), SDDP.BoundStalling(20,1e-4)]
+    stopping_rules = [SDDP.TimeLimit(time_limit), SDDP.BoundStalling(20,1e-4)]
+    #stopping_rules = [SDDP.BoundStalling(20,1e-4)]
 
     # Duality / Cut computation configuration
     dual_initialization_regime = DynamicSDDiP.ZeroDuals()
@@ -43,8 +43,8 @@ function algo_config(
             normalization_regime = normalization_regime,
             dual_space_regime = dual_space_regime,
             copy_regime = copy_regime,
-            #user_dual_multiplier_bound = 10.0, # 10.0
-            user_dual_objective_bound = 1e4,
+            user_dual_multiplier_bound = 1.0, # 10.0
+            #user_dual_objective_bound = 1e4,
         )
     elseif duality_regime_sym == :lag
         duality_regime = DynamicSDDiP.LagrangianDuality(
