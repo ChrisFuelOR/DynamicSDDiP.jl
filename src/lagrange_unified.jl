@@ -567,7 +567,6 @@ function solve_unified_lagrangian_dual(
                 #Infiltrator.@infiltrate
                 #elude_numerical_issues!(approx_model, algo_params)
                 feas_flag = true
-                Infiltrator.@infiltrate
                 break
             end
         end
