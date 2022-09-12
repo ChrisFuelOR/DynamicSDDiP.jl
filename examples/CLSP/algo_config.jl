@@ -76,8 +76,8 @@ function algo_config(
     cut_generation_regime_2 = DynamicSDDiP.CutGenerationRegime(
         state_approximation_regime = state_approximation_regime,
         duality_regime = duality_regime,
-        cut_away_approach = false,
-        iteration_to_start = 21,
+        #cut_away_approach = false,
+        #iteration_to_start = 21,
     )
 
     cut_generation_regime_1 = DynamicSDDiP.CutGenerationRegime(
@@ -85,7 +85,7 @@ function algo_config(
         duality_regime = DynamicSDDiP.StrengthenedDuality(),
     )
 
-    cut_generation_regimes = [cut_generation_regime_1, cut_generation_regime_2]
+    cut_generation_regimes = [cut_generation_regime_2]
 
     # Regularization configuration
     regularization_regime = DynamicSDDiP.NoRegularization()
