@@ -696,8 +696,10 @@ function lagrangian_status_check(
         model.ext[:lag_status_dict][:iter] += 1
     elseif lag_status == :unbounded
         model.ext[:lag_status_dict][:unbounded] += 1
+        print("unbounded")
     elseif lag_status == :bound_issues
         model.ext[:lag_status_dict][:bound_issues] += 1
+        print("bound_issues")
     elseif lag_status == :feas_issues
         model.ext[:lag_status_dict][:feas_issues] += 1
     elseif lag_status == :mn_opt
