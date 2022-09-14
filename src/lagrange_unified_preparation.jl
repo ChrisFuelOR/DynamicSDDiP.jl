@@ -645,6 +645,8 @@ function get_normalization_coefficients(
 		ω[i] = core_point.x[i] - incumbent
 	end
 
+    println(ω, ω₀)
+
 	return (ω = ω, ω₀ = ω₀)
 
 end
