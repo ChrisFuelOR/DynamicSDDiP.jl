@@ -644,9 +644,6 @@ function get_normalization_coefficients(
 		incumbent = JuMP.fix_value(state.in)
 		ω[i] = core_point.x[i] - incumbent
 	end
-
-    println(ω, ω₀)
-
 	return (ω = ω, ω₀ = ω₀)
 
 end
