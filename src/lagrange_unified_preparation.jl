@@ -83,51 +83,63 @@ end
 
 function get_Benders_list!(
     node::SDDP.Node,
+	Benders_symbol::Symbol,
     K::Int64,
     state_approximation_regime::DynamicSDDiP.BinaryApproximation,
     )
 
-    number_of_Benders_cuts = length(node.ext[:Benders_cuts_binary])
+	full_Benders_list = node.ext[:Benders_cuts_binary]
+	specific_Benders_list = Tuple{Int64, Symbol, Symbol}[]
 
-    if number_of_Benders_cuts == 0
-            @error("Dual space restriction attempt, but no Benders cuts have been generated.")
-    elseif  number_of_Benders_cuts <= K
-            Benders_list = node.ext[:Benders_cuts_binary]
-    else
-            Benders_list = node.ext[:Benders_cuts_binary][number_of_Benders_cuts-K+1:number_of_Benders_cuts]
-    end
+	for k in length(full_Benders_list):1
+		if length(specific_Benders_list) == K
+			break
+		end
 
-	# Make sure that only the last K entries will be used
-	if number_of_Benders_cuts > K
-		number_of_Benders_cuts = K
+		if full_Benders_list[k][3] == Benders_symbol
+			push!(specific_Benders_list, full_Benders_list[k])
+		end
 	end
 
-    return (Benders_list = Benders_list, number_of_Benders_cuts = number_of_Benders_cuts)
+	number_of_Benders_cuts = length(specific_Benders_list)
+
+	@assert number_of_Benders_cuts <= K
+	if number_of_Benders_cuts == 0
+    	@error("Dual space restriction attempt, but no Benders cuts have been generated.")
+	end
+
+    return (Benders_list = specific_Benders_list, number_of_Benders_cuts = number_of_Benders_cuts)
 
 end
 
 function get_Benders_list!(
     node::SDDP.Node,
+	Benders_symbol::Symbol,
     K::Int64,
     state_approximation_regime::DynamicSDDiP.NoStateApproximation,
     )
 
-    number_of_Benders_cuts = length(node.ext[:Benders_cuts_original])
+	full_Benders_list = node.ext[:Benders_cuts_original]
+	specific_Benders_list = Tuple{Int64, Symbol, Symbol}[]
 
-    if number_of_Benders_cuts == 0
-            @error("Dual space restriction attempt, but no Benders cuts have been generated.")
-    elseif  number_of_Benders_cuts <= K
-            Benders_list = node.ext[:Benders_cuts_original]
-    else
-            Benders_list = node.ext[:Benders_cuts_original][number_of_Benders_cuts-K+1:number_of_Benders_cuts]
-    end
+	for k in length(full_Benders_list):1
+		if length(specific_Benders_list) == K
+			break
+		end
 
-	# Make sure that only the last K entries will be used
-	if number_of_Benders_cuts > K
-		number_of_Benders_cuts = K
+		if full_Benders_list[k][3] == Benders_symbol
+			push!(specific_Benders_list, full_Benders_list[k])
+		end
 	end
 
-    return (Benders_list = Benders_list, number_of_Benders_cuts = number_of_Benders_cuts)
+	number_of_Benders_cuts = length(specific_Benders_list)
+
+	@assert number_of_Benders_cuts <= K
+	if number_of_Benders_cuts == 0
+    	@error("Dual space restriction attempt, but no Benders cuts have been generated.")
+	end
+
+    return (Benders_list = specific_Benders_list, number_of_Benders_cuts = number_of_Benders_cuts)
 
 end
 
@@ -135,6 +147,7 @@ function dual_space_restriction!(
     node::SDDP.Node,
     approx_model::JuMP.Model,
     i::Int64,
+	cut_aggregation_regime::DynamicSDDiP.SingleCutRegime,
     state_approximation_regime::Union{DynamicSDDiP.BinaryApproximation,DynamicSDDiP.NoStateApproximation},
     dual_space_regime::DynamicSDDiP.BendersSpanSpaceRestriction
 )
@@ -145,7 +158,7 @@ function dual_space_restriction!(
     # Step 1: Get last K elements from Benders cuts
     ############################################################################
     K = dual_space_regime.K
-    results = get_Benders_list!(ancestor_node, K, state_approximation_regime)
+    results = get_Benders_list!(ancestor_node, :all, K, state_approximation_regime)
     Benders_list = results.Benders_list
     number_of_Benders_cuts = results.number_of_Benders_cuts
 
@@ -160,15 +173,7 @@ function dual_space_restriction!(
     for k in 1:number_of_Benders_cuts
         coefficient = 0
         index = Benders_list[k][1]
-        if Benders_list[k][2] == :single_cut
-            coefficients = ancestor_node.bellman_function.global_theta.cuts[index].coefficients
-        elseif Benders_list[k][2] == :multi_cut
-			try
-            	coefficients = ancestor_node.bellman_function.local_thetas[i].cuts[index].coefficients
-			catch e
-				Infiltrator.@infiltrate
-			end
-        end
+        coefficients = ancestor_node.bellman_function.global_theta.cuts[index].coefficients
         coefficients_vector = zeros(length(coefficients))
         for (j, (key,value)) in enumerate(coefficients)
             coefficients_vector[j] = value
@@ -181,7 +186,51 @@ function dual_space_restriction!(
     π = approx_model[:π]
     span_constraint = JuMP.@constraint(approx_model, π .== expr)
 
-    # Infiltrator.@infiltrate
+    return
+end
+
+function dual_space_restriction!(
+    node::SDDP.Node,
+    approx_model::JuMP.Model,
+    i::Int64,
+	cut_aggregation_regime::DynamicSDDiP.MultiCutRegime,
+    state_approximation_regime::Union{DynamicSDDiP.BinaryApproximation,DynamicSDDiP.NoStateApproximation},
+    dual_space_regime::DynamicSDDiP.BendersSpanSpaceRestriction
+)
+
+    policy_graph = node.subproblem.ext[:sddp_policy_graph]
+    ancestor_node = policy_graph.nodes[node.index-1]
+
+    # Step 1: Get last K elements from Benders cuts
+    ############################################################################
+    K = dual_space_regime.K
+    results = get_Benders_list!(ancestor_node, Symbol(i), K, state_approximation_regime)
+    Benders_list = results.Benders_list
+    number_of_Benders_cuts = results.number_of_Benders_cuts
+
+    # Step 2: Introduce a span variable
+    ############################################################################
+    span_variable = JuMP.@variable(approx_model, span_variable[1:number_of_Benders_cuts])
+
+    # Step 3: Create span expression
+    ############################################################################
+    expr = JuMP.@expression(approx_model, 0)
+
+    for k in 1:number_of_Benders_cuts
+        coefficient = 0
+        index = Benders_list[k][1]
+        coefficients = ancestor_node.bellman_function.local_thetas[i].cuts[index].coefficients
+        coefficients_vector = zeros(length(coefficients))
+        for (j, (key,value)) in enumerate(coefficients)
+            coefficients_vector[j] = value
+        end
+        expr = JuMP.@expression(approx_model, expr .+ span_variable[k] * coefficients_vector)
+    end
+
+    # Step 4: Introduce a new constraint to restrict the dual space
+    ############################################################################
+    π = approx_model[:π]
+    span_constraint = JuMP.@constraint(approx_model, π .== expr)
 
     return
 end
@@ -190,6 +239,7 @@ function dual_space_restriction!(
     node::SDDP.Node,
     approx_model::JuMP.Model,
     i::Int64,
+	cut_aggregation_regime::DynamicSDDiP.AbstractCutAggregationRegime,
     state_approximation_regime::Union{DynamicSDDiP.BinaryApproximation, DynamicSDDiP.NoStateApproximation},
     dual_space_regime::DynamicSDDiP.NoDualSpaceRestriction
 )

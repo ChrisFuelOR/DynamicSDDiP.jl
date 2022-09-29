@@ -155,7 +155,7 @@ function backward_pass(
                 of only the last K, since it is not known here which value K has."""
 
                 if isa(cut_generation_regime.duality_regime, DynamicSDDiP.LinearDuality)
-                    update_Benders_cut_list!(node, algo_params.cut_aggregation_regime, cut_generation_regime.state_approximation_regime)
+                    update_Benders_cut_list!(node, items.add_cut_flags, algo_params.cut_aggregation_regime, cut_generation_regime.state_approximation_regime)
                 end
                 # TODO: A similar approach can be used for Lagrangian cuts
 
@@ -297,12 +297,15 @@ and for SingleCutRegime.
 """
 function update_Benders_cut_list!(
     node::SDDP.Node,
+    add_cut_flags::Vector{Bool},
     cut_aggregation_regime::DynamicSDDiP.SingleCutRegime,
     state_approximation_regime::DynamicSDDiP.NoStateApproximation,
     )
 
-    cut_index = lastindex(node.bellman_function.global_theta.cuts)
-    push!(node.ext[:Benders_cuts_original], (cut_index, :single_cut))
+    if any(add_cut_flags)
+        cut_index = lastindex(node.bellman_function.global_theta.cuts)
+        push!(node.ext[:Benders_cuts_original], (cut_index, :all))
+    end
 end
 
 """
@@ -312,13 +315,17 @@ and for MultiCutRegime.
 """
 function update_Benders_cut_list!(
     node::SDDP.Node,
+    add_cut_flags::Vector{Bool},
     cut_aggregation_regime::DynamicSDDiP.MultiCutRegime,
     state_approximation_regime::DynamicSDDiP.NoStateApproximation,
     )
 
-    # we use local_thetas[1] here, but any other index would work as well
-    cut_index = lastindex(node.bellman_function.local_thetas[1].cuts)
-    push!(node.ext[:Benders_cuts_original], (cut_index, :multi_cut))
+    for i = 1:length(add_cut_flags)
+        if add_cut_flags[i]
+            cut_index = lastindex(node.bellman_function.local_thetas[i].cuts)
+            push!(node.ext[:Benders_cuts_original], (cut_index, Symbol(i)))
+        end
+    end
 end
 
 """
@@ -328,12 +335,15 @@ and for SingleCutRegime.
 """
 function update_Benders_cut_list!(
     node::SDDP.Node,
+    add_cut_flags::Vector{Bool},
     cut_aggregation_regime::DynamicSDDiP.SingleCutRegime,
     state_approximation_regime::DynamicSDDiP.BinaryApproximation,
     )
 
-    cut_index = lastindex(node.bellman_function.global_theta.cuts)
-    push!(node.ext[:Benders_cuts_binary], (cut_index, :single_cut))
+    if any(add_cut_flags)
+        cut_index = lastindex(node.bellman_function.global_theta.cuts)
+        push!(node.ext[:Benders_cuts_binary], (cut_index, :all))
+    end
 end
 
 """
@@ -343,10 +353,15 @@ and for MultiCutRegime.
 """
 function update_Benders_cut_list!(
     node::SDDP.Node,
+    add_cut_flags::Vector{Bool},
     cut_aggregation_regime::DynamicSDDiP.MultiCutRegime,
     state_approximation_regime::DynamicSDDiP.BinaryApproximation,
     )
 
-    cut_index = lastindex(node.bellman_function.local_thetas[1].cuts)
-    push!(node.ext[:Benders_cuts_binary], (cut_index, :multi_cut))
+    for i = 1:length(add_cut_flags)
+        if add_cut_flags[i]
+            cut_index = lastindex(node.bellman_function.local_thetas[i].cuts)
+            push!(node.ext[:Benders_cuts_binary], (cut_index, Symbol(i)))
+        end
+    end
 end
