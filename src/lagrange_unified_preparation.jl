@@ -132,8 +132,6 @@ function get_Benders_list!(
 		end
 	end
 
-	Infiltrator.@infiltrate
-
 	number_of_Benders_cuts = length(specific_Benders_list)
 
 	@assert number_of_Benders_cuts <= K
