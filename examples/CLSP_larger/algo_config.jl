@@ -26,7 +26,7 @@ function algo_config(
     dual_bound_regime = DynamicSDDiP.BothBounds()
     dual_status_regime = DynamicSDDiP.Lax()
 
-    dual_choice_regime = DynamicSDDiP.MinimalNormChoice()
+    dual_choice_regime = DynamicSDDiP.StandardChoice()
     if isa(normalization_regime, DynamicSDDiP.L∞_Deep)
         dual_choice_regime = DynamicSDDiP.MinimalNormChoice()
     end
@@ -82,10 +82,10 @@ function algo_config(
 
     cut_generation_regime_1 = DynamicSDDiP.CutGenerationRegime(
         state_approximation_regime = state_approximation_regime,
-        duality_regime = DynamicSDDiP.StrengthenedDuality(),
+        duality_regime = DynamicSDDiP.Benders(),
     )
 
-    cut_generation_regimes = [cut_generation_regime_2]
+    cut_generation_regimes = [cut_generation_regime_1, cut_generation_regime_2]
 
     # Regularization configuration
     regularization_regime = DynamicSDDiP.NoRegularization()
