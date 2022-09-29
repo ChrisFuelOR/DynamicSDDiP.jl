@@ -89,14 +89,14 @@ function get_Benders_list!(
     )
 
 	full_Benders_list = node.ext[:Benders_cuts_binary]
-	specific_Benders_list = Tuple{Int64, Symbol, Symbol}[]
+	specific_Benders_list = Tuple{Int64, Symbol}[]
 
-	for k in length(full_Benders_list):1
+	for k in length(full_Benders_list):-1:1
 		if length(specific_Benders_list) == K
 			break
 		end
 
-		if full_Benders_list[k][3] == Benders_symbol
+		if full_Benders_list[k][2] == Benders_symbol
 			push!(specific_Benders_list, full_Benders_list[k])
 		end
 	end
@@ -120,17 +120,19 @@ function get_Benders_list!(
     )
 
 	full_Benders_list = node.ext[:Benders_cuts_original]
-	specific_Benders_list = Tuple{Int64, Symbol, Symbol}[]
+	specific_Benders_list = Tuple{Int64, Symbol}[]
 
-	for k in length(full_Benders_list):1
+	for k in length(full_Benders_list):-1:1
 		if length(specific_Benders_list) == K
 			break
 		end
 
-		if full_Benders_list[k][3] == Benders_symbol
+		if full_Benders_list[k][2] == Benders_symbol
 			push!(specific_Benders_list, full_Benders_list[k])
 		end
 	end
+
+	Infiltrator.@infiltrate
 
 	number_of_Benders_cuts = length(specific_Benders_list)
 
