@@ -160,11 +160,14 @@ function dual_space_restriction!(
     for k in 1:number_of_Benders_cuts
         coefficient = 0
         index = Benders_list[k][1]
-		Infiltrator.@infiltrate
         if Benders_list[k][2] == :single_cut
             coefficients = ancestor_node.bellman_function.global_theta.cuts[index].coefficients
         elseif Benders_list[k][2] == :multi_cut
-            coefficients = ancestor_node.bellman_function.local_thetas[i].cuts[index].coefficients
+			try
+            	coefficients = ancestor_node.bellman_function.local_thetas[i].cuts[index].coefficients
+			catch e
+				Infiltrator.@infiltrate
+			end
         end
         coefficients_vector = zeros(length(coefficients))
         for (j, (key,value)) in enumerate(coefficients)
