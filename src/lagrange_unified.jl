@@ -183,7 +183,7 @@ function solve_unified_lagrangian_dual(
         # Space restriction by Chen & Luedtke
         ########################################################################
         # Add dual space restriction (span of earlier multipliers)
-        dual_space_restriction!(node, approx_model, i, cut_generation_regime.state_approximation_regime, cut_generation_regime.duality_regime.dual_space_regime)
+        dual_space_restriction!(node, approx_model, i, algo_params.cut_aggregation_regime, cut_generation_regime.state_approximation_regime, cut_generation_regime.duality_regime.dual_space_regime)
 
         # Normalization of Lagrangian dual
         ########################################################################
@@ -493,7 +493,7 @@ function solve_unified_lagrangian_dual(
         # Space restriction by Chen & Luedtke
         ########################################################################
         # Add dual space restriction (span of earlier multipliers)
-        dual_space_restriction!(node, approx_model, i, cut_generation_regime.state_approximation_regime, cut_generation_regime.duality_regime.dual_space_regime)
+        dual_space_restriction!(node, approx_model, i, algo_params.cut_aggregation_regime, cut_generation_regime.state_approximation_regime, cut_generation_regime.duality_regime.dual_space_regime)
 
         # Normalization of Lagrangian dual
         ########################################################################
@@ -1032,7 +1032,7 @@ function solve_unified_lagrangian_dual(
         # Space restriction by Chen & Luedtke
         ########################################################################
         # Add dual space restriction (span of earlier multipliers)
-        dual_space_restriction!(node, proj_model, i, cut_generation_regime.state_approximation_regime, cut_generation_regime.duality_regime.dual_space_regime)
+        dual_space_restriction!(node, proj_model, i, algo_params.cut_aggregation_regime, cut_generation_regime.state_approximation_regime, cut_generation_regime.duality_regime.dual_space_regime)
 
         # Normalization of Lagrangian dual
         ########################################################################
