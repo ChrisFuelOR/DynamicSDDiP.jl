@@ -82,7 +82,7 @@ function algo_config(
 
     cut_generation_regime_1 = DynamicSDDiP.CutGenerationRegime(
         state_approximation_regime = state_approximation_regime,
-        duality_regime = DynamicSDDiP.LinearDuality(),
+        duality_regime = DynamicSDDiP.StrengthenedDuality(),
     )
 
     cut_generation_regimes = [cut_generation_regime_1, cut_generation_regime_2]

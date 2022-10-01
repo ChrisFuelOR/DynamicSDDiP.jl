@@ -154,7 +154,7 @@ function backward_pass(
                 """ Note that we store the indices for all Benders cuts instead
                 of only the last K, since it is not known here which value K has."""
 
-                if isa(cut_generation_regime.duality_regime, DynamicSDDiP.LinearDuality)
+                if isa(cut_generation_regime.duality_regime, DynamicSDDiP.LinearDuality) || isa(cut_generation_regime.duality_regime, DynamicSDDiP.StrengthenedDuality)
                     update_Benders_cut_list!(node, items.add_cut_flags, algo_params.cut_aggregation_regime, cut_generation_regime.state_approximation_regime)
                 end
                 # TODO: A similar approach can be used for Lagrangian cuts
