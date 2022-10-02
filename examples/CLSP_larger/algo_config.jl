@@ -73,19 +73,41 @@ function algo_config(
     state_approximation_regime = DynamicSDDiP.NoStateApproximation()
 
     # Cut generation regimes
+    cut_generation_regime_3 = DynamicSDDiP.CutGenerationRegime(
+        state_approximation_regime = state_approximation_regime,
+        duality_regime = DynamicSDDiP.UnifiedLagrangianDuality(
+            atol = 1e-4,
+            rtol = 1e-4,
+            iteration_limit = 1000,
+            dual_initialization_regime = dual_initialization_regime,
+            dual_bound_regime = dual_bound_regime,
+            dual_solution_regime = dual_solution_regime,
+            dual_choice_regime = dual_choice_regime,
+            dual_status_regime = dual_status_regime,
+            normalization_regime = DynamicSDDiP.L₁_Deep(),
+            dual_space_regime = dual_space_regime,
+            copy_regime = copy_regime,
+            user_dual_multiplier_bound = 10.0, # 10.0
+            #user_dual_objective_bound = 1e4,
+        ),
+        #cut_away_approach = false,
+        iteration_to_start = 22,
+    )
+
     cut_generation_regime_2 = DynamicSDDiP.CutGenerationRegime(
         state_approximation_regime = state_approximation_regime,
         duality_regime = duality_regime,
         #cut_away_approach = false,
-        #iteration_to_start = 21,
+        iteration_to_start = 21,
+        iteration_to_stop = 21,
     )
 
     cut_generation_regime_1 = DynamicSDDiP.CutGenerationRegime(
         state_approximation_regime = state_approximation_regime,
-        duality_regime = DynamicSDDiP.Benders(),
+        duality_regime = DynamicSDDiP.LinearDuality(),
     )
 
-    cut_generation_regimes = [cut_generation_regime_1, cut_generation_regime_2]
+    cut_generation_regimes = [cut_generation_regime_1, cut_generation_regime_2, cut_generation_regime_3]
 
     # Regularization configuration
     regularization_regime = DynamicSDDiP.NoRegularization()
