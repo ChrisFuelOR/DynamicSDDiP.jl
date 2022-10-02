@@ -85,7 +85,7 @@ function algo_config(
             dual_choice_regime = dual_choice_regime,
             dual_status_regime = dual_status_regime,
             normalization_regime = DynamicSDDiP.L₁_Deep(),
-            dual_space_regime = dual_space_regime,
+            dual_space_regime = NoDualSpaceRestriction(),
             copy_regime = copy_regime,
             user_dual_multiplier_bound = 10.0, # 10.0
             #user_dual_objective_bound = 1e4,
