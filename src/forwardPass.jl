@@ -136,10 +136,8 @@ function solve_subproblem_forward(
     ############################################################################
     # SOLUTION
     ############################################################################
-    #Infiltrator.@infiltrate
     Infiltrator.@infiltrate algo_params.infiltrate_state in [:all]
-    #println(JuMP.backend(subproblem).optimizer.model)
-    #println(subproblem)
+
     TimerOutputs.@timeit DynamicSDDiP_TIMER "solver_call_FP" begin
         JuMP.optimize!(subproblem)
 
