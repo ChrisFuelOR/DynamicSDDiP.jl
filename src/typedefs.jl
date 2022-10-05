@@ -691,6 +691,46 @@ Default is NoSimulation.
 """
 
 ################################################################################
+# RESAMPLING
+################################################################################
+abstract type AbstractResamplingRegime end
+
+mutable struct Resampling <: AbstractResamplingRegime
+    resampling_limit :: Int
+
+    function Resampling(;
+        resampling_limit = 5,
+    )
+        return new(resampling_limit)
+    end
+end
+
+mutable struct NoResampling <: AbstractResamplingRegime
+
+"""
+In the forward pass and in the simulation sometimes numerical issues occur so that
+single subproblems become (or at least are identified) as infeasible or unbounded.
+This means that the algorithm stops in such case or no statistical upper bound
+is provided.
+
+Resampling means that in both cases a resampling for the current stage is used
+    to escape from the error. This procedure is repeated up to resampling_limit
+    times before the algorithm actually stops with an error.
+    In case of only a few infeasible/unbounded subproblems, this may help
+    in still getting results from the algorithm.
+
+NoResampling means that no resampling is applied, but in case of an error,
+    this error is thrown immediately.
+
+Note that catching every exception in the forward pass subproblems and to
+    use a resampling is pretty risky, as it may also prevent us from identifying
+    real infeasibilities in our problem.
+    Therefore, it makes most sense to try to solve the problem first without
+    resampling and only use this option if we really encounter numerical issues
+    for some instances.
+"""
+
+################################################################################
 # DEFINING STRUCT FOR SOLVERS TO BE USED
 ################################################################################
 """
@@ -747,6 +787,7 @@ mutable struct AlgoParams
     cut_selection_regime::AbstractCutSelectionRegime
     cut_generation_regimes::Vector{CutGenerationRegime}
     simulation_regime::AbstractSimulationRegime
+    resampling_regime::AbstractResamplingRegime
     ############################################################################
     risk_measure::SDDP.AbstractRiskMeasure
     forward_pass::SDDP.AbstractForwardPass
@@ -775,6 +816,7 @@ mutable struct AlgoParams
         cut_selection_regime = CutSelection(),
         cut_generation_regimes = [CutGenerationRegime()],
         simulation_regime = NoSimulation(),
+        resampling_regime = NoResampling(),
         risk_measure = SDDP.Expectation(),
         forward_pass = SDDP.DefaultForwardPass(),
         sampling_scheme = SDDP.InSampleMonteCarlo(),
@@ -801,6 +843,7 @@ mutable struct AlgoParams
             cut_selection_regime,
             cut_generation_regimes,
             simulation_regime,
+            resampling_regime,
             risk_measure,
             forward_pass,
             sampling_scheme,

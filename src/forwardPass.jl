@@ -49,6 +49,9 @@ function forward_pass(model::SDDP.PolicyGraph{T}, options::DynamicSDDiP.Options,
         node.ext[:total_cuts] = 0
         node.ext[:active_cuts] = 0
 
+        # Reset resampling counter
+        resampling_counter = 0
+
         ########################################################################
         # SET SOLVER
         ########################################################################
@@ -69,6 +72,8 @@ function forward_pass(model::SDDP.PolicyGraph{T}, options::DynamicSDDiP.Options,
                 epi_states_stage,
                 algo_params,
                 algo_params.regularization_regime,
+                algo_params.resampling_regime,
+                resampling_counter,
             )
         end
         # Cumulate the stage_objective.
@@ -93,6 +98,109 @@ function forward_pass(model::SDDP.PolicyGraph{T}, options::DynamicSDDiP.Options,
         epi_states = epi_states,
     )
 end
+
+"""
+Solving the subproblem within the forward pass of a loop of DynamicSDDiP
+if resampling is used.
+"""
+function solve_subproblem_forward(
+    model::SDDP.PolicyGraph{T},
+    node::SDDP.Node{T},
+    node_index::Int64,
+    state::Dict{Symbol,Float64},
+    noise,
+    scenario_path::Vector{Tuple{T,S}},
+    epi_states_stage::Vector{Float64},
+    algo_params::DynamicSDDiP.AlgoParams,
+    regularization_regime::DynamicSDDiP.AbstractRegularizationRegime,
+    resampling_regime::DynamicSDDiP.Resampling,
+    resampling_counter::Int;
+) where {T,S}
+
+    try
+        # we try to solve the forward pass subproblem with the current sample
+        return solve_subproblem_forward(
+            model,
+            node,
+            node_index,
+            state,
+            noise,
+            scenario_path,
+            epi_states_stage,
+            algo_params,
+            regularization_regime,
+        )
+
+    catch e
+        if resampling_counter <= resampling_regime.resampling_limit
+            # the subproblem should be deregularized first, so that we do not
+            # get an error in the regularization part
+            if node_index > 1
+                deregularize_subproblem!(node, node.subproblem, regularization_regime)
+            end
+
+            # there was an error (e.g. due to unboundedness or infeasibility of
+            # the subproblem); we resample and try to solve the problem again
+            noise_terms = SDDP.get_noise_terms(algo_params.sampling_scheme, node, node_index)
+            noise = SDDP.sample_noise(noise_terms)
+            # reset the scenario path entry
+            scenario_path[node_index] = (node_index, noise)
+
+            # call the same method again recursively, but with an increase
+            # resampling counter
+            return solve_subproblem_forward(
+                model,
+                node,
+                node_index,
+                state,
+                noise,
+                scenario_path,
+                epi_states_stage,
+                algo_params,
+                regularization_regime,
+                resampling_regime,
+                resampling_counter+1
+            )
+
+        else
+            # if the resampling limit is reached, throw the exception
+            throw(e)
+    end
+
+end
+
+"""
+Solving the subproblem within the forward pass of a loop of DynamicSDDiP
+if no resampling is used (classical case).
+"""
+function solve_subproblem_forward(
+    model::SDDP.PolicyGraph{T},
+    node::SDDP.Node{T},
+    node_index::Int64,
+    state::Dict{Symbol,Float64},
+    noise,
+    scenario_path::Vector{Tuple{T,S}},
+    epi_states_stage::Vector{Float64},
+    algo_params::DynamicSDDiP.AlgoParams,
+    regularization_regime::DynamicSDDiP.AbstractRegularizationRegime,
+    resampling_regime::DynamicSDDiP.NoResampling,
+    resampling_counter::Int;
+) where {T,S}
+
+    return solve_subproblem_forward(
+        model,
+        node,
+        node_index,
+        state,
+        noise,
+        scenario_path,
+        epi_states_stage,
+        algo_params,
+        regularization_regime,
+    )
+
+end
+
 
 
 """
