@@ -663,10 +663,14 @@ function solve_unified_lagrangian_dual(
         stop here.
         """
         if (JuMP.termination_status(approx_model) != JuMP.MOI.OPTIMAL && JuMP.termination_status(approx_model) != JuMP.MOI.LOCALLY_SOLVED)
-            #feas_flag = true
-            #break
-            π_k .= π_k_dummy
-            π0_k = π0_k_dummy
+            if dual_solution_regime.switch_to_kelley
+                # in case of an error, we proceed with the Kelley step, by using the multipliers obtained from the inner problem
+                π_k .= π_k_dummy
+                π0_k = π0_k_dummy
+            else
+                # in case of an error, we leave the bundle method and use the current multipliers to construct a cut
+                feas_flag = true
+                break
         else
             π_k .= JuMP.value.(π)
             π0_k = JuMP.value.(π₀)

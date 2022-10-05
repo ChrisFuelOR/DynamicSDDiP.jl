@@ -84,32 +84,15 @@ Subgradient means that a basic subgradient method (as in Bertsekas "Nonlinear
 Default is Kelley.
 """
 
-mutable struct Kelley <: AbstractDualSolutionRegime
-    # atol::Float64
-    # rtol::Float64
-    # iteration_limit::Int
-    # function Kelley(;
-    #     atol = 1e-8,
-    #     rtol = 1e-8,
-    #     iteration_limit = 1000,
-    #     )
-    #     return new(atol, rtol, iteration_limit)
-    # end
-end
+mutable struct Kelley <: AbstractDualSolutionRegime end
 
 mutable struct LevelBundle <: AbstractDualSolutionRegime
-    # atol::Float64
-    # rtol::Float64
-    # iteration_limit::Int
     level_factor::Float64
     function LevelBundle(;
-        # atol = 1e-8,
-        # rtol = 1e-8,
-        # iteration_limit = 1000,
         level_factor = 0.5,
+        switch_to_kelley = true,
         )
-        #return new(atol, rtol, iteration_limit, level_factor)
-        return new(level_factor)
+        return new(level_factor, switch_to_kelley)
     end
 end
 

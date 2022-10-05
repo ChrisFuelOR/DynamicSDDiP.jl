@@ -531,6 +531,7 @@ function solve_lagrangian_dual(
     iter = 0
     lag_status = :none
     feas_flag = false
+    π_k_dummy = zeros(length(π_k))
 
     # set up optimal value of approx_model (former f_approx)
     t_k = 0 # why zero?
@@ -591,6 +592,7 @@ function solve_lagrangian_dual(
         end
         #@assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
         t_k = JuMP.objective_value(approx_model)
+        π_k_dummy .= JuMP.value.(π)
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
         #print("UB: ", f_approx, ", LB: ", f_actual)
@@ -679,9 +681,16 @@ function solve_lagrangian_dual(
         as it is feasible. Therefore, I think the algorithm should not
         stop here.
         """
-        if (JuMP.termination_status(approx_model) != MOI.OPTIMAL && JuMP.termination_status(approx_model) != JuMP.MOI.LOCALLY_SOLVED)
-            feas_flag = true
-            break
+        if (JuMP.termination_status(approx_model) != JuMP.MOI.OPTIMAL && JuMP.termination_status(approx_model) != JuMP.MOI.LOCALLY_SOLVED)
+            if dual_solution_regime.switch_to_kelley
+                # in case of an error, we proceed with the Kelley step, by using the multipliers obtained from the inner problem
+                π_k .= π_k_dummy
+            else
+                # in case of an error, we leave the bundle method and use the current multipliers to construct a cut
+                feas_flag = true
+                break
+        else
+            π_k .= JuMP.value.(π)
         end
 
         π_k .= JuMP.value.(π)
