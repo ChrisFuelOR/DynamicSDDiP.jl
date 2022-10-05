@@ -21,22 +21,26 @@ function create_latex_plots()
 	# TO BE ADAPTED FOR EACH NEW PLOT
 	############################################################################
 
-    file_path_latex = "C:/Users/cg4102/Documents/julia_plots/clsp_binary_16_lb_it.tex"
-	plottype = :lb_it
+    file_path_latex = "C:/Users/cg4102/Documents/julia_plots/clsp_large_16_no_bin_lb_time.tex"
+	plottype = :lb_time
 
     # Create an array of struct instances which define the plots to be created
     plots_to_create = (
-        PlotConfig("C:/Users/cg4102/Documents/julia_logs/to_plot/clsp_binary_single_16.log", plottype, "red", 1.0, "none", "solid", "Single-cut", "SDDiP Single-cut", nothing),
-        PlotConfig("C:/Users/cg4102/Documents/julia_logs/to_plot/clsp_binary_multi_16.log", plottype, "black", 1.0, "none", "solid", "Multi-cut", "SDDiP Multi-cut", nothing),
-		PlotConfig("C:/Users/cg4102/Documents/julia_logs/to_plot/clsp_binary_L1_16.log", plottype, "blue", 1.0, "none", "solid", raw"$ \ell_1 $", "L1", nothing),
-		PlotConfig("C:/Users/cg4102/Documents/julia_logs/to_plot/clsp_binary_Lsup_16.log", plottype, "green!70!black", 1.0, "none", "solid", raw"$ \ell_\infty$", "Lsup", nothing),
-		PlotConfig("C:/Users/cg4102/Documents/julia_logs/to_plot/clsp_binary_mid_16.log", plottype, "yellow", 1.0, "none", "solid", "Mid", "Mid", nothing),
-		PlotConfig("C:/Users/cg4102/Documents/julia_logs/to_plot/clsp_binary_eps_16.log", plottype, "magenta", 1.0, "none", "solid", "Eps", "Eps", nothing),
-		PlotConfig("C:/Users/cg4102/Documents/julia_logs/to_plot/clsp_binary_relint_16.log", plottype, "cyan", 1.0, "none", "solid", "Relint", "Relint", nothing),
+        PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/CLSP_Large_O_16_20_Single.log", plottype, "red", 1.0, "none", "solid", "Single-cut", "SDDiP Single-cut", nothing),
+        PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/CLSP_Large_O_16_20_Multi.log", plottype, "black", 1.0, "none", "solid", "Multi-cut", "SDDiP Multi-cut", nothing),
+		PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/CLSP_Large_O_16_20_L1.log", plottype, "blue", 1.0, "none", "solid", raw"$ \ell_1 $", "L1", nothing),
+        PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/CLSP_Large_O_16_20_L1sup.log", plottype, "green", 1.0, "none", "solid", raw"$ \ell_{1 \infty} $", "L1sup", nothing),
+		PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/CLSP_Large_O_16_20_Lsup_MNC.log", plottype, "green!70!black", 1.0, "none", "solid", raw"$ \ell_\infty$", "Lsup", nothing),
+		PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/CLSP_Large_O_16_20_Mid.log", plottype, "yellow", 1.0, "none", "solid", "Mid", "Mid", nothing),
+		PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/CLSP_Large_O_16_20_Eps.log", plottype, "magenta", 1.0, "none", "solid", "Eps", "Eps", nothing),
+		PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/CLSP_Large_O_16_20_Relint.log", plottype, "cyan", 1.0, "none", "solid", "Relint", "Relint", nothing),
+		#PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/CLSP_16_20_Opt.log", plottype, "violet", 1.0, "none", "solid", "Opt", "Relint", nothing),
+		#PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/CLSP_16_20_InOut.log", plottype, "orange", 1.0, "none", "solid", "In-Out", "Relint", nothing),
+		PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/CLSP_Large_O_16_20_SB_Multi.log", plottype, "gray", 1.0, "none", "solid", "SB multi", "SB multi", nothing),
     )
 
     # Create header of LaTeX file
-	create_latex_header(file_path_latex, [0.0, 100.0, 0.0, 5500.0])
+	create_latex_header(file_path_latex, [0.0, 70.0, 0.0, 30000.0])
 
 	############################################################################
 	############################################################################
