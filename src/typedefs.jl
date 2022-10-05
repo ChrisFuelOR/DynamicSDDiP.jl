@@ -88,6 +88,7 @@ mutable struct Kelley <: AbstractDualSolutionRegime end
 
 mutable struct LevelBundle <: AbstractDualSolutionRegime
     level_factor::Float64
+    switch_to_kelley::Bool
     function LevelBundle(;
         level_factor = 0.5,
         switch_to_kelley = true,
