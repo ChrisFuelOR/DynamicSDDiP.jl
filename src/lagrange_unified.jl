@@ -671,6 +671,7 @@ function solve_unified_lagrangian_dual(
                 # in case of an error, we leave the bundle method and use the current multipliers to construct a cut
                 feas_flag = true
                 break
+            end
         else
             π_k .= JuMP.value.(π)
             π0_k = JuMP.value.(π₀)
