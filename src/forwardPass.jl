@@ -133,6 +133,8 @@ function solve_subproblem_forward(
 
     catch e
         if resampling_counter <= resampling_regime.resampling_limit
+
+            Infiltrator.@infiltrate
             # the subproblem should be deregularized first, so that we do not
             # get an error in the regularization part
             if node_index > 1
