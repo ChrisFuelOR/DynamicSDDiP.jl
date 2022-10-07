@@ -129,6 +129,7 @@ function algo_config(
         cut_selection_regime = cut_selection_regime,
         cut_generation_regimes = cut_generation_regimes,
         simulation_regime = simulation_regime,
+        resampling_regime = true,
         cut_type = cut_type,
         log_file = log_file,
         silent = silent,
