@@ -102,6 +102,9 @@ function algo_config(
     simulation_regime = DynamicSDDiP.Simulation(sampling_scheme=DynamicSDDiP.InSampleMonteCarlo(),number_of_replications=1000)
     #simulation_regime = DynamicSDDiP.NoSimulation()
 
+    # Resampling_regime
+    resampling_regime = DynamicSDDiP.Resampling()
+
     # Suppress solver output
     silent = true
 
@@ -129,7 +132,7 @@ function algo_config(
         cut_selection_regime = cut_selection_regime,
         cut_generation_regimes = cut_generation_regimes,
         simulation_regime = simulation_regime,
-        resampling_regime = true,
+        resampling_regime = resampling_regime,
         cut_type = cut_type,
         log_file = log_file,
         silent = silent,
