@@ -705,7 +705,7 @@ mutable struct Resampling <: AbstractResamplingRegime
     end
 end
 
-mutable struct NoResampling <: AbstractResamplingRegime
+mutable struct NoResampling <: AbstractResamplingRegime end
 
 """
 In the forward pass and in the simulation sometimes numerical issues occur so that

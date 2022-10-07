@@ -165,6 +165,7 @@ function solve_subproblem_forward(
         else
             # if the resampling limit is reached, throw the exception
             throw(e)
+        end
     end
 
 end
