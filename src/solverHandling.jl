@@ -93,7 +93,7 @@ function set_solver!(
             () -> GAMS.Optimizer(),
             "Solver"=>solver,
             "optcr"=>1e-4,
-            "NumericFocus"=>numerical_focus)
+            "NumericFocus"=>algo_params.numerical_focus ? 1 : 0)
             )
     else
     JuMP.set_optimizer(subproblem, JuMP.optimizer_with_attributes(

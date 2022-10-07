@@ -137,7 +137,7 @@ function solve(
     for (key, node) in model.nodes
         # Set solver
         JuMP.set_optimizer(node.subproblem, JuMP.optimizer_with_attributes(
-            () -> Gurobi.Optimizer(GURB_ENV[]),"MIPGap"=>1e-4,"TimeLimit"=>300
+            () -> Gurobi.Optimizer(GURB_ENV[]),"MIPGap"=>1e-4,"TimeLimit"=>300,"NumericFocus"=>algo_params.numerical_focus ?  1 : 0
         ))
         JuMP.set_silent(node.subproblem)
 
