@@ -103,7 +103,7 @@ function algo_config(
     #simulation_regime = DynamicSDDiP.NoSimulation()
 
     # Resampling_regime
-    resampling_regime = DynamicSDDiP.Resampling()
+    resampling_regime = DynamicSDDiP.NoResampling()
 
     # Suppress solver output
     silent = true
@@ -138,7 +138,7 @@ function algo_config(
         silent = silent,
         infiltrate_state = infiltrate_state,
         solver_approach = solver_approach,
-        numerical_focus = false,
+        numerical_focus = true,
         run_numerical_stability_report = false,
         seed = forward_seed,
         run_description = ""
