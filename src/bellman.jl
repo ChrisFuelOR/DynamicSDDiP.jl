@@ -1443,10 +1443,6 @@ function _add_cut_constraints_to_models(
     )
 
     cut.cut_constraint = if JuMP.objective_sense(model) == MOI.MIN_SENSE
-        if isnan(cut.intercept)
-            Infiltrator.@infiltrate
-        end
-
         JuMP.@constraint(model, expr >= cut.intercept)
     else
         JuMP.@constraint(model, expr <= cut.intercept)
