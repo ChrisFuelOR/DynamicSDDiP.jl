@@ -22,7 +22,7 @@ function algo_config(
 
     # Duality / Cut computation configuration
     dual_initialization_regime = DynamicSDDiP.ZeroDuals()
-    dual_solution_regime = DynamicSDDiP.LevelBundle()
+    dual_solution_regime = DynamicSDDiP.Kelley()
     dual_bound_regime = DynamicSDDiP.BothBounds()
     dual_status_regime = DynamicSDDiP.Lax()
 
@@ -31,8 +31,8 @@ function algo_config(
         dual_choice_regime = DynamicSDDiP.MinimalNormChoice()
     end
 
-    dual_space_regime = DynamicSDDiP.BendersSpanSpaceRestriction(20, :multi_cut)
-    #dual_space_regime = DynamicSDDiP.NoDualSpaceRestriction()
+    #dual_space_regime = DynamicSDDiP.BendersSpanSpaceRestriction(20, :multi_cut)
+    dual_space_regime = DynamicSDDiP.NoDualSpaceRestriction()
     copy_regime = DynamicSDDiP.ConvexHullCopy()
 
     if duality_regime_sym == :uni_lag
@@ -48,7 +48,7 @@ function algo_config(
             normalization_regime = normalization_regime,
             dual_space_regime = dual_space_regime,
             copy_regime = copy_regime,
-            user_dual_multiplier_bound = 10.0, # 10.0
+            user_dual_multiplier_bound = 1.0, # 10.0
             #user_dual_objective_bound = 1e4,
         )
     elseif duality_regime_sym == :lag
@@ -77,7 +77,7 @@ function algo_config(
         state_approximation_regime = state_approximation_regime,
         duality_regime = duality_regime,
         #cut_away_approach = false,
-        iteration_to_start = 21,
+        #iteration_to_start = 21,
         #iteration_to_stop = 21,
     )
 
@@ -86,7 +86,7 @@ function algo_config(
         duality_regime = DynamicSDDiP.LinearDuality(),
     )
 
-    cut_generation_regimes = [cut_generation_regime_1, cut_generation_regime_2]
+    cut_generation_regimes = [cut_generation_regime_2]
 
     # Regularization configuration
     regularization_regime = DynamicSDDiP.NoRegularization()

@@ -70,6 +70,7 @@ function _solve_Lagrangian_relaxation!(
 
     # Update the correct values
     L_k = JuMP.objective_value(model)
+    Infiltrator.@infiltrate
     if update_subgradients
         h_k .= -JuMP.value.(h_expr)
     end
