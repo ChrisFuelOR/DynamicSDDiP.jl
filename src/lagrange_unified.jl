@@ -133,7 +133,7 @@ function solve_unified_lagrangian_dual(
         # Optimizer is re-set anyway
         approx_model = JuMP.Model()
         JuMP.set_optimizer(approx_model, JuMP.optimizer_with_attributes(
-            () -> Gurobi.Optimizer(GURB_ENV[]),"MIPGap"=>1e-4,"TimeLimit"=>300
+            () -> Gurobi.Optimizer(GURB_ENV[]),"MIPGap"=>1e-4,"TimeLimit"=>300,"NumericFocus"=>algo_params.numerical_focus
         ))
         JuMP.set_silent(approx_model)
 
@@ -449,7 +449,7 @@ function solve_unified_lagrangian_dual(
         #     set_solver!(approx_model, algo_params, applied_solvers, :kelley, algo_params.solver_approach)
         # end
         JuMP.set_optimizer(approx_model, JuMP.optimizer_with_attributes(
-            () -> Gurobi.Optimizer(GURB_ENV[]),"MIPGap"=>1e-4,"TimeLimit"=>300
+            () -> Gurobi.Optimizer(GURB_ENV[]),"MIPGap"=>1e-4,"TimeLimit"=>300,"NumericFocus"=>algo_params.numerical_focus
         ))
         JuMP.set_silent(approx_model)
 
@@ -1047,7 +1047,7 @@ function solve_unified_lagrangian_dual(
         # Set solver
         ########################################################################
         JuMP.set_optimizer(proj_model, JuMP.optimizer_with_attributes(
-            () -> Gurobi.Optimizer(GURB_ENV[]),"MIPGap"=>1e-4,"TimeLimit"=>300
+            () -> Gurobi.Optimizer(GURB_ENV[]),"MIPGap"=>1e-4,"TimeLimit"=>300,"NumericFocus"=>algo_params.numerical_focus
         ))
         JuMP.set_silent(proj_model)
     end

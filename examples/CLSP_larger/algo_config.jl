@@ -27,9 +27,9 @@ function algo_config(
     dual_status_regime = DynamicSDDiP.Lax()
 
     dual_choice_regime = DynamicSDDiP.StandardChoice()
-    #if isa(normalization_regime, DynamicSDDiP.L∞_Deep)
-    #    dual_choice_regime = DynamicSDDiP.MinimalNormChoice()
-    #end
+    if isa(normalization_regime, DynamicSDDiP.L∞_Deep)
+        dual_choice_regime = DynamicSDDiP.MinimalNormChoice()
+    end
 
     #dual_space_regime = DynamicSDDiP.BendersSpanSpaceRestriction(20, :multi_cut)
     dual_space_regime = DynamicSDDiP.NoDualSpaceRestriction()
@@ -134,7 +134,7 @@ function algo_config(
         silent = silent,
         infiltrate_state = infiltrate_state,
         solver_approach = solver_approach,
-        numerical_focus = false,
+        numerical_focus = true,
         run_numerical_stability_report = false,
         seed = forward_seed,
         run_description = ""
