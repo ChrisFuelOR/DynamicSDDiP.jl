@@ -695,8 +695,6 @@ function solve_lagrangian_dual(
             π_k .= JuMP.value.(π)
         end
 
-        π_k .= JuMP.value.(π)
-
         # Delete the level lower bound for the original approx_model again
         JuMP.delete_lower_bound(t)
 
