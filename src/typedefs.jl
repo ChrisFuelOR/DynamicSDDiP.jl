@@ -642,6 +642,50 @@ copy_regime defines the constraints that the copy variable z of the state x has
 #TODO: Maybe define the copy_regime one time in a completeley separate way.
 
 ################################################################################
+# RESAMPLING
+################################################################################
+abstract type AbstractResamplingRegime end
+
+mutable struct Resampling <: AbstractResamplingRegime
+    resampling_limit :: Int
+
+    function Resampling(;
+        resampling_limit = 5,
+    )
+        return new(resampling_limit)
+    end
+end
+
+mutable struct NoResampling <: AbstractResamplingRegime end
+
+"""
+In the forward pass and in the simulation sometimes numerical issues occur so that
+single subproblems become (or at least are identified) as infeasible or unbounded.
+This means that the algorithm stops in such case or no statistical upper bound
+is provided.
+
+Resampling means that a resampling for the current stage is used
+    to escape from the error. This procedure is repeated up to resampling_limit
+    times before the algorithm actually stops with an error.
+    In case of only a few infeasible/unbounded subproblems, this may help
+    in still getting results.
+
+NoResampling means that no resampling is applied, but in case of an error,
+    this error is thrown immediately.
+
+Note that catching every exception in the forward pass subproblems and to
+    use a resampling is pretty risky, as it may also prevent us from identifying
+    real infeasibilities in our problem.
+    Therefore, it makes most sense to try to solve the problem first without
+    resampling and only use this option if we really encounter numerical issues
+    for some instances.
+
+IMPORTANT: Currently we only use this for the simulation (and there only
+for the InSampleMonteCarlo variant). First tests for
+the forward pass showed no improvement in case of infeasibilities.
+"""
+
+################################################################################
 # SIMULATION
 ################################################################################
 # Sampling schemes (similar to the ones in SDDP.jl)
@@ -657,7 +701,7 @@ mutable struct OutOfSampleMonteCarlo <: AbstractSamplingScheme
         number_of_realizations = 10,
         simulation_seed = 121212,
     )
-        return new(simulation_seed)
+        return new(number_of_realizations, simulation_seed)
     end
 end
 
@@ -667,12 +711,14 @@ abstract type AbstractSimulationRegime end
 mutable struct Simulation <: AbstractSimulationRegime
     sampling_scheme :: DynamicSDDiP.AbstractSamplingScheme
     number_of_replications :: Int
+    resampling_regime :: AbstractResamplingRegime
 
     function Simulation(;
         sampling_scheme = DynamicSDDiP.InSampleMonteCarlo,
         number_of_replications = 1000,
+        resampling_regime = DynamicSDDiP.NoResampling(),
     )
-        return new(sampling_scheme, number_of_replications)
+        return new(sampling_scheme, number_of_replications, resampling_regime)
     end
 end
 

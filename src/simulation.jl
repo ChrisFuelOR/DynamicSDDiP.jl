@@ -27,21 +27,23 @@ For more complicated data, the `custom_recorders` keyword argument can be used.
 """
 
 function simulate(
-    model::PolicyGraph,
+    model::SDDP.PolicyGraph,
+    simulation_regime::DynamicSDDiP.AbstractSimulationRegime,
     number_replications::Int = 1,
     variables::Vector{Symbol} = Symbol[];
-    sampling_scheme::AbstractSamplingScheme = InSampleMonteCarlo(),
+    sampling_scheme::SDDP.AbstractSamplingScheme = SDDP.InSampleMonteCarlo(),
     custom_recorders = Dict{Symbol,Function}(),
-    duality_handler::Union{Nothing,AbstractDualityHandler} = nothing,
+    duality_handler::Union{Nothing,SDDP.AbstractDualityHandler} = nothing,
     skip_undefined_variables::Bool = false,
-    parallel_scheme::AbstractParallelScheme = Serial(),
-    incoming_state::Dict{String,Float64} = _initial_state(model),
+    parallel_scheme::SDDP.AbstractParallelScheme = SDDP.Serial(),
+    incoming_state::Dict{String,Float64} = SDDP._initial_state(model),
 )
     return _simulate(
         model,
         parallel_scheme,
         number_replications,
         variables;
+        simulation_regime = simulation_regime,
         sampling_scheme = sampling_scheme,
         custom_recorders = custom_recorders,
         duality_handler = duality_handler,
@@ -51,8 +53,8 @@ function simulate(
 end
 
 function _simulate(
-    model::PolicyGraph,
-    ::Serial,
+    model::SDDP.PolicyGraph,
+    ::SDDP.Serial,
     number_replications::Int,
     variables::Vector{Symbol};
     kwargs...,
@@ -67,31 +69,32 @@ end
 # Internal function: helper to conduct a single simulation. Users should use the
 # documented, user-facing function SDDP.simulate instead.
 function _simulate(
-    model::PolicyGraph{T},
+    model::SDDP.PolicyGraph{T},
     variables::Vector{Symbol};
-    sampling_scheme::AbstractSamplingScheme,
+    simulation_regime::DynamicSDDiP.AbstractSimulationRegime,
+    sampling_scheme::SDDP.AbstractSamplingScheme,
     custom_recorders::Dict{Symbol,Function},
-    duality_handler::Union{Nothing,AbstractDualityHandler},
+    duality_handler::Union{Nothing,SDDP.AbstractDualityHandler},
     skip_undefined_variables::Bool,
     incoming_state::Dict{Symbol,Float64},
 ) where {T}
     # Sample a scenario path.
-    scenario_path, _ = sample_scenario(model, sampling_scheme)
+    scenario_path, _ = SDDP.sample_scenario(model, sampling_scheme)
 
     # Storage for the simulation results.
     simulation = Dict{Symbol,Any}[]
-    current_belief = initialize_belief(model)
+    current_belief = SDDP.initialize_belief(model)
     # A cumulator for the stage-objectives.
     cumulative_value = 0.0
 
     # Objective state interpolation.
     objective_state_vector, N =
-        initialize_objective_state(model[scenario_path[1][1]])
+        SDDP.initialize_objective_state(model[scenario_path[1][1]])
     objective_states = NTuple{N,Float64}[]
     for (depth, (node_index, noise)) in enumerate(scenario_path)
         node = model[node_index]
         # Objective state interpolation.
-        objective_state_vector = update_objective_state(
+        objective_state_vector = SDDP.update_objective_state(
             node.objective_state,
             objective_state_vector,
             noise,
@@ -100,7 +103,7 @@ function _simulate(
             push!(objective_states, objective_state_vector)
         end
         if node.belief_state !== nothing
-            belief = node.belief_state::BeliefState{T}
+            belief = node.belief_state::SDDP.BeliefState{T}
             partition_index = belief.partition_index
             current_belief = belief.updater(
                 belief.belief,
@@ -111,6 +114,10 @@ function _simulate(
         else
             current_belief = Dict(node_index => 1.0)
         end
+
+        # Reset resampling counter
+        resampling_counter = 0
+
         # Solve the subproblem.
         subproblem_results = solve_subproblem(
             model,
@@ -118,7 +125,9 @@ function _simulate(
             incoming_state,
             noise,
             scenario_path[1:depth],
-            duality_handler = duality_handler,
+            duality_handler,
+            simulation_regime.resampling_regime,
+            resampling_counter,
         )
         # Add the stage-objective
         cumulative_value += subproblem_results.stage_objective
@@ -160,7 +169,7 @@ function _simulate(
         end
         # Loop through any custom recorders that the user provided.
         for (sym, recorder) in custom_recorders
-            store[sym] = recorder(node.subproblem)
+            store[sym] = SDDP.recorder(node.subproblem)
         end
         # Add the store to our list.
         push!(simulation, store)
@@ -168,4 +177,81 @@ function _simulate(
         incoming_state = copy(subproblem_results.state)
     end
     return simulation
+end
+
+function solve_subproblem(
+    model::SDDP.PolicyGraph{T},
+    node::SDDP.Node{T},
+    incoming_state::Dict{Symbol,Float64},
+    noise,
+    scenario_path::Vector{Tuple{T,S}},
+    duality_handler::Union{Nothing,SDDP.AbstractDualityHandler},
+    resampling_regime::DynamicSDDiP.NoResampling,
+    resampling_counter::Int,
+) where {T,S}
+
+    return subproblem_results = SDDP.solve_subproblem(
+        model,
+        node,
+        incoming_state,
+        noise,
+        scenario_path,
+        duality_handler = duality_handler,
+    )
+
+end
+
+function solve_subproblem(
+    model::SDDP.PolicyGraph{T},
+    node::SDDP.Node{T},
+    incoming_state::Dict{Symbol,Float64},
+    noise,
+    scenario_path::Vector{Tuple{T,S}},
+    duality_handler::Union{Nothing,SDDP.AbstractDualityHandler},
+    resampling_regime::DynamicSDDiP.Resampling,
+    resampling_counter::Int,
+) where {T,S}
+
+    try
+        # we try to solve the subproblem with the current sample
+        return SDDP.solve_subproblem(
+            model,
+            node,
+            incoming_state,
+            noise,
+            scenario_path,
+            duality_handler = duality_handler,
+        )
+
+    catch e
+        if resampling_counter <= resampling_regime.resampling_limit
+
+            # Infiltrator.@infiltrate
+
+            # there was an error (e.g. due to unboundedness or infeasibility of
+            # the subproblem); we resample and try to solve the problem again
+            noise_terms = SDDP.get_noise_terms(algo_params.sampling_scheme, node, node_index)
+            noise = SDDP.sample_noise(noise_terms)
+            # reset the scenario path entry
+            scenario_path[node_index] = (node_index, noise)
+
+            # call the same method again recursively, but with an increase
+            # resampling counter
+            return solve_subproblem(
+                model,
+                node,
+                incoming_state,
+                noise,
+                scenario_path,
+                duality_handler = duality_handler,
+                resampling_regime,
+                resampling_counter+1
+            )
+
+        else
+            # if the resampling limit is reached, throw the exception
+            throw(e)
+        end
+    end
+
 end

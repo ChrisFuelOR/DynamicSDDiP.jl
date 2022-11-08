@@ -36,7 +36,8 @@ function simulate(
 
     # SIMULATE THE MODEL
     ############################################################################
-    simulations = SDDP.simulate(model, algo_params.simulation_regime.number_of_replications)
+    #simulations = SDDP.simulate(model, algo_params.simulation_regime.number_of_replications)
+    simulations = DynamicSDDiP.simulate(model, algo_params.simulation_regime, algo_params.simulation_regime.number_of_replications)
 
     # OBTAINING BOUNDS AND CONFIDENCE INTERVAL
     ############################################################################
