@@ -48,7 +48,7 @@ function algo_config(
             normalization_regime = normalization_regime,
             dual_space_regime = dual_space_regime,
             copy_regime = copy_regime,
-            user_dual_multiplier_bound = 0.01, # 10.0
+            user_dual_multiplier_bound = 20.0, # 10.0
             #user_dual_objective_bound = 1e4,
         )
     elseif duality_regime_sym == :lag
