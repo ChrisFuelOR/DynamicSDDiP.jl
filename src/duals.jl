@@ -431,7 +431,7 @@ function get_dual_solution(
 
     if isa(normalization_regime, DynamicSDDiP.Core_Midpoint) || isa(normalization_regime, DynamicSDDiP.Core_In_Out) || isa(normalization_regime, DynamicSDDiP.Core_Eps) | isa(normalization_regime, DynamicSDDiP.Core_Optimal) || isa(normalization_regime, DynamicSDDiP.Core_Relint)
         # PREPARE PRIMAL TO LAGRANGIAN DUAL PROBLEM (INCLUDES POSSIBLE REGULARIZATION)
-        construct_unified_primal_problem!(node, node_index, subproblem, epi_state, normalization_coeff, algo_params.regularization_regime, cut_generation_regime.state_approximation_regime)
+        construct_unified_primal_problem!(node, node_index, subproblem, epi_state, normalization_coeff, duality_regime, algo_params.regularization_regime, cut_generation_regime.state_approximation_regime)
 
         # SOLVE THE PRIMAL PROBLEM
         TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_primal" begin
@@ -892,45 +892,4 @@ function get_number_of_states(
     )
 
     return length(node.states)
-end
-
-"""
-Modifying the (regularized) subproblem to obtain an (approximate) primal to the Lagrangian dual
-"""
-function construct_unified_primal_problem!!(
-    node::SDDP.Node,
-    node_index::Int64,
-    subproblem::JuMP.Model,
-    epi_state::Float64,
-    normalization_coeff::Union{Nothing,NamedTuple{(:ω, :ω₀),Tuple{Vector{Float64},Float64}}},
-    regularization_regime::DynamicSDDiP.NoRegularization,
-    state_approximation_regime::DynamicSDDiP.NoStateApproximation
-    )
-
-    primal_data = node.ext[:primal_data]
-    primal_data[:primal_variables] = JuMP.VariableRef[]
-    primal_data[:primal_constraints] = JuMP.ConstraintRef[]
-    primal_data[:old_objective] = JuMP.objective_function(subproblem)
-
-    ω₀ = normalization_coeff.ω₀
-    ω = normalization_coeff.ω
-
-    # INTRODUCE A NEW VARIABLE ETA
-    ############################################################################
-    eta = JuMP.@variable(subproblem, eta >= 0)
-    push!(primal_data[:primal_variables], eta)
-
-    # INTRODUCE NEW CONSTRAINTS
-    ############################################################################
-    # objective constraint
-    const_obj = JuMP.@constraint(subproblem, ω₀ * eta >= old_obj - epi_state)
-    push!(primal_data[:primal_constraints], const_obj)
-
-    # unfix state variable
-    
-
-    const_state = JuMP.@constraint(subproblem, [i=1:], ω[i] * eta == STATEVARIABLE -  )
-
-
-
 end

@@ -1405,3 +1405,451 @@ function follow_state_unfixing_binary_slack!(node::SDDP.Node, state::JuMP.Variab
 
     return
 end
+
+
+"""
+Modifying the (regularized) subproblem to obtain an (approximate) primal to the Lagrangian dual
+if no regularization and no state approximation is used
+"""
+function construct_unified_primal_problem!(
+    node::SDDP.Node,
+	node_index::Int64,
+    subproblem::JuMP.Model,
+    epi_state::Float64,
+    normalization_coeff::Union{Nothing,NamedTuple{(:ω, :ω₀),Tuple{Vector{Float64},Float64}}},
+    duality_regime::UnifiedLagrangianDuality,
+    regularization_regime::DynamicSDDiP.NoRegularization,
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation
+    )
+
+    primal_data = node.ext[:primal_data]
+	primal_data[:fixed_state_value] = Dict{Symbol,Float64}()
+    primal_data[:primal_variables] = JuMP.VariableRef[]
+    primal_data[:primal_constraints] = JuMP.ConstraintRef[]
+    old_obj = primal_data[:old_objective] = JuMP.objective_function(subproblem)
+    primal_data[:slacks] = Any[]
+
+    ω₀ = normalization_coeff.ω₀
+    ω = normalization_coeff.ω
+
+    # INTRODUCE A NEW VARIABLE ETA
+    ############################################################################
+    eta = JuMP.@variable(subproblem, eta >= 0)
+    push!(primal_data[:primal_variables], eta)
+
+    # UNFIX THE STATE VARIABLES (RELAXATION)
+    ############################################################################
+    for (i, (name, state_comp)) in enumerate(node.states)
+        primal_data[:fixed_state_value][name] = JuMP.fix_value(state_comp.in)
+        push!(primal_data[:slacks], primal_data[:fixed_state_value][name] - state_comp.in)
+        JuMP.unfix(state_comp.in)
+        variable_info = node.ext[:state_info_storage][name].in
+        follow_state_unfixing!(state_comp, variable_info, duality_regime.copy_regime)
+        number_of_states = i
+    end
+    slack = primal_data[:slacks]
+
+    # INTRODUCE NEW CONSTRAINTS
+    ############################################################################
+    # objective constraint
+    const_obj = JuMP.@constraint(subproblem, ω₀ * eta >= old_obj - epi_state)
+    push!(primal_data[:primal_constraints], const_obj)
+
+    # state constraint
+    const_state = JuMP.@constraint(subproblem, [i=1:number_of_states], ω[i] * eta == slack[i])
+    append!(primal_data[:primal_constraints], const_state)
+
+    return
+end
+
+"""
+Modifying the (regularized) subproblem to obtain an (approximate) primal to the Lagrangian dual
+if no regularization, but binary state approximation is used
+"""
+function construct_unified_primal_problem!(
+    node::SDDP.Node,
+	node_index::Int64,
+    subproblem::JuMP.Model,
+    epi_state::Float64,
+    normalization_coeff::Union{Nothing,NamedTuple{(:ω, :ω₀),Tuple{Vector{Float64},Float64}}},
+    duality_regime::UnifiedLagrangianDuality,
+    regularization_regime::DynamicSDDiP.NoRegularization,
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation
+    )
+
+	bw_data = node.ext[:backward_data]
+    binary_states = bw_data[:bin_states]
+
+    primal_data = node.ext[:primal_data]
+	primal_data[:fixed_state_value] = Dict{Symbol,Float64}()
+    primal_data[:primal_variables] = JuMP.VariableRef[]
+    primal_data[:primal_constraints] = JuMP.ConstraintRef[]
+    old_obj = primal_data[:old_objective] = JuMP.objective_function(subproblem)
+    primal_data[:slacks] = Any[]
+
+    ω₀ = normalization_coeff.ω₀
+    ω = normalization_coeff.ω
+
+    # INTRODUCE A NEW VARIABLE ETA
+    ############################################################################
+    eta = JuMP.@variable(subproblem, eta >= 0)
+    push!(primal_data[:primal_variables], eta)
+
+    # UNFIX THE STATE VARIABLES (RELAXATION)
+    ############################################################################
+    for (i, (name, state_comp)) in enumerate(binary_states)
+        primal_data[:fixed_state_value][name] = JuMP.fix_value(state_comp)
+        push!(primal_data[:slacks], primal_data[:fixed_state_value][name] - state_comp)
+        JuMP.unfix(state_comp)
+        follow_state_unfixing_binary!(state_comp, duality_regime.copy_regime)
+        number_of_states = i
+    end
+    slack = primal_data[:slacks]
+
+    # INTRODUCE NEW CONSTRAINTS
+    ############################################################################
+    # objective constraint
+    const_obj = JuMP.@constraint(subproblem, ω₀ * eta >= old_obj - epi_state)
+    push!(primal_data[:primal_constraints], const_obj)
+
+    # state constraint
+    const_state = JuMP.@constraint(subproblem, [i=1:number_of_states], ω[i] * eta == slack[i])
+    append!(primal_data[:primal_constraints], const_state)
+
+    return
+end
+
+"""
+Modifying the (regularized) subproblem to obtain an (approximate) primal to the Lagrangian dual
+if regularization, but no state approximation is used
+"""
+function construct_unified_primal_problem!(
+    node::SDDP.Node,
+	node_index::Int64,
+    subproblem::JuMP.Model,
+    epi_state::Float64,
+    normalization_coeff::Union{Nothing,NamedTuple{(:ω, :ω₀),Tuple{Vector{Float64},Float64}}},
+    duality_regime::UnifiedLagrangianDuality,
+    regularization_regime::DynamicSDDiP.Regularization,
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation
+    )
+
+    primal_data = node.ext[:primal_data]
+	primal_data[:fixed_state_value] = Dict{Symbol,Float64}()
+    primal_data[:primal_variables] = JuMP.VariableRef[]
+    primal_data[:primal_constraints] = JuMP.ConstraintRef[]
+	primal_data[:reg_variables] = JuMP.VariableRef[]
+	primal_data[:reg_constraints] = JuMP.ConstraintRef[]
+    old_obj = primal_data[:old_objective] = JuMP.objective_function(subproblem)
+    primal_data[:slacks] = Any[]
+
+    ω₀ = normalization_coeff.ω₀
+    ω = normalization_coeff.ω
+
+    # INTRODUCE A NEW VARIABLE ETA
+    ############################################################################
+    eta = JuMP.@variable(subproblem, eta >= 0)
+    push!(primal_data[:primal_variables], eta)
+
+    # UNFIX THE STATE VARIABLES (RELAXATION)
+    ############################################################################
+    for (i, (name, state_comp)) in enumerate(node.states)
+        primal_data[:fixed_state_value][name] = JuMP.fix_value(state_comp.in)
+        push!(primal_data[:slacks], primal_data[:fixed_state_value][name] - state_comp.in)
+        JuMP.unfix(state_comp.in)
+        variable_info = node.ext[:state_info_storage][name].in
+        follow_state_unfixing!(state_comp, variable_info, regularization_regime.copy_regime)
+        number_of_states = i
+    end
+    slack = primal_data[:slacks]
+
+    # INTRODUCE NEW CONSTRAINTS
+    ############################################################################
+    # Variable for objective
+    v = JuMP.@variable(subproblem, base_name = "reg_v")
+    push!(reg_data[:reg_variables], v)
+
+    # Get sign for regularization term
+    fact = (JuMP.objective_sense(subproblem) == JuMP.MOI.MIN_SENSE ? 1 : -1)
+
+	# objective constraint
+    const_obj = JuMP.@constraint(subproblem, ω₀ * eta >= old_obj + fact * regularization_regime.sigma[node_index] * v - epi_state)
+    push!(primal_data[:primal_constraints], const_obj)
+
+	# Variables for absolute values
+    alpha = JuMP.@variable(subproblem, [i=1:number_of_states], base_name = "alpha")
+    append!(primal_data[:reg_variables], alpha)
+
+	# Variable for regularization (used instead of fixed value here)
+	x_aux = JuMP.@variable(subproblem, [i=1:number_of_states], base_name = "x_aux")
+    append!(primal_data[:primal_variables], x_aux)
+
+    # Constraints for absolute values
+    const_plus = JuMP.@constraint(subproblem, [i=1:number_of_states], -alpha[i] <= x_aux[i] - state_comp.in[i])
+    const_minus = JuMP.@constraint(subproblem, [i=1:number_of_states], slack[i] <= x_aux[i] - state_comp.in[i])
+    append!(primal_data[:reg_constraints], const_plus)
+    append!(primal_data[:reg_constraints], const_minus)
+
+	# Add norm specific constraint
+	add_norm_constraint!(subproblem, v, alpha, primal_data, number_of_states, regularization_regime.norm)
+
+    # state constraint
+    const_state = JuMP.@constraint(subproblem, [i=1:number_of_states], ω[i] * eta == primal_data[:fixed_state_value][name][i] - x_aux[i])
+    append!(primal_data[:primal_constraints], const_state)
+
+    return
+end
+
+"""
+Modifying the (regularized) subproblem to obtain an (approximate) primal to the Lagrangian dual
+if regularization and binary state approximation is used
+"""
+function construct_unified_primal_problem!(
+    node::SDDP.Node,
+	node_index::Int64,
+    subproblem::JuMP.Model,
+    epi_state::Float64,
+    normalization_coeff::Union{Nothing,NamedTuple{(:ω, :ω₀),Tuple{Vector{Float64},Float64}}},
+    duality_regime::UnifiedLagrangianDuality,
+    regularization_regime::DynamicSDDiP.Regularization,
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation
+    )
+
+	bw_data = node.ext[:backward_data]
+    binary_states = bw_data[:bin_states]
+
+    primal_data = node.ext[:primal_data]
+    primal_data[:fixed_state_value] = Dict{Symbol,Float64}()
+    primal_data[:primal_variables] = JuMP.VariableRef[]
+    primal_data[:primal_constraints] = JuMP.ConstraintRef[]
+	primal_data[:reg_variables] = JuMP.VariableRef[]
+	primal_data[:reg_constraints] = JuMP.ConstraintRef[]
+    old_obj = primal_data[:old_objective] = JuMP.objective_function(subproblem)
+    primal_data[:slacks] = Any[]
+    primal_data[:weights] = Float64[]
+    sigma_bin = regularization_regime.sigma[node_index]
+
+    ω₀ = normalization_coeff.ω₀
+    ω = normalization_coeff.ω
+
+    # INTRODUCE A NEW VARIABLE ETA
+    ############################################################################
+    eta = JuMP.@variable(subproblem, eta >= 0)
+    push!(primal_data[:primal_variables], eta)
+
+	# UNFIX THE STATE VARIABLES (RELAXATION)
+    ############################################################################
+    for (i, (name, state_comp)) in enumerate(binary_states)
+        primal_data[:fixed_state_value][name] = JuMP.fix_value(state_comp)
+        push!(primal_data[:slacks], primal_data[:fixed_state_value][name] - state_comp)
+        JuMP.unfix(state_comp)
+        follow_state_unfixing_binary!(state_comp, duality_regime.copy_regime)
+
+		# determine and store the corresponding weight
+		associated_original_state = node.ext[:backward_data][:bin_x_names][name]
+		beta = state_approximation_regime.binary_precision[associated_original_state]
+		associated_k = node.ext[:backward_data][:bin_k][name]
+		push!(reg_data[:weights], 2^(associated_k-1) * beta)
+
+        number_of_states = i
+    end
+    slack = primal_data[:slacks]
+
+    # INTRODUCE NEW CONSTRAINTS
+    ############################################################################
+    # Variable for objective
+    v = JuMP.@variable(subproblem, base_name = "reg_v")
+    push!(reg_data[:reg_variables], v)
+
+    # Get sign for regularization term
+    fact = (JuMP.objective_sense(subproblem) == JuMP.MOI.MIN_SENSE ? 1 : -1)
+
+	# objective constraint
+    const_obj = JuMP.@constraint(subproblem, ω₀ * eta >= old_obj + fact * regularization_regime.sigma[node_index] * v - epi_state)
+    push!(primal_data[:primal_constraints], const_obj)
+
+	# Variables for absolute values
+    alpha = JuMP.@variable(subproblem, [i=1:number_of_states], base_name = "alpha")
+    append!(primal_data[:reg_variables], alpha)
+
+	# Variable for regularization (used instead of fixed value here)
+	x_aux = JuMP.@variable(subproblem, [i=1:number_of_states], base_name = "x_aux")
+    append!(primal_data[:primal_variables], x_aux)
+
+    # Constraints for absolute values
+    const_plus = JuMP.@constraint(subproblem, [i=1:number_of_states], -alpha[i] <= x_aux[i] - state_comp.in[i])
+    const_minus = JuMP.@constraint(subproblem, [i=1:number_of_states], slack[i] <= x_aux[i] - state_comp.in[i])
+    append!(primal_data[:reg_constraints], const_plus)
+    append!(primal_data[:reg_constraints], const_minus)
+
+	# Add norm specific constraint
+	add_norm_constraint_binary!(subproblem, v, alpha, primal_data, number_of_states, regularization_regime.norm_lifted)
+
+    # state constraint
+    const_state = JuMP.@constraint(subproblem, [i=1:number_of_states], ω[i] * eta == primal_data[:fixed_state_value][name][i] - x_aux[i])
+    append!(primal_data[:primal_constraints], const_state)
+
+    return
+end
+
+
+"""
+Re-modifying the (regularized) primal to the Lagrangian dual
+if no regularization and binary state approximation is used
+"""
+function deconstruct_unified_primal_problem!(
+    node::SDDP.Node,
+    subproblem::JuMP.Model,
+    regularization_regime::DynamicSDDiP.NoRegularization,
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation
+    )
+
+    primal_data = node.ext[:primal_data]
+
+    # FIX THE STATE VARIABLES
+    ############################################################################
+    for (i, (name, state_comp)) in enumerate(node.states)
+        prepare_state_fixing!(node, state_comp)
+        JuMP.fix(state_comp.in, primal_data[:fixed_state_value][name], force=true)
+    end
+
+    # REPLACE THE NEW BY THE OLD OBJECTIVE
+    ############################################################################
+    JuMP.set_objective_function(subproblem, primal_data[:old_objective])
+
+    # DELETE ALL REGULARIZATION-BASED VARIABLES AND CONSTRAINTS
+    ############################################################################
+    JuMP.delete(subproblem, primal_data[:primal_variables])
+
+    for constraint in primal_data[:primal_constraints]
+        JuMP.delete(subproblem, constraint)
+    end
+
+    delete!(node.ext, :primal_data)
+
+    return
+end
+
+
+"""
+Re-modifying the (regularized) primal to the Lagrangian dual
+if no regularization, but binary state approximation is used
+"""
+function deconstruct_unified_primal_problem!(
+    node::SDDP.Node,
+    subproblem::JuMP.Model,
+    regularization_regime::DynamicSDDiP.NoRegularization,
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation
+    )
+
+    primal_data = node.ext[:primal_data]
+	bw_data = node.ext[:backward_data]
+
+	# FIX THE STATE VARIABLES
+	############################################################################
+	for (i, (name, state_comp)) in enumerate(bw_data[:bin_states])
+		prepare_state_fixing_binary!(node, state_comp)
+		JuMP.fix(state_comp, reg_data[:fixed_state_value][name], force=true)
+	end
+
+    # REPLACE THE NEW BY THE OLD OBJECTIVE
+    ############################################################################
+    JuMP.set_objective_function(subproblem, primal_data[:old_objective])
+
+    # DELETE ALL REGULARIZATION-BASED VARIABLES AND CONSTRAINTS
+    ############################################################################
+    JuMP.delete(subproblem, primal_data[:primal_variables])
+
+    for constraint in primal_data[:primal_constraints]
+        JuMP.delete(subproblem, constraint)
+    end
+
+    delete!(node.ext, :primal_data)
+
+    return
+end
+
+"""
+Re-modifying the (regularized) primal to the Lagrangian dual
+if regularization, but no binary state approximation is used
+"""
+function deconstruct_unified_primal_problem!(
+    node::SDDP.Node,
+    subproblem::JuMP.Model,
+    regularization_regime::DynamicSDDiP.Regularization,
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation
+    )
+
+    primal_data = node.ext[:primal_data]
+
+    # FIX THE STATE VARIABLES
+    ############################################################################
+    for (i, (name, state_comp)) in enumerate(node.states)
+        prepare_state_fixing!(node, state_comp)
+        JuMP.fix(state_comp.in, primal_data[:fixed_state_value][name], force=true)
+    end
+
+    # REPLACE THE NEW BY THE OLD OBJECTIVE
+    ############################################################################
+    JuMP.set_objective_function(subproblem, primal_data[:old_objective])
+
+    # DELETE ALL REGULARIZATION-BASED VARIABLES AND CONSTRAINTS
+    ############################################################################
+    JuMP.delete(subproblem, primal_data[:primal_variables])
+	JuMP.delete(subproblem, primal_data[:reg_variables])
+
+    for constraint in primal_data[:primal_constraints]
+        JuMP.delete(subproblem, constraint)
+    end
+
+	for constraint in primal_data[:reg_constraints]
+        JuMP.delete(subproblem, constraint)
+    end
+
+    delete!(node.ext, :primal_data)
+
+    return
+end
+
+"""
+Re-modifying the (regularized) primal to the Lagrangian dual
+if regularization and binary state approximation are used
+"""
+function deconstruct_unified_primal_problem!(
+    node::SDDP.Node,
+    subproblem::JuMP.Model,
+    regularization_regime::DynamicSDDiP.Regularization,
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation
+    )
+
+    primal_data = node.ext[:primal_data]
+	bw_data = node.ext[:backward_data]
+
+	# FIX THE STATE VARIABLES
+	############################################################################
+	for (i, (name, state_comp)) in enumerate(bw_data[:bin_states])
+		prepare_state_fixing_binary!(node, state_comp)
+		JuMP.fix(state_comp, reg_data[:fixed_state_value][name], force=true)
+	end
+
+    # REPLACE THE NEW BY THE OLD OBJECTIVE
+    ############################################################################
+    JuMP.set_objective_function(subproblem, primal_data[:old_objective])
+
+    # DELETE ALL REGULARIZATION-BASED VARIABLES AND CONSTRAINTS
+    ############################################################################
+    JuMP.delete(subproblem, primal_data[:primal_variables])
+	JuMP.delete(subproblem, primal_data[:reg_variables])
+
+    for constraint in primal_data[:primal_constraints]
+        JuMP.delete(subproblem, constraint)
+    end
+
+	for constraint in primal_data[:reg_constraints]
+        JuMP.delete(subproblem, constraint)
+    end
+
+    delete!(node.ext, :primal_data)
+
+    return
+end
