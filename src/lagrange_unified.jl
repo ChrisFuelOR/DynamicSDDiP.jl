@@ -164,11 +164,11 @@ function solve_unified_lagrangian_dual(
         ########################################################################
         # We cannot use the primal_obj as an obj_bound in the unified framework,
         # so we use an arbitrarily chosen upper bound or bound the dual multipliers.
-        if !isnothing(primal_unified_obj)
+        if !isinf(primal_unified_obj)
             set_objective_bound!(approx_model, s, primal_unified_obj)
         end
 
-        if !isnothing(dual_multiplier_bound)
+        if !isinf(dual_multiplier_bound)
             JuMP.@constraint(approx_model, π⁺[1:number_of_states] .<= dual_multiplier_bound)
             JuMP.@constraint(approx_model, π⁻[1:number_of_states] .<= dual_multiplier_bound)
             JuMP.set_upper_bound(π₀, dual_multiplier_bound)
@@ -464,11 +464,11 @@ function solve_unified_lagrangian_dual(
         ########################################################################
         # We cannot use the primal_obj as an obj_bound in the unified framework,
         # so we use an arbitrarily chosen upper bound or bound the dual multipliers.
-        if !isnothing(primal_unified_obj)
+        if !isinf(primal_unified_obj)
             set_objective_bound!(approx_model, s, primal_unified_obj)
         end
 
-        if !isnothing(dual_multiplier_bound)
+        if !isinf(dual_multiplier_bound)
             JuMP.@constraint(approx_model, π⁺[1:number_of_states] .<= dual_multiplier_bound)
             JuMP.@constraint(approx_model, π⁻[1:number_of_states] .<= dual_multiplier_bound)
             JuMP.set_upper_bound(π₀, dual_multiplier_bound)
@@ -1005,11 +1005,11 @@ function solve_unified_lagrangian_dual(
 
         # User-specific bounds
         ########################################################################
-        if !isnothing(primal_unified_obj)
+        if !isinf(primal_unified_obj)
             set_objective_bound!(approx_model, s, primal_unified_obj)
         end
 
-        if !isnothing(dual_multiplier_bound)
+        if !isinf(dual_multiplier_bound)
             JuMP.@constraint(approx_model, π⁺[1:number_of_states] .<= dual_multiplier_bound)
             JuMP.@constraint(approx_model, π⁻[1:number_of_states] .<= dual_multiplier_bound)
             JuMP.set_upper_bound(π₀, dual_multiplier_bound)

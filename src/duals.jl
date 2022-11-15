@@ -423,13 +423,14 @@ function get_dual_solution(
     # Set default values
     primal_unified_obj = cut_generation_regime.duality_regime.user_dual_objective_bound
     dual_multiplier_bound = cut_generation_regime.duality_regime.user_dual_multiplier_bound
+    node.ext[:primal_data] = Dict{Symbol,Any}()
 
     # Introduce an unboundedness flag for the Lagrangian dual
     # Note that this does not detect unboundedness exactly because we do not solve
     # the exact primal problem.
     unbounded_flag = false
 
-    if isa(normalization_regime, DynamicSDDiP.Core_Midpoint) || isa(normalization_regime, DynamicSDDiP.Core_In_Out) || isa(normalization_regime, DynamicSDDiP.Core_Eps) | isa(normalization_regime, DynamicSDDiP.Core_Optimal) || isa(normalization_regime, DynamicSDDiP.Core_Relint)
+    if isa(normalization_regime, DynamicSDDiP.Core_Midpoint) || isa(normalization_regime, DynamicSDDiP.Core_In_Out) || isa(normalization_regime, DynamicSDDiP.Core_Epsilon) | isa(normalization_regime, DynamicSDDiP.Core_Optimal) || isa(normalization_regime, DynamicSDDiP.Core_Relint)
         # PREPARE PRIMAL TO LAGRANGIAN DUAL PROBLEM (INCLUDES POSSIBLE REGULARIZATION)
         construct_unified_primal_problem!(node, node_index, subproblem, epi_state, normalization_coeff, duality_regime, algo_params.regularization_regime, cut_generation_regime.state_approximation_regime)
 
@@ -449,10 +450,17 @@ function get_dual_solution(
         end
 
         # CHANGE THE PROBLEM TO THE PREVIOUS FORM AGAIN (INCLUDES POSSIBLE DEREGULARIZATION)
-        deconstruct_unified_primal_problem!(node, node_index, subproblem, cut_generation_regime)
+        deconstruct_unified_primal_problem!(node, subproblem, algo_params.regularization_regime, cut_generation_regime.state_approximation_regime)
 
     else
         #primal_unified_obj = Inf ?
+    end
+
+    if isnothing(primal_unified_obj)
+        primal_unified_obj = Inf
+    end
+    if isnothing(dual_multiplier_bound)
+        dual_multiplier_bound = Inf
     end
 
     Infiltrator.@infiltrate algo_params.infiltrate_state in [:all]
@@ -460,7 +468,7 @@ function get_dual_solution(
     ############################################################################
     # GET BOUNDS FOR LAGRANGIAN DUAL
     ############################################################################
-    bound_results = get_dual_bounds(node, node_index, algo_params, primal_obj, duality_regime.dual_bound_regime)
+    bound_results = get_dual_bounds(node, node_index, algo_params, primal_unified_obj, duality_regime.dual_bound_regime)
     Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
     try

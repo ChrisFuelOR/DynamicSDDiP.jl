@@ -1428,6 +1428,7 @@ function construct_unified_primal_problem!(
     primal_data[:primal_constraints] = JuMP.ConstraintRef[]
     old_obj = primal_data[:old_objective] = JuMP.objective_function(subproblem)
     primal_data[:slacks] = Any[]
+	number_of_states = 0
 
     ω₀ = normalization_coeff.ω₀
     ω = normalization_coeff.ω
@@ -1436,6 +1437,9 @@ function construct_unified_primal_problem!(
     ############################################################################
     eta = JuMP.@variable(subproblem, eta >= 0)
     push!(primal_data[:primal_variables], eta)
+
+	# change the objective
+	JuMP.set_objective(subproblem, JuMP.objective_sense(subproblem), eta)
 
     # UNFIX THE STATE VARIABLES (RELAXATION)
     ############################################################################
@@ -1456,7 +1460,7 @@ function construct_unified_primal_problem!(
     push!(primal_data[:primal_constraints], const_obj)
 
     # state constraint
-    const_state = JuMP.@constraint(subproblem, [i=1:number_of_states], ω[i] * eta == slack[i])
+    const_state = JuMP.@constraint(subproblem, [i=1:number_of_states], -ω[i] * eta == slack[i])
     append!(primal_data[:primal_constraints], const_state)
 
     return
@@ -1486,6 +1490,7 @@ function construct_unified_primal_problem!(
     primal_data[:primal_constraints] = JuMP.ConstraintRef[]
     old_obj = primal_data[:old_objective] = JuMP.objective_function(subproblem)
     primal_data[:slacks] = Any[]
+	number_of_states = 0
 
     ω₀ = normalization_coeff.ω₀
     ω = normalization_coeff.ω
@@ -1494,6 +1499,9 @@ function construct_unified_primal_problem!(
     ############################################################################
     eta = JuMP.@variable(subproblem, eta >= 0)
     push!(primal_data[:primal_variables], eta)
+
+	# change the objective
+	JuMP.set_objective(subproblem, JuMP.objective_sense(subproblem), eta)
 
     # UNFIX THE STATE VARIABLES (RELAXATION)
     ############################################################################
@@ -1513,7 +1521,7 @@ function construct_unified_primal_problem!(
     push!(primal_data[:primal_constraints], const_obj)
 
     # state constraint
-    const_state = JuMP.@constraint(subproblem, [i=1:number_of_states], ω[i] * eta == slack[i])
+    const_state = JuMP.@constraint(subproblem, [i=1:number_of_states], -ω[i] * eta == slack[i])
     append!(primal_data[:primal_constraints], const_state)
 
     return
@@ -1542,6 +1550,7 @@ function construct_unified_primal_problem!(
 	primal_data[:reg_constraints] = JuMP.ConstraintRef[]
     old_obj = primal_data[:old_objective] = JuMP.objective_function(subproblem)
     primal_data[:slacks] = Any[]
+	number_of_states = 0
 
     ω₀ = normalization_coeff.ω₀
     ω = normalization_coeff.ω
@@ -1550,6 +1559,9 @@ function construct_unified_primal_problem!(
     ############################################################################
     eta = JuMP.@variable(subproblem, eta >= 0)
     push!(primal_data[:primal_variables], eta)
+
+	# change the objective
+	JuMP.set_objective(subproblem, JuMP.objective_sense(subproblem), eta)
 
     # UNFIX THE STATE VARIABLES (RELAXATION)
     ############################################################################
@@ -1594,7 +1606,7 @@ function construct_unified_primal_problem!(
 	add_norm_constraint!(subproblem, v, alpha, primal_data, number_of_states, regularization_regime.norm)
 
     # state constraint
-    const_state = JuMP.@constraint(subproblem, [i=1:number_of_states], ω[i] * eta == primal_data[:fixed_state_value][name][i] - x_aux[i])
+    const_state = JuMP.@constraint(subproblem, [i=1:number_of_states], -ω[i] * eta == primal_data[:fixed_state_value][name][i] - x_aux[i])
     append!(primal_data[:primal_constraints], const_state)
 
     return
@@ -1628,6 +1640,7 @@ function construct_unified_primal_problem!(
     primal_data[:slacks] = Any[]
     primal_data[:weights] = Float64[]
     sigma_bin = regularization_regime.sigma[node_index]
+	number_of_states = 0
 
     ω₀ = normalization_coeff.ω₀
     ω = normalization_coeff.ω
@@ -1636,6 +1649,9 @@ function construct_unified_primal_problem!(
     ############################################################################
     eta = JuMP.@variable(subproblem, eta >= 0)
     push!(primal_data[:primal_variables], eta)
+
+	# change the objective
+	JuMP.set_objective(subproblem, JuMP.objective_sense(subproblem), eta)
 
 	# UNFIX THE STATE VARIABLES (RELAXATION)
     ############################################################################
@@ -1686,7 +1702,7 @@ function construct_unified_primal_problem!(
 	add_norm_constraint_binary!(subproblem, v, alpha, primal_data, number_of_states, regularization_regime.norm_lifted)
 
     # state constraint
-    const_state = JuMP.@constraint(subproblem, [i=1:number_of_states], ω[i] * eta == primal_data[:fixed_state_value][name][i] - x_aux[i])
+    const_state = JuMP.@constraint(subproblem, [i=1:number_of_states], -ω[i] * eta == primal_data[:fixed_state_value][name][i] - x_aux[i])
     append!(primal_data[:primal_constraints], const_state)
 
     return
@@ -1720,6 +1736,7 @@ function deconstruct_unified_primal_problem!(
     # DELETE ALL REGULARIZATION-BASED VARIABLES AND CONSTRAINTS
     ############################################################################
     JuMP.delete(subproblem, primal_data[:primal_variables])
+	JuMP.unregister(subproblem, :eta)
 
     for constraint in primal_data[:primal_constraints]
         JuMP.delete(subproblem, constraint)
@@ -1759,6 +1776,7 @@ function deconstruct_unified_primal_problem!(
     # DELETE ALL REGULARIZATION-BASED VARIABLES AND CONSTRAINTS
     ############################################################################
     JuMP.delete(subproblem, primal_data[:primal_variables])
+	JuMP.unregister(subproblem, :eta)
 
     for constraint in primal_data[:primal_constraints]
         JuMP.delete(subproblem, constraint)
@@ -1797,6 +1815,7 @@ function deconstruct_unified_primal_problem!(
     ############################################################################
     JuMP.delete(subproblem, primal_data[:primal_variables])
 	JuMP.delete(subproblem, primal_data[:reg_variables])
+	JuMP.unregister(subproblem, :eta)
 
     for constraint in primal_data[:primal_constraints]
         JuMP.delete(subproblem, constraint)
@@ -1840,6 +1859,7 @@ function deconstruct_unified_primal_problem!(
     ############################################################################
     JuMP.delete(subproblem, primal_data[:primal_variables])
 	JuMP.delete(subproblem, primal_data[:reg_variables])
+	JuMP.unregister(subproblem, :eta)
 
     for constraint in primal_data[:primal_constraints]
         JuMP.delete(subproblem, constraint)
