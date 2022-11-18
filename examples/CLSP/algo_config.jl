@@ -39,7 +39,7 @@ function algo_config(
         if isa(cut_aggregation_regime, DynamicSDDiP.Core_Epsilon)
             user_dual_multiplier_bound = nothing
             user_dual_objective_bound = 1e4
-        elseif isa(cut_aggregation_regime, DynamicSDDiP.Core_InOut)
+        elseif isa(cut_aggregation_regime, DynamicSDDiP.Core_In_Out)
             user_dual_multiplier_bound = nothing
             user_dual_objective_bound = 1e4
         elseif isa(cut_aggregation_regime, DynamicSDDiP.Core_Midpoint)
