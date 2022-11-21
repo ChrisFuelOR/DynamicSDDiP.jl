@@ -395,7 +395,7 @@ function get_dual_solution(
     dual_0_var = 1.0
 
     if isa(normalization_regime, DynamicSDDiP.Core_Midpoint) || isa(normalization_regime, DynamicSDDiP.Core_In_Out) || isa(normalization_regime, DynamicSDDiP.Core_Epsilon) | isa(normalization_regime, DynamicSDDiP.Core_Optimal) || isa(normalization_regime, DynamicSDDiP.Core_Relint)
-        dual_0_var = 1.0 / normalization_coeff.ω₀
+        dual_0_var = 0.0 #1.0 / normalization_coeff.ω₀
     end
 
     ############################################################################
@@ -506,9 +506,7 @@ function get_dual_solution(
         lag_status = results.lag_status
         dual_0_var = results.dual_0_var
 
-        println(node_index, " ,", i, " ,", primal_unified_obj, " ,", dual_multiplier_bound, " ,", lag_obj, " ,", lag_status, " ,", lag_iterations, " ,", unbounded_flag)
-        println(node_index, " ,", i, " ,", dual_0_var, ", ", dual_vars)
-        println()
+        println(node_index, " ,", i, " ,", primal_unified_obj, " ,", lag_obj, " ,", lag_status, " ,", lag_iterations)
 
         subproblem.ext[:sddp_policy_graph].ext[:agg_lag_iterations] += results.iterations
 
