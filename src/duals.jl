@@ -382,6 +382,8 @@ function get_dual_solution(
         duality_regime.copy_regime
     )
 
+    normalization_regime = cut_generation_regime.duality_regime.normalization_regime
+
     ############################################################################
     # INITIALIZE DUALS
     ############################################################################
@@ -391,6 +393,10 @@ function get_dual_solution(
 
     # Initialize π₀ as 1 (0 is not suitable for relatively complete recourse)
     dual_0_var = 1.0
+
+    if isa(normalization_regime, DynamicSDDiP.Core_Midpoint) || isa(normalization_regime, DynamicSDDiP.Core_In_Out) || isa(normalization_regime, DynamicSDDiP.Core_Epsilon) | isa(normalization_regime, DynamicSDDiP.Core_Optimal) || isa(normalization_regime, DynamicSDDiP.Core_Relint)
+        dual_0_var = 1.0 / normalization_coeff.ω₀
+    end
 
     ############################################################################
     # GET PRIMAL SOLUTION
@@ -414,11 +420,11 @@ function get_dual_solution(
     DynamicSDDiP.set_solver!(subproblem, algo_params, applied_solvers, :backward_pass, algo_params.solver_approach)
 
     # SOLVE PRIMAL SUBPROBLEM (can be regularized or not)
-    #TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_primal" begin
-    #    JuMP.optimize!(subproblem)
-    #end
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_primal" begin
+        JuMP.optimize!(subproblem)
+    end
 
-    normalization_regime = cut_generation_regime.duality_regime.normalization_regime
+    primal_original_obj = JuMP.objective_value(subproblem)
 
     # Set default values
     primal_unified_obj = cut_generation_regime.duality_regime.user_dual_objective_bound
@@ -499,6 +505,9 @@ function get_dual_solution(
         lag_iterations = results.iterations
         lag_status = results.lag_status
         dual_0_var = results.dual_0_var
+
+        #println(node_index, " ,", i, " ,", primal_unified_obj, " ,", dual_multiplier_bound, " ,", lag_obj, " ,", lag_status, " ,", lag_iterations, " ,", unbounded_flag)
+        #println(node_index, " ,", i, " ,", dual_0_var, ", ", dual_vars)
 
         subproblem.ext[:sddp_policy_graph].ext[:agg_lag_iterations] += results.iterations
 
