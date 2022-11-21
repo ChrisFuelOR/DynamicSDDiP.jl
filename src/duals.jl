@@ -506,8 +506,9 @@ function get_dual_solution(
         lag_status = results.lag_status
         dual_0_var = results.dual_0_var
 
-        #println(node_index, " ,", i, " ,", primal_unified_obj, " ,", dual_multiplier_bound, " ,", lag_obj, " ,", lag_status, " ,", lag_iterations, " ,", unbounded_flag)
-        #println(node_index, " ,", i, " ,", dual_0_var, ", ", dual_vars)
+        println(node_index, " ,", i, " ,", primal_unified_obj, " ,", dual_multiplier_bound, " ,", lag_obj, " ,", lag_status, " ,", lag_iterations, " ,", unbounded_flag)
+        println(node_index, " ,", i, " ,", dual_0_var, ", ", dual_vars)
+        println()
 
         subproblem.ext[:sddp_policy_graph].ext[:agg_lag_iterations] += results.iterations
 
