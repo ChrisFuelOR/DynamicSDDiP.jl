@@ -259,10 +259,10 @@ function solve_unified_lagrangian_dual(
         π_k .= JuMP.value.(π)
         π0_k = JuMP.value.(π₀)
 
-        if node_index == 3 && i == 1 && node.subproblem.ext[:sddp_policy_graph].ext[:iteration] >= 2
-            Infiltrator.@infiltrate
-            println(node_index, ", ", iter, ", ", L_star, ", ", t_k)
-        end
+        # if node_index == 3 && i == 1 && node.subproblem.ext[:sddp_policy_graph].ext[:iteration] >= 2
+        #     Infiltrator.@infiltrate
+        #     println(node_index, ", ", iter, ", ", L_star, ", ", t_k)
+        # end
 
         # Sometimes the solver (e.g. Gurobi) provides a float point approximation
         # of zero, which is slightly negative, e.g. 1.144917E-16, even though
@@ -684,10 +684,10 @@ function solve_unified_lagrangian_dual(
             L_star = s * L_k
         end
 
-        if node_index == 3 && i == 1 && node.subproblem.ext[:sddp_policy_graph].ext[:iteration] >= 2
-            Infiltrator.@infiltrate
-            println(node_index, ", ", iter, ", ", L_star, ", ", t_k)
-        end
+        # if node_index == 3 && i == 1 && node.subproblem.ext[:sddp_policy_graph].ext[:iteration] >= 2
+        #     Infiltrator.@infiltrate
+        #     println(node_index, ", ", iter, ", ", L_star, ", ", t_k)
+        # end
 
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
