@@ -434,7 +434,7 @@ function get_dual_solution(
         duality_regime.normalization_regime,
         duality_regime.copy_regime
     )
-    dual_0_var = 1.0 / normalization_coeff.ω₀
+    #dual_0_var = 1.0 / normalization_coeff.ω₀
 
     try
         ########################################################################
