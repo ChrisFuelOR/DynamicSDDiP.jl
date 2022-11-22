@@ -395,7 +395,7 @@ function get_dual_solution(
     dual_0_var = 1.0
 
     if isa(normalization_regime, DynamicSDDiP.Core_Midpoint) || isa(normalization_regime, DynamicSDDiP.Core_In_Out) || isa(normalization_regime, DynamicSDDiP.Core_Epsilon) | isa(normalization_regime, DynamicSDDiP.Core_Optimal) || isa(normalization_regime, DynamicSDDiP.Core_Relint)
-        dual_0_var = 0.0 #1.0 / normalization_coeff.ω₀
+        dual_0_var = 1.0 #/ normalization_coeff.ω₀
     end
 
     ############################################################################

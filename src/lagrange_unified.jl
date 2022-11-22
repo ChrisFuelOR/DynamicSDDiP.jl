@@ -233,6 +233,12 @@ function solve_unified_lagrangian_dual(
             JuMP.@constraint(approx_model, t <= s * (L_k + h_k' * (π .- π_k) + w_k * (π₀ - π0_k)))
         end
 
+        # In first iteration, only use multipliers to get subgradient and cut, but not for bounds check
+        if iter == 1
+            L_k = -Inf
+            L_star = s * L_k
+        end
+
         ########################################################################
         # SOLVE APPROXIMATION MODEL
         ########################################################################
@@ -252,6 +258,11 @@ function solve_unified_lagrangian_dual(
         t_k = JuMP.objective_value(approx_model)
         π_k .= JuMP.value.(π)
         π0_k = JuMP.value.(π₀)
+
+        if node_index == 3 && i == 1 && node.subproblem.ext[:sddp_policy_graph].ext[:iteration] >= 2
+            Infiltrator.@infiltrate
+            println(node_index, ", ", iter, ", ", L_star, ", ", t_k)
+        end
 
         # Sometimes the solver (e.g. Gurobi) provides a float point approximation
         # of zero, which is slightly negative, e.g. 1.144917E-16, even though
@@ -665,6 +676,17 @@ function solve_unified_lagrangian_dual(
         else
             π_k .= JuMP.value.(π)
             π0_k = JuMP.value.(π₀)
+        end
+
+        # In first iteration, only use multipliers to get subgradient and cut, but not for bounds check
+        if iter == 1
+            L_k = -Inf
+            L_star = s * L_k
+        end
+
+        if node_index == 3 && i == 1 && node.subproblem.ext[:sddp_policy_graph].ext[:iteration] >= 2
+            Infiltrator.@infiltrate
+            println(node_index, ", ", iter, ", ", L_star, ", ", t_k)
         end
 
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
