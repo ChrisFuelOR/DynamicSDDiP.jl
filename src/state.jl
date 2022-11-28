@@ -368,3 +368,133 @@ function check_constraint_for_state(
     end
 
 end
+
+
+"""
+Functions to binarize the state space (statically!) after a given number
+of iterations
+"""
+function apply_late_binarization_nodes!(model::SDDP.PolicyGraph{T},K_dict::Dict{Symbol, Int64})
+
+    # Go through all nodes of the problem and apply binarization
+    for (node_index, children) in model.nodes
+        node = model.nodes[node_index]
+
+        apply_late_binarization_node!(node, K_dict)
+    end
+
+    return
+end
+
+
+function apply_late_binarization_node!(node::SDDP.Node,K_dict::Dict{Symbol, Int64})
+
+    model = SDDP.get_policy_graph(node.subproblem)
+
+    # Specific step for first node
+    ############################################################################
+    if node_index == 1
+        # Fix original state variable to initial_root_state
+        for (i, (name, state)) in enumerate(model.nodes[1].states)
+            JuMP.fix(state.in, model.initial_root_state[name])
+        end
+
+        # Re-set initial root_state
+        model.initial_root_state = Dict{Symbol,Float64}()
+    end
+
+    # Steps for all nodes
+    ############################################################################
+    # states to delete
+    states_to_delete = Symbol[]
+
+    # iterate over all original states
+    for (i, (name, state)) in enumerate(node.states)
+        # Get required number of binary variables (only used if variable is continuous)
+        K = K_dict[name]
+
+        # get variable_info
+        # NOTE: This is problematic, since in principle the in-variable can have different properties.
+        variable_info = node.ext[:state_info_storage][name].out
+        # apply binarization to state
+        apply_late_binarization_state!(node, node_index, state, name, i, variable_info, K)
+
+        # STORE STATE TO BE DELETED
+        # (should not be done here, as it changes node.states while iterating over it)
+        ########################################################################
+        push!(states_to_delete, name)
+    end
+
+    # Delete states from node.states
+    ############################################################################
+    delete!(node.states, name)
+    delete!(node.ext[:state_info_storage], name)
+
+    # For remaining (i.e. new) states, add variable info to dictionary
+    ############################################################################
+    for (i, (name, state)) in enumerate(node.states)
+        variable_info_in = get_variable_info(state.in)
+        variable_info_out = get_variable_info(state.out)
+        node.ext[:state_info_storage][name] = DynamicSDDiP.StateInfoStorage(variable_info_in, variable_info_out)
+    end
+
+    return
+end
+
+
+function apply_late_binarization_state(
+    node::SDDP.Node,
+    node_index::Int64,
+    state_variable::SDDP.State,
+    state_name::Symbol,
+    i::Int64,
+    variable_info::DynamicSDDiP.VariableInfo,
+    K::Int64,
+    )
+
+    subproblem = node.subproblem
+
+    """ Note that the new state variables are automatically added as states
+    in node.states and that the initial_root_state is automatically stored."""
+
+    if variable_info.binary
+        """ Note that we still introduce a new binary variable for completeness """
+
+        binary_var = JuMP.@variable(subproblem, SDDP.State, Bin, initial_value = 0, base_name = "stat_bin_" * name)
+        JuMP.@constraint(subproblem, state_variable.out == binary_var.out)
+        if node_index > 1
+            # Otherwise we may face issues with inconsistent initial values
+            JuMP.@constraint(subproblem, state_variable.in == binary_var.in)
+        end
+
+    else
+        if !isfinite(variable_info.upper_bound) || !variable_info.has_ub
+            error("When using a binary expansion, state variables require an upper bound.")
+        end
+
+        if variable_info.integer
+            # no matter which value K takes we use an exact representation here
+            num_vars  = SDDP._bitsrequired(variable_info.upper_bound)
+            binary_var = JuMP.@variable(subproblem, [i in 1:num_vars], SDDP.State, Bin, initial_value = 0, base_name = "stat_bin_" * name)
+            JuMP.@constraint(subproblem, state_variable.out == SDDP.bincontract([binary_vars[i].out for i in 1:num_vars]))
+            if node_index > 1
+                # Otherwise we may face issues with inconsistent initial values
+                JuMP.@constraint(subproblem, state_variable.in == SDDP.bincontract([binary_vars[i].in for i in 1:num_vars]))
+            end
+
+        else #continuous case
+            # Get binary precision beta based on K
+            beta = variable_info.upper_bound / (2^K - 1)
+
+            binary_var = JuMP.@variable(subproblem, [i in 1:K], SDDP.State, Bin, initial_value = 0, base_name = "stat_bin_" * name)
+            JuMP.@constraint(subproblem, state_variable.out == SDDP.bincontract([binary_vars[i].out for i in 1:num_vars], beta))
+            if type == :out || node_index > 1
+                # Otherwise we may face issues with inconsistent initial values
+                JuMP.@constraint(subproblem, state_variable.in == SDDP.bincontract([binary_vars[i].in for i in 1:num_vars], beta))
+            end
+
+        end
+    end
+
+    return
+end

@@ -229,7 +229,29 @@ mutable struct BinaryApproximation <: AbstractStateApproximationRegime
     end
 end
 
+#TODO: Maybe change this to K instead of precision
+
 mutable struct NoStateApproximation <: AbstractStateApproximationRegime end
+
+################################################################################
+# LATE BINARIZATION
+################################################################################
+abstract type AbstractLateBinarizationRegime end
+
+"""
+LateBinarization means that after a predefined number of iterations a static
+    (not dynamic as above!) binarization of the state space is applied.
+NoLateBinarization means that this discretization is not used.
+Default is NoLateBinarization.
+"""
+
+mutable struct LateBinarization <: AbstractLateBinarizationRegime
+    K_dict::Dict{Symbol, Int64} # number of binary variables
+    iteration_to_start::Int64
+end
+
+mutable struct NoLateBinarization <: AbstractLateBinarizationRegime
+
 
 ################################################################################
 # DUAL NORMALIZATION
@@ -747,6 +769,7 @@ mutable struct AlgoParams
     cut_selection_regime::AbstractCutSelectionRegime
     cut_generation_regimes::Vector{CutGenerationRegime}
     simulation_regime::AbstractSimulationRegime
+    late_binarization_regime::AbstractLateBinarizationRegime
     ############################################################################
     risk_measure::SDDP.AbstractRiskMeasure
     forward_pass::SDDP.AbstractForwardPass
@@ -775,6 +798,7 @@ mutable struct AlgoParams
         cut_selection_regime = CutSelection(),
         cut_generation_regimes = [CutGenerationRegime()],
         simulation_regime = NoSimulation(),
+        late_binarization_regime = NoLateBinarization(),
         risk_measure = SDDP.Expectation(),
         forward_pass = SDDP.DefaultForwardPass(),
         sampling_scheme = SDDP.InSampleMonteCarlo(),
@@ -801,6 +825,7 @@ mutable struct AlgoParams
             cut_selection_regime,
             cut_generation_regimes,
             simulation_regime,
+            late_binarization_regime,
             risk_measure,
             forward_pass,
             sampling_scheme,
