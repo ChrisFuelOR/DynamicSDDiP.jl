@@ -21,21 +21,21 @@ function create_latex_plots()
 	# TO BE ADAPTED FOR EACH NEW PLOT
 	############################################################################
 
-    file_path_latex = "C:/Users/cg4102/Documents/julia_plots/CLSP_Large_O_16_20_lb_time.tex"
+    file_path_latex = "C:/Users/cg4102/Documents/julia_plots/CLSP_Large_O2_16_20_lb_time.tex"
 	plottype = :lb_time
 
     # Create an array of struct instances which define the plots to be created
     plots_to_create = (
 		#PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/CLSP_ON_16_20_Single.log", plottype, "red", 1.0, "none", "solid", "Single-cut", "SDDiP Single-cut", nothing),
         #PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/CLSP_ON_16_20_Multi.log", plottype, "black", 1.0, "none", "solid", "Multi-cut", "SDDiP Multi-cut", nothing),
-		PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/CLSP_Large_O_16_20_Single.log", plottype, "red", 1.0, "none", "solid", "Single-cut", "SDDiP Single-cut", nothing),
-		PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/CLSP_Large_O_16_20_Multi.log", plottype, "black", 1.0, "none", "solid", "Multi-cut", "SDDiP Multi-cut", nothing),
-		PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/CLSP_Large_O_16_20_L1.log", plottype, "blue", 1.0, "none", "solid", raw"$ \ell_1$", "L1", nothing),
-        PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/CLSP_Large_O_16_20_L1sup.log", plottype, "green", 1.0, "none", "solid", raw"$ \ell_{1 \infty}$", "L1sup", nothing),
-		PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/CLSP_Large_O_16_20_Lsup_MNC.log", plottype, "green!70!black", 1.0, "none", "solid", raw"$ \ell_\infty MNC$", "Lsup", nothing),
-		PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/CLSP_Large_O_16_20_Mid.log", plottype, "yellow", 1.0, "none", "solid", "Mid", "Mid", nothing),
-		PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/CLSP_Large_O_16_20_Eps.log", plottype, "magenta", 1.0, "none", "solid", "Eps", "Eps", nothing),
-		PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/CLSP_Large_O_16_20_Relint.log", plottype, "cyan", 1.0, "none", "solid", "Relint", "Relint", nothing),
+		PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/CLSP_Large_O2_16_20_Single.log", plottype, "red", 1.0, "none", "solid", "Single-cut", "SDDiP Single-cut", nothing),
+		PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/CLSP_Large_O2_16_20_Multi.log", plottype, "black", 1.0, "none", "solid", "Multi-cut", "SDDiP Multi-cut", nothing),
+		PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/CLSP_Large_O2_16_20_L1.log", plottype, "blue", 1.0, "none", "solid", raw"$ \ell_1$", "L1", nothing),
+        PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/CLSP_Large_O2_16_20_L1sup.log", plottype, "green", 1.0, "none", "solid", raw"$ \ell_{1 \infty}$", "L1sup", nothing),
+		PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/CLSP_Large_O2_16_20_Lsup.log", plottype, "green!70!black", 1.0, "none", "solid", raw"$ \ell_\infty MNC$", "Lsup", nothing),
+		PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/CLSP_Large_O2_16_20_Mid.log", plottype, "yellow", 1.0, "none", "solid", "Mid", "Mid", nothing),
+		PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/CLSP_Large_O2_16_20_Eps.log", plottype, "magenta", 1.0, "none", "solid", "Eps", "Eps", nothing),
+		PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/CLSP_Large_O2_16_20_Relint.log", plottype, "cyan", 1.0, "none", "solid", "Relint", "Relint", nothing),
 		# PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/CLSP_10_20_Opt.txt", plottype, "violet", 1.0, "none", "solid", "Opt", "Opt", nothing),
 		# PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/CLSP_10_20_InOut.txt", plottype, "orange", 1.0, "none", "solid", "In-Out", "In-Out", nothing),
 		PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/CLSP_Large_O_16_20_B.log", plottype, "purple", 1.0, "none", "solid", "B", "B", 5000),
@@ -116,7 +116,7 @@ function create_latex_plots()
     )
 
     # Create header of LaTeX file
-	create_latex_header(file_path_latex, [0.0, 70.0, 0.0, 30000.0], plottype)
+	create_latex_header(file_path_latex, [0.0, 130.0, 0.0, 30000.0], plottype)
 
 	############################################################################
 	############################################################################
