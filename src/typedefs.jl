@@ -246,11 +246,12 @@ Default is NoLateBinarization.
 """
 
 mutable struct LateBinarization <: AbstractLateBinarizationRegime
-    K_dict::Dict{Symbol, Int64} # number of binary variables
+    #K_dict::Dict{Symbol, Int64} # number of binary variables
+    K::Int64 # number of binary variables (same for all continuous states)
     iteration_to_start::Int64
 end
 
-mutable struct NoLateBinarization <: AbstractLateBinarizationRegime
+mutable struct NoLateBinarization <: AbstractLateBinarizationRegime end
 
 
 ################################################################################

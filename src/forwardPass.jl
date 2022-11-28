@@ -141,6 +141,8 @@ function solve_subproblem_forward(
     TimerOutputs.@timeit DynamicSDDiP_TIMER "solver_call_FP" begin
         JuMP.optimize!(subproblem)
 
+        Infiltrator.@infiltrate
+
         if (JuMP.termination_status(subproblem) != MOI.OPTIMAL)
             elude_numerical_issues!(subproblem, algo_params)
         end

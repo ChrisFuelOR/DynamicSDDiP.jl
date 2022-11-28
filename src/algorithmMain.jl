@@ -543,21 +543,21 @@ function iteration(
     ) where {T}
 
     ############################################################################
-    # CHECK IF LATE BINARIZATION OF THE STATE SPACE SHOULD BE APPLIED
-    ############################################################################
-    if isa(algo_params.late_binarization_regime,DynamicSDDiP.LateBinarization)
-        if model.ext[:iteration] >= algo_params.late_binarization_regime.iteration_to_start
-            apply_late_binarization_nodes!(model, algo_params.late_binarization_regime.K)
-        end
-    end
-
-    ############################################################################
     # SET ITERATION COUNTER
     ############################################################################
     if haskey(model.ext, :iteration)
         model.ext[:iteration] += 1
     else
         model.ext[:iteration] = 1
+    end
+
+    ############################################################################
+    # CHECK IF LATE BINARIZATION OF THE STATE SPACE SHOULD BE APPLIED
+    ############################################################################
+    if isa(algo_params.late_binarization_regime,DynamicSDDiP.LateBinarization)
+        if model.ext[:iteration] == algo_params.late_binarization_regime.iteration_to_start
+            apply_late_binarization_nodes!(model, algo_params.late_binarization_regime.K)
+        end
     end
 
     ############################################################################
