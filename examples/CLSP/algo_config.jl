@@ -83,7 +83,7 @@ function algo_config(
 
     cut_generation_regime_1 = DynamicSDDiP.CutGenerationRegime(
         state_approximation_regime = state_approximation_regime,
-        duality_regime = DynamicSDDiP.LinearDuality(),
+        duality_regime = DynamicSDDiP.StrengthenedDuality(),
     )
 
     cut_generation_regimes = [cut_generation_regime_2]
@@ -132,7 +132,7 @@ function algo_config(
         cut_selection_regime = cut_selection_regime,
         cut_generation_regimes = cut_generation_regimes,
         simulation_regime = simulation_regime,
-        late_binarization_regime = DynamicSDDiP.LateBinarization(K, 11),
+        late_binarization_regime = DynamicSDDiP.LateBinarization(K, 21),
         cut_type = cut_type,
         log_file = log_file,
         silent = silent,
