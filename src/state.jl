@@ -374,14 +374,25 @@ end
 Functions to binarize the state space (statically!) after a given number
 of iterations
 """
-function apply_late_binarization_nodes!(model::SDDP.PolicyGraph{T},K::Int64) where {T}
+function apply_late_binarization_nodes!(model::SDDP.PolicyGraph{T}, algo_params::DynamicSDDiP.AlgoParams,) where {T}
 
     # Go through all nodes of the problem and apply binarization
     for (node_index, children) in model.nodes
         node = model.nodes[node_index]
-        Infiltrator.@infiltrate
-        apply_late_binarization_node!(node, node_index, K)
-        Infiltrator.@infiltrate
+
+        # Apply binarization to the subproblem of this node
+        apply_late_binarization_node!(node, node_index, algo_params.late_binarization_regime.K)
+
+        # Update the Bellman function state attribute
+        new_states = Dict(key => var.out for (key, var) in node.states)
+        if algo_params.cut_type == SDDP.SINGLE_CUT
+            node.bellman_function.global_theta.states = new_states
+        else
+            for theta in node.bellman_function.local_thetas
+                theta.states = new_states
+            end
+        end
+
     end
 
     return
@@ -511,34 +522,29 @@ function apply_late_binarization_state!(
 
     if variable_info.binary
         JuMP.@constraint(subproblem, state_variable.out == binary_var[K_so_far+1].out)
-        if node_index > 1
-            # Otherwise we may face issues with inconsistent initial values
-            JuMP.@constraint(subproblem, state_variable.in == binary_var[K_so_far+1].in)
-        end
+        # NOTE: This may cause issues if the state's initial value is greater than 0
+        JuMP.@constraint(subproblem, state_variable.in == binary_var[K_so_far+1].in)
 
     else
         if variable_info.integer
             JuMP.@constraint(subproblem, state_variable.out == SDDP.bincontract([binary_var[i].out for i in K_so_far+1:K_so_far+K_current]))
-            if node_index > 1
-                # Otherwise we may face issues with inconsistent initial values
-                JuMP.@constraint(subproblem, state_variable.in == SDDP.bincontract([binary_var[i].in for i in K_so_far+1:K_so_far+K_current]))
-            end
+            # NOTE: This may cause issues if the state's initial value is greater than 0
+            JuMP.@constraint(subproblem, state_variable.in == SDDP.bincontract([binary_var[i].in for i in K_so_far+1:K_so_far+K_current]))
 
         else #continuous case
             # Get binary precision beta based on K
-            beta = variable_info.upper_bound / (2^K_current - 1)
+            #beta = variable_info.upper_bound / (2^K_current - 1)
+            beta = 1.0
             JuMP.@constraint(subproblem, state_variable.out == SDDP.bincontract([binary_var[i].out for i in K_so_far+1:K_so_far+K_current], beta))
-            if node_index > 1
-                # Otherwise we may face issues with inconsistent initial values
-                JuMP.@constraint(subproblem, state_variable.in == SDDP.bincontract([binary_var[i].in for i in K_so_far+1:K_so_far+K_current], beta))
-            end
+            # NOTE: This may cause issues if the state's initial value is greater than 0
+            JuMP.@constraint(subproblem, state_variable.in == SDDP.bincontract([binary_var[i].in for i in K_so_far+1:K_so_far+K_current], beta))
 
         end
     end
 
     # We should also unfix the original states (they are somehow still fixed from the last iteration)
     JuMP.unfix(state_variable.in)
-    follow_state_unfixing!(state_variable, variable_info, DynamicSDDiP.NoBoundsCopy())
+    follow_state_unfixing!(state_variable, variable_info, DynamicSDDiP.StateSpaceCopy())
 
     return K_so_far + K_current
 end
