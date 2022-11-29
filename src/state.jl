@@ -471,9 +471,9 @@ function apply_late_binarization_node!(node::SDDP.Node, node_index::Int64, K::In
     # For remaining (i.e. new) states, add variable info to dictionary
     ############################################################################
     for (i, (name, state)) in enumerate(node.states)
-        variable_info_in = get_variable_info(state.in)
+        #variable_info_in = get_variable_info(state.in)
         variable_info_out = get_variable_info(state.out)
-        node.ext[:state_info_storage][name] = DynamicSDDiP.StateInfoStorage(variable_info_in, variable_info_out)
+        node.ext[:state_info_storage][name] = DynamicSDDiP.StateInfoStorage(variable_info_out, variable_info_out)
     end
 
     return
