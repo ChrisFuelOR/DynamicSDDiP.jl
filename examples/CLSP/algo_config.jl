@@ -36,6 +36,23 @@ function algo_config(
     copy_regime = DynamicSDDiP.ConvexHullCopy()
 
     if duality_regime_sym == :uni_lag
+        if isa(cut_aggregation_regime, DynamicSDDiP.Core_Epsilon)
+            user_dual_multiplier_bound = nothing
+            user_dual_objective_bound = 1e4
+        elseif isa(cut_aggregation_regime, DynamicSDDiP.Core_In_Out)
+            user_dual_multiplier_bound = nothing
+            user_dual_objective_bound = 1e4
+        elseif isa(cut_aggregation_regime, DynamicSDDiP.Core_Midpoint)
+            user_dual_multiplier_bound = 10.0
+            user_dual_objective_bound = nothing
+        elseif isa(cut_aggregation_regime, DynamicSDDiP.Core_Relint)
+            user_dual_multiplier_bound = 10.0
+            user_dual_objective_bound = nothing
+        else
+            user_dual_multiplier_bound = nothing
+            user_dual_objective_bound = nothing
+        end
+
         duality_regime = DynamicSDDiP.UnifiedLagrangianDuality(
             atol = 1e-4,
             rtol = 1e-4,
@@ -48,8 +65,8 @@ function algo_config(
             normalization_regime = normalization_regime,
             dual_space_regime = dual_space_regime,
             copy_regime = copy_regime,
-            user_dual_multiplier_bound = 10.0, # 10.0
-            #user_dual_objective_bound = 1e4,
+            user_dual_multiplier_bound = user_dual_multiplier_bound,
+            user_dual_objective_bound = user_dual_objective_bound,
         )
     elseif duality_regime_sym == :lag
         duality_regime = DynamicSDDiP.LagrangianDuality(

@@ -55,10 +55,11 @@ function solve_unified_lagrangian_dual(
     i::Int64,
     epi_state::Float64,
     normalization_coeff::Union{Nothing,NamedTuple{(:ω, :ω₀),Tuple{Vector{Float64},Float64}}},
-    primal_obj::Float64,
+    primal_unified_obj::Float64,
     π_k::Vector{Float64},
     π0_k::Float64,
     bound_results::NamedTuple{(:obj_bound, :dual_bound),Tuple{Float64,Float64}},
+    dual_multiplier_bound::Float64,
     algo_params::DynamicSDDiP.AlgoParams,
     cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
@@ -163,15 +164,14 @@ function solve_unified_lagrangian_dual(
         ########################################################################
         # We cannot use the primal_obj as an obj_bound in the unified framework,
         # so we use an arbitrarily chosen upper bound or bound the dual multipliers.
-        if !isnothing(cut_generation_regime.duality_regime.user_dual_objective_bound)
-            set_objective_bound!(approx_model, s, cut_generation_regime.duality_regime.user_dual_objective_bound)
+        if !isinf(primal_unified_obj)
+            set_objective_bound!(approx_model, s, primal_unified_obj)
         end
 
-        if !isnothing(cut_generation_regime.duality_regime.user_dual_multiplier_bound)
-            bound = cut_generation_regime.duality_regime.user_dual_multiplier_bound
-            JuMP.@constraint(approx_model, π⁺[1:number_of_states] .<= bound)
-            JuMP.@constraint(approx_model, π⁻[1:number_of_states] .<= bound)
-            JuMP.set_upper_bound(π₀, bound)
+        if !isinf(dual_multiplier_bound)
+            JuMP.@constraint(approx_model, π⁺[1:number_of_states] .<= dual_multiplier_bound)
+            JuMP.@constraint(approx_model, π⁻[1:number_of_states] .<= dual_multiplier_bound)
+            JuMP.set_upper_bound(π₀, dual_multiplier_bound)
         end
 
         # Algorithm-specific bounds, e.g. due to regularization
@@ -233,6 +233,12 @@ function solve_unified_lagrangian_dual(
             JuMP.@constraint(approx_model, t <= s * (L_k + h_k' * (π .- π_k) + w_k * (π₀ - π0_k)))
         end
 
+        # In first iteration, only use multipliers to get subgradient and cut, but not for bounds check
+        if iter == 1
+            L_k = -Inf
+            L_star = s * L_k
+        end
+
         ########################################################################
         # SOLVE APPROXIMATION MODEL
         ########################################################################
@@ -252,6 +258,11 @@ function solve_unified_lagrangian_dual(
         t_k = JuMP.objective_value(approx_model)
         π_k .= JuMP.value.(π)
         π0_k = JuMP.value.(π₀)
+
+        # if node_index == 3 && i == 1 && node.subproblem.ext[:sddp_policy_graph].ext[:iteration] >= 2
+        #     Infiltrator.@infiltrate
+        #     println(node_index, ", ", iter, ", ", L_star, ", ", t_k)
+        # end
 
         # Sometimes the solver (e.g. Gurobi) provides a float point approximation
         # of zero, which is slightly negative, e.g. 1.144917E-16, even though
@@ -337,21 +348,11 @@ function solve_unified_lagrangian_dual(
     set_solver!(node.subproblem, algo_params, applied_solvers, :forward_pass, algo_params.solver_approach)
 
     ############################################################################
-    # LOGGING
+    # RETURN
     ############################################################################
-    # print_helper(print_lag_iteration, lag_log_file_handle, iter, t_k, L_star, L_k)
-    #if node.subproblem.ext[:sddp_policy_graph].ext[:iteration] == 11
-    #    Infiltrator.@infiltrate
-    #end
-    # if all(π_star .== 0) && isapprox(π0_star, 0.0, atol=1e-8)
-    #     println(node_index, ", ", node.subproblem.ext[:sddp_policy_graph].ext[:iteration], ", ", lag_status, ", ", epi_state,  ", ",primal_obj, ", ", L_star, ", ", t_k, ", ", π_star, ", ", π0_star)
-    # end
-
     # Set dual_vars (here π_k) to the optimal solution
     π_k .= -π_star
     π0_k = π0_star
-
-    #println(L_star)
 
     return (lag_obj = s * L_star, iterations = iter, lag_status = lag_status, dual_0_var = π0_k)
 
@@ -367,10 +368,11 @@ function solve_unified_lagrangian_dual(
     i::Int64,
     epi_state::Float64,
     normalization_coeff::Union{Nothing,NamedTuple{(:ω, :ω₀),Tuple{Vector{Float64},Float64}}},
-    primal_obj::Float64,
+    primal_unified_obj::Float64,
     π_k::Vector{Float64},
     π0_k::Float64,
     bound_results::NamedTuple{(:obj_bound, :dual_bound),Tuple{Float64,Float64}},
+    dual_multiplier_bound::Float64,
     algo_params::DynamicSDDiP.AlgoParams,
     cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
@@ -473,15 +475,14 @@ function solve_unified_lagrangian_dual(
         ########################################################################
         # We cannot use the primal_obj as an obj_bound in the unified framework,
         # so we use an arbitrarily chosen upper bound or bound the dual multipliers.
-        if !isnothing(cut_generation_regime.duality_regime.user_dual_objective_bound)
-            set_objective_bound!(approx_model, s, cut_generation_regime.duality_regime.user_dual_objective_bound)
+        if !isinf(primal_unified_obj)
+            set_objective_bound!(approx_model, s, primal_unified_obj)
         end
 
-        if !isnothing(cut_generation_regime.duality_regime.user_dual_multiplier_bound)
-            bound = cut_generation_regime.duality_regime.user_dual_multiplier_bound
-            JuMP.@constraint(approx_model, π⁺[1:number_of_states] .<= bound)
-            JuMP.@constraint(approx_model, π⁻[1:number_of_states] .<= bound)
-            JuMP.set_upper_bound(π₀, bound)
+        if !isinf(dual_multiplier_bound)
+            JuMP.@constraint(approx_model, π⁺[1:number_of_states] .<= dual_multiplier_bound)
+            JuMP.@constraint(approx_model, π⁻[1:number_of_states] .<= dual_multiplier_bound)
+            JuMP.set_upper_bound(π₀, dual_multiplier_bound)
         end
 
         # Algorithm-specific bounds, e.g. due to regularization
@@ -677,7 +678,16 @@ function solve_unified_lagrangian_dual(
             π0_k = JuMP.value.(π₀)
         end
 
-        #@assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL || JuMP.termination_status(approx_model) == JuMP.MOI.LOCALLY_SOLVED
+        # In first iteration, only use multipliers to get subgradient and cut, but not for bounds check
+        if iter == 1
+            L_k = -Inf
+            L_star = s * L_k
+        end
+
+        # if node_index == 3 && i == 1 && node.subproblem.ext[:sddp_policy_graph].ext[:iteration] >= 2
+        #     Infiltrator.@infiltrate
+        #     println(node_index, ", ", iter, ", ", L_star, ", ", t_k)
+        # end
 
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
@@ -694,7 +704,6 @@ function solve_unified_lagrangian_dual(
         end
 
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
-        #println(L_k, ", ", L_star, ", ", t_k)
 
         ########################################################################
         if L_star > t_k + atol/10.0
@@ -702,8 +711,6 @@ function solve_unified_lagrangian_dual(
             break
         end
     end
-
-    #println()
 
     ############################################################################
     # CONVERGENCE ANALYSIS
@@ -770,10 +777,8 @@ function solve_unified_lagrangian_dual(
     set_solver!(node.subproblem, algo_params, applied_solvers, :forward_pass, algo_params.solver_approach)
 
     ############################################################################
-    # LOGGING
+    # RETURN
     ############################################################################
-    # print_helper(print_lag_iteration, lag_log_file_handle, iter, t_k, L_star, L_k)
-
     # Set dual_vars (here π_k) to the optimal solution
     π_k .= -π_star
     π0_k = π0_star
@@ -906,10 +911,11 @@ function solve_unified_lagrangian_dual(
     i::Int64,
     epi_state::Float64,
     normalization_coeff::Union{Nothing,NamedTuple{(:ω, :ω₀),Tuple{Vector{Float64},Float64}}},
-    primal_obj::Float64,
+    primal_unified_obj::Float64,
     π_k::Vector{Float64},
     π0_k::Float64,
     bound_results::NamedTuple{(:obj_bound, :dual_bound),Tuple{Float64,Float64}},
+    dual_multiplier_bound::Float64,
     algo_params::DynamicSDDiP.AlgoParams,
     cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
@@ -1021,11 +1027,14 @@ function solve_unified_lagrangian_dual(
 
         # User-specific bounds
         ########################################################################
-        if !isnothing(cut_generation_regime.duality_regime.user_dual_multiplier_bound)
-            bound = cut_generation_regime.duality_regime.user_dual_multiplier_bound
-            JuMP.@constraint(proj_model, π⁺[1:number_of_states] .<= bound)
-            JuMP.@constraint(proj_model, π⁻[1:number_of_states] .<= bound)
-            JuMP.set_upper_bound(π₀, bound)
+        if !isinf(primal_unified_obj)
+            set_objective_bound!(approx_model, s, primal_unified_obj)
+        end
+
+        if !isinf(dual_multiplier_bound)
+            JuMP.@constraint(approx_model, π⁺[1:number_of_states] .<= dual_multiplier_bound)
+            JuMP.@constraint(approx_model, π⁻[1:number_of_states] .<= dual_multiplier_bound)
+            JuMP.set_upper_bound(π₀, dual_multiplier_bound)
         end
 
         # Algorithm-specific bounds, e.g. due to regularization
@@ -1235,12 +1244,12 @@ function solve_unified_lagrangian_dual(
     ############################################################################
     set_solver!(node.subproblem, algo_params, applied_solvers, :forward_pass, algo_params.solver_approach)
 
+    ############################################################################
+    # RETURN
+    ############################################################################
     # Set dual_vars (here π_k) to the optimal solution
     π_k .= -π_star
     π0_k = π0_star
-
-    #Infiltrator.@infiltrate
-    #println(L_star)
 
     return (lag_obj = s * L_star, iterations = iter, lag_status = lag_status, dual_0_var = π0_k)
 
