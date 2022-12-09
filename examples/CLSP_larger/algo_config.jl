@@ -138,6 +138,8 @@ function algo_config(
         Lagrange = "Gurobi",
     )
 
+    K = 10
+
     # Definition of algo_params
     algo_params = DynamicSDDiP.AlgoParams(
         stopping_rules = stopping_rules,
