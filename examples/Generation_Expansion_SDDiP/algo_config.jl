@@ -90,7 +90,7 @@ function algo_config(
     state_approximation_regime = DynamicSDDiP.NoStateApproximation()
 
     # Cut generation regimes
-    cut_generation_regime = DynamicSDDiP.CutGenerationRegime(
+    cut_generation_regime_2 = DynamicSDDiP.CutGenerationRegime(
         state_approximation_regime = state_approximation_regime,
         duality_regime = duality_regime,
         #cut_away_approach = false,
