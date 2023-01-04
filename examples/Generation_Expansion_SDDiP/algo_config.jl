@@ -27,7 +27,7 @@ function algo_config(
 
     dual_choice_regime = DynamicSDDiP.StandardChoice()
     if isa(normalization_regime, DynamicSDDiP.L∞_Deep)
-        dual_choice_regime = DynamicSDDiP.MinimalNormChoice()
+        dual_choice_regime = DynamicSDDiP.StandardChoice()
     end
 
     #dual_subproblemace_regime = DynamicSDDiP.BendersSpanSpaceRestriction(10, :multi_cut)
