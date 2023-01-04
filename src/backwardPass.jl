@@ -114,7 +114,6 @@ function backward_pass(
                 ################################################################
                 # REFINE BELLMAN FUNCTION BY ADDING CUTS
                 ################################################################
-                #Infiltrator.@infiltrate
                 """
                 Note that for all backward openings, bin_state is the same,
                 so we can just use bin_state[1] in the following.
