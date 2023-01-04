@@ -142,6 +142,7 @@ function solve_subproblem_forward(
         JuMP.optimize!(subproblem)
 
         if (JuMP.termination_status(subproblem) != MOI.OPTIMAL)
+            Infiltrator.@infiltrate
             elude_numerical_issues!(subproblem, algo_params)
         end
     end
