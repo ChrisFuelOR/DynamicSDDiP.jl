@@ -1,0 +1,139 @@
+import SDDP
+import DynamicSDDiP
+import JuMP
+import Infiltrator
+using Revise
+import Random
+import Distributions
+import CSV
+import DataFrames
+import StatsBase
+
+
+function get_recombining_scenario_tree(algo_params::DynamicSDDiP.AlgoParams, problem_params::DynamicSDDiP.ProblemParams, itineraries::Vector{Itinerary}, classes::Vector{FareClass}, days::Vector{Int64})
+
+    # Set the seed from algo_params
+    Random.seed!(problem_params.tree_seed)
+
+    """
+    We use the data from data.csv which is given in the paper by Möller et al.
+    """
+    all_data_df = CSV.read("data.csv", DataFrames.DataFrame)
+
+    support_df = DataFrames.DataFrame(i = Any[], j = Any[], t = Int64[], support = Vector{Vector{Float64}}())
+    prob_df = DataFrames.DataFrame(i = Any[], j = Any[], t = Int64[], prob = Vector{Vector{Float64}}())
+
+    # Iterate over each itinerary-class combination
+    for i in itineraries
+        for j in classes
+            # Get row for given itinerary-class combination
+            current_row = filter(row -> row.i == String(i.sym) && row.j == String(j.sym), all_data_df)
+
+            # Get parameters for the corresponding distributions
+            k_gamma = current_row.k[1]
+            θ_gamma = current_row.theta[1]
+            a_beta = current_row.a[1]
+            b_beta = current_row.b[1]
+
+            # Sample from the gamma distribution 1000 times
+            # This gives u 1000 different numbers of cumulative bookings over the whole horizon
+            gamma_distribution = Distributions.Gamma(k_gamma, θ_gamma)
+            G_list = rand(gamma_distribution, 1000) / (1 - i.cancellation_rate)
+
+            # Stage 1 demand. We assume a deterministic demand of 0.
+            push!(support_df, (i, j, 1, [0.0]))
+            push!(prob_df, (i, j, 1, [1.0]))
+
+            # Iterate over the different time slots
+            for t in 2:problem_params.number_of_stages
+
+                stage_request_realizations = Vector{Int64}()
+
+                # Iterate over the realizations of G and determine the cumulative
+                # bookings up to this time for each case
+                for G in G_list
+                    # Use a beta distribution to do this. Note that a beta
+                    # distribution is defined on [0,1], so this has to be
+                    # adapted accordingly
+                    beta_distribution = Distributions.Beta(a_beta, b_beta)
+                    stage_requests = round(G * (Distributions.cdf(beta_distribution, 1-days[t]/days[1]) - Distributions.cdf(beta_distribution, 1-days[t-1]/days[1])))
+                    push!(stage_request_realizations, stage_requests)
+
+                end
+
+                # Sample from the stage_request_realization number_of_realizations
+                # times to get the realizations for the stagewise independent
+                # process
+                stage_support = StatsBase.sample(stage_request_realizations, problem_params.number_of_realizations)
+                stage_prob = 1/problem_params.number_of_realizations * ones(problem_params.number_of_realizations)
+
+                push!(support_df, (i, j, t, stage_support))
+                push!(prob_df, (i, j, t, stage_prob))
+            end
+        end
+    end
+
+    Infiltrator.@infiltrate
+
+    return (support_df = support_df, prob_df = prob_df)
+
+end
+
+
+
+# function get_scenario_path(algo_params::DynamicSDDiP.AlgoParams, stage::Int)
+#
+#     # Set the seed from algo_params
+#     Random.seed!(algo_params.simulation_regime.sampling_scheme.simulation_seed)
+#
+#     initial_demand = 0.57e6
+#     initial_gas_price = 9.37
+#     number_of_realizations = algo_params.simulation_regime.sampling_scheme.number_of_realizations
+#
+#     if stage == 0
+#         # DETERMINISTIC VALUES FOR STAGE 1
+#         ########################################################################
+#         support_demand = 0
+#         support_gas = initial_gas_price
+#
+#         support = [(dem = support_demand, gas = support_gas)]
+#         probability = [1.0]
+#
+#     else
+#         # SAMPLE FROM THE UNDERLYING DISTRIBUTION
+#         ########################################################################
+#         t = stage
+#
+#         # Mean value
+#         mean = initial_demand * 1.00727^(t-1)
+#
+#         # Demand follows a uniform distribution (we allow for a deviation of t percent)
+#         demand_distribution = Distributions.Uniform(mean*(1-t/100), mean*(1+t/100))
+#
+#         # Sample from this distribution
+#         support_demand = (rand(demand_distribution, number_of_realizations) .- initial_demand) / 8760.0
+#
+#         # Remove negative demand values
+#         support_demand[support_demand .< 0] .= 0
+#
+#         ########################################################################
+#         # Mean value
+#         mean = initial_gas_price * 1.041188^(t-1)
+#         std_dev = 0.8*1.05^(t-1) #own assumption
+#
+#         # Gas prices follow a truncated normal distribution
+#         gas_price_distribution = Distributions.truncated(Distributions.Normal(mean,std_dev), 5, 30)
+#
+#         # Sample from this distribution
+#         support_gas = rand(gas_price_distribution, number_of_realizations)
+#
+#         ########################################################################
+#         # Combination
+#         support = [(dem = support_demand[i], gas = support_gas[i]) for i in 1:number_of_realizations]
+#         # We take an SAA approach
+#         probability = 1/number_of_realizations * ones(number_of_realizations)
+#
+#     end
+#
+#     return [SDDP.Noise(ω, p) for (ω, p) in zip(support, probability)]
+# end
