@@ -64,7 +64,8 @@ function model_no_bin_definition(problem_params::DynamicSDDiP.ProblemParams, sce
 
     model = SDDP.LinearPolicyGraph(
         stages = problem_params.number_of_stages,
-        lower_bound = 0.0,
+        lower_bound = -500000,
+        #lower_bound = 0.0,
         optimizer = GAMS.Optimizer,
         sense = :Min,
     ) do subproblem, t
@@ -84,8 +85,6 @@ function model_no_bin_definition(problem_params::DynamicSDDiP.ProblemParams, sce
             Int,
             initial_value = 0,
         )
-
-        Infiltrator.@infiltrate
 
         # Cumulative number of fulfilled cancellation
         JuMP.@variable(
@@ -161,26 +160,26 @@ function model_no_bin_definition(problem_params::DynamicSDDiP.ProblemParams, sce
             book[i,j] <= demand[i,j]
         )
 
-        Infiltrator.@infiltrate
-
         # PARAMETERIZE THE RANDOM VARIABLES
         ########################################################################
         # Get the support and probability for the current stage
-        #support = scenario_tree.support_array[t]
-        #probability = scenario_tree.probabilities_array[t]
+        support_vector_stage = scenario_tree.support_vector[t]
+        prob_vector_stage = scenario_tree.prob_vector[t]
 
-        # Parameterize the model using the uncertain demand and the natural gas prices
-        #SDDP.parameterize(subproblem, support, probability) do ω
-        #       JuMP.fix(demand, ω.dem)
-        #       JuMP.set_normalized_coefficient(fuel_cost_con[2], production[2], -ω.gas / 1.028 * generators[2].heat_rate * 1/generators[2].efficiency + generators[2].om_cost)
-        #       JuMP.set_normalized_coefficient(fuel_cost_con[3], production[3], -ω.gas / 1.028 * generators[3].heat_rate * 1/generators[3].efficiency + generators[3].om_cost)
-        #end
+        # Parameterize the model using the uncertain demand
+        SDDP.parameterize(subproblem, support_vector_stage, prob_vector_stage) do ω
+            for l = 1:length(ω)
+                i = ω[l][1]
+                j = ω[l][2]
+                JuMP.fix(demand[i,j], ω[l][3])
+            end
+        end
 
         # STAGE OBJECTIVE
         ########################################################################
         SDDP.@stageobjective(
             subproblem,
-            sum(fare[i,j] * book[i,j] - fare[i,j] * canc[i,j] for i in 1:num_itineraries for j in 1:num_classes)
+            -sum(fare[i,j] * book[i,j] - fare[i,j] * canc[i,j] for i in itineraries for j in classes)
         )
 
         # Switch the model to silent mode
@@ -246,45 +245,6 @@ function model_no_bin_set_up(
     model = model_no_bin_definition(problem_params, scenario_tree, itineraries, classes)
 
     return (model = model, problem_params = problem_params)
-end
-
-
-
-
-
-
-
-
-
-
-
-import SDDP
-import DynamicSDDiP
-import JuMP
-import Infiltrator
-using Revise
-
-include("scenario_tree.jl")
-
-
-struct Leg
-    sym::Symbol
-end
-
-struct Itinerary
-    sym::Symbol
-    cancellation_rate::Float64
-    legs::Vector{Symbol}
-end
-
-struct Compartment
-    sym::Symbol
-    capacity::Int
-end
-
-struct FareClass
-    sym::Symbol
-    compartment::Symbol
 end
 
 

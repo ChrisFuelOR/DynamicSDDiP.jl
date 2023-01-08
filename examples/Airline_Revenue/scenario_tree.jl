@@ -10,7 +10,7 @@ import DataFrames
 import StatsBase
 
 
-function get_recombining_scenario_tree(algo_params::DynamicSDDiP.AlgoParams, problem_params::DynamicSDDiP.ProblemParams, itineraries::Vector{Itinerary}, classes::Vector{FareClass}, days::Vector{Int64})
+function get_recombining_scenario_tree(algo_params::DynamicSDDiP.AlgoParams, problem_params::DynamicSDDiP.ProblemParams, itineraries::Any, classes::Any, days::Vector{Int64})
 
     # Set the seed from algo_params
     Random.seed!(problem_params.tree_seed)
@@ -20,9 +20,11 @@ function get_recombining_scenario_tree(algo_params::DynamicSDDiP.AlgoParams, pro
     """
     all_data_df = CSV.read("data.csv", DataFrames.DataFrame)
 
+    # CONSTRUCT THE SCENARIO TREE DATA
+    ############################################################################
     support_df = DataFrames.DataFrame(i = Any[], j = Any[], t = Int64[], support = Vector{Vector{Float64}}())
-    prob_df = DataFrames.DataFrame(i = Any[], j = Any[], t = Int64[], prob = Vector{Vector{Float64}}())
 
+    #prob_df = DataFrames.DataFrame(i = Any[], j = Any[], t = Int64[], prob = Vector{Vector{Float64}}())
     # Iterate over each itinerary-class combination
     for i in itineraries
         for j in classes
@@ -42,7 +44,7 @@ function get_recombining_scenario_tree(algo_params::DynamicSDDiP.AlgoParams, pro
 
             # Stage 1 demand. We assume a deterministic demand of 0.
             push!(support_df, (i, j, 1, [0.0]))
-            push!(prob_df, (i, j, 1, [1.0]))
+            #push!(prob_df, (i, j, 1, [1.0]))
 
             # Iterate over the different time slots
             for t in 2:problem_params.number_of_stages
@@ -65,17 +67,66 @@ function get_recombining_scenario_tree(algo_params::DynamicSDDiP.AlgoParams, pro
                 # times to get the realizations for the stagewise independent
                 # process
                 stage_support = StatsBase.sample(stage_request_realizations, problem_params.number_of_realizations)
-                stage_prob = 1/problem_params.number_of_realizations * ones(problem_params.number_of_realizations)
+                #stage_prob = 1/problem_params.number_of_realizations * ones(problem_params.number_of_realizations)
 
                 push!(support_df, (i, j, t, stage_support))
-                push!(prob_df, (i, j, t, stage_prob))
+                #push!(prob_df, (i, j, t, stage_prob))
             end
         end
     end
 
-    Infiltrator.@infiltrate
+    # RESHAPE THE DATA INTO THE REQUIRED FORM
+    ############################################################################
+    support_vector_all = Vector{Any}()
+    prob_vector_all = Vector{Any}()
 
-    return (support_df = support_df, prob_df = prob_df)
+    # Iterate over the stages
+    for t in 1:problem_params.number_of_stages
+        # Get stage data
+        support_stage_df = filter(row -> row.t == t, support_df)
+
+        support_vector_stage = Vector{Any}()
+        prob_vector_stage = Vector{Float64}()
+
+        # Iterate over realizations
+
+        if t == 1
+            support_vector_stage_realization = Vector{Any}()
+
+            # Iterate over itinerary-class combinations, i.e. data frame rows
+            for row in eachrow(support_stage_df)
+                # Create a tuple from this row data using only the l-th realization
+                support_data = (row.i, row.j, row.support[1])
+                push!(support_vector_stage_realization, support_data)
+            end
+
+            push!(support_vector_stage, support_vector_stage_realization)
+            push!(prob_vector_stage, 1.0)
+
+        else
+            for l in 1:problem_params.number_of_realizations
+
+                support_vector_stage_realization = Vector{Any}()
+
+                # Iterate over itinerary-class combinations, i.e. data frame rows
+                for row in eachrow(support_stage_df)
+                    # Create a tuple from this row data using only the l-th realization
+                    support_data = (row.i, row.j, row.support[l])
+                    push!(support_vector_stage_realization, support_data)
+                end
+
+                push!(support_vector_stage, support_vector_stage_realization)
+                push!(prob_vector_stage, 1/problem_params.number_of_realizations)
+
+            end
+        end
+
+        push!(support_vector_all, support_vector_stage)
+        push!(prob_vector_all, prob_vector_stage)
+    end
+
+    return (support_vector = support_vector_all, prob_vector = prob_vector_all)
+    #return (support_df = support_df, prob_df = prob_df)
 
 end
 
