@@ -190,7 +190,7 @@ function solve_subproblem_backward_primal(
     primal_obj_scenario = JuMP.objective_value(subproblem)
     # Try recovering from numerical issues
     if (JuMP.termination_status(subproblem) != MOI.OPTIMAL)
-        elude_numerical_issues!(subproblem, algo_params)
+        #elude_numerical_issues!(subproblem, algo_params)
     end
 
     ############################################################################

@@ -24,7 +24,6 @@ function get_recombining_scenario_tree(algo_params::DynamicSDDiP.AlgoParams, pro
     ############################################################################
     support_df = DataFrames.DataFrame(i = Any[], j = Any[], t = Int64[], support = Vector{Vector{Float64}}())
 
-    #prob_df = DataFrames.DataFrame(i = Any[], j = Any[], t = Int64[], prob = Vector{Vector{Float64}}())
     # Iterate over each itinerary-class combination
     for i in itineraries
         for j in classes
@@ -44,7 +43,6 @@ function get_recombining_scenario_tree(algo_params::DynamicSDDiP.AlgoParams, pro
 
             # Stage 1 demand. We assume a deterministic demand of 0.
             push!(support_df, (i, j, 1, [0.0]))
-            #push!(prob_df, (i, j, 1, [1.0]))
 
             # Iterate over the different time slots
             for t in 2:problem_params.number_of_stages
@@ -67,7 +65,6 @@ function get_recombining_scenario_tree(algo_params::DynamicSDDiP.AlgoParams, pro
                 # times to get the realizations for the stagewise independent
                 # process
                 stage_support = StatsBase.sample(stage_request_realizations, problem_params.number_of_realizations)
-                #stage_prob = 1/problem_params.number_of_realizations * ones(problem_params.number_of_realizations)
 
                 push!(support_df, (i, j, t, stage_support))
                 #push!(prob_df, (i, j, t, stage_prob))
@@ -126,7 +123,6 @@ function get_recombining_scenario_tree(algo_params::DynamicSDDiP.AlgoParams, pro
     end
 
     return (support_vector = support_vector_all, prob_vector = prob_vector_all)
-    #return (support_df = support_df, prob_df = prob_df)
 
 end
 

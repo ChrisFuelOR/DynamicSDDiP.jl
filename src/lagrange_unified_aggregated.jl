@@ -85,7 +85,7 @@ function _solve_Lagrangian_relaxation_single!(
     end
     # Try recovering from numerical issues
     if (JuMP.termination_status(model) != MOI.OPTIMAL)
-        elude_numerical_issues!(model, algo_params)
+        #elude_numerical_issues!(model, algo_params)
     end
 
     # Store objective value for return

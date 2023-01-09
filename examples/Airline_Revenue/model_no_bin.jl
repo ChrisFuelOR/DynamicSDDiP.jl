@@ -37,6 +37,9 @@ function model_no_bin_definition(problem_params::DynamicSDDiP.ProblemParams, sce
     in msppy.py.
     """
 
+    # MAIN DEFINITIONS
+    ############################################################################
+
     legs = [
         Leg(:AH),
         Leg(:HA),
@@ -62,6 +65,9 @@ function model_no_bin_definition(problem_params::DynamicSDDiP.ProblemParams, sce
         end
     end
 
+    # POLICY GRAPH
+    ############################################################################
+
     model = SDDP.LinearPolicyGraph(
         stages = problem_params.number_of_stages,
         lower_bound = -500000,
@@ -80,7 +86,7 @@ function model_no_bin_definition(problem_params::DynamicSDDiP.ProblemParams, sce
         # Cumulative number of fulfilled bookings
         JuMP.@variable(
             subproblem,
-            0 <= cum_book[i in itineraries, j in classes] <= sum(k.capacity * (1 + problem_params.number_of_stages * i.cancellation_rate) for k in compartments if k.sym == j.compartment),
+            0 <= cum_book[i in 1:num_itineraries, j in 1:num_classes] <= sum(k.capacity * (1 + problem_params.number_of_stages * itineraries[i].cancellation_rate) for k in compartments if k.sym == classes[j].compartment),
             SDDP.State,
             Int,
             initial_value = 0,
@@ -89,7 +95,7 @@ function model_no_bin_definition(problem_params::DynamicSDDiP.ProblemParams, sce
         # Cumulative number of fulfilled cancellation
         JuMP.@variable(
             subproblem,
-            0 <= cum_canc[i in itineraries, j in classes] <= 1, #TODO: Upper Bound
+            0 <= cum_canc[i in 1:num_itineraries, j in 1:num_classes] <= sum(k.capacity * (1 + problem_params.number_of_stages * itineraries[i].cancellation_rate) for k in compartments if k.sym == classes[j].compartment),
             SDDP.State,
             Int,
             initial_value = 0
@@ -100,14 +106,14 @@ function model_no_bin_definition(problem_params::DynamicSDDiP.ProblemParams, sce
         # Number of fulfilled bookings on this stage
         JuMP.@variable(
             subproblem,
-            0 <= book[i in itineraries, j in classes],
+            0 <= book[i in 1:num_itineraries, j in 1:num_classes],
             Int
         )
 
         # Number of fulfilled cancellations on this stage
         JuMP.@variable(
             subproblem,
-            0 <= canc[i in itineraries, j in classes],
+            0 <= canc[i in 1:num_itineraries, j in 1:num_classes],
             Int
         )
 
@@ -116,7 +122,7 @@ function model_no_bin_definition(problem_params::DynamicSDDiP.ProblemParams, sce
         # RHS uncertainty of demand
         JuMP.@variable(
             subproblem,
-            demand[i in itineraries, j in classes]
+            demand[i in 1:num_itineraries, j in 1:num_classes]
         )
 
         # CONSTRAINTS
@@ -124,39 +130,39 @@ function model_no_bin_definition(problem_params::DynamicSDDiP.ProblemParams, sce
         # State equation bookings
         JuMP.@constraint(
             subproblem,
-            state_bookings[i in itineraries, j in classes],
+            state_bookings[i in 1:num_itineraries, j in 1:num_classes],
             cum_book[i,j].out == cum_book[i,j].in + book[i,j]
         )
 
         # State equation cancellations
         JuMP.@constraint(
             subproblem,
-            state_cancellations[i in itineraries, j in classes],
+            state_cancellations[i in 1:num_itineraries, j in 1:num_classes],
             cum_canc[i,j].out == cum_canc[i,j].in + canc[i,j]
         )
 
         # Cancellation constraints
         JuMP.@constraint(
-            subproblem, [i in itineraries, j in classes],
-            cum_canc[i,j].out <= i.cancellation_rate * cum_book[i,j].out + 0.5
+            subproblem, [i in 1:num_itineraries, j in 1:num_classes],
+            cum_canc[i,j].out <= itineraries[i].cancellation_rate * cum_book[i,j].out + 0.5
         )
 
         JuMP.@constraint(
-            subproblem, [i in itineraries, j in classes],
-            cum_canc[i,j].out >= i.cancellation_rate * cum_book[i,j].out - 0.5
+            subproblem, [i in 1:num_itineraries, j in 1:num_classes],
+            cum_canc[i,j].out >= itineraries[i].cancellation_rate * cum_book[i,j].out - 0.499
         )
 
         # Capacity constraint
         JuMP.@constraint(
-            subproblem, [l in legs, k in compartments],
-            sum(cum_book[i,j].out - cum_canc[i,j].out for i in itineraries for j in classes if (l.sym in i.legs && j.compartment == k.sym))
-            <= k.capacity
+            subproblem, [l in 1:num_legs, k in 1:num_compartments],
+            sum(cum_book[i,j].out - cum_canc[i,j].out for i in 1:num_itineraries for j in 1:num_classes if (legs[l].sym in itineraries[i].legs && classes[j].compartment == compartments[k].sym))
+            <= compartments[k].capacity
         )
 
         # Demand constraint
         JuMP.@constraint(
             subproblem,
-            demand_eq[i in itineraries, j in classes],
+            demand_eq[i in 1:num_itineraries, j in 1:num_classes],
             book[i,j] <= demand[i,j]
         )
 
@@ -169,9 +175,13 @@ function model_no_bin_definition(problem_params::DynamicSDDiP.ProblemParams, sce
         # Parameterize the model using the uncertain demand
         SDDP.parameterize(subproblem, support_vector_stage, prob_vector_stage) do ω
             for l = 1:length(ω)
-                i = ω[l][1]
-                j = ω[l][2]
-                JuMP.fix(demand[i,j], ω[l][3])
+                for i in 1:num_itineraries
+                    for j in 1:num_classes
+                        if itineraries[i] == ω[l][1] && classes[j] == ω[l][2]
+                            JuMP.fix(demand[i,j], ω[l][3])
+                        end
+                    end
+                end
             end
         end
 
@@ -179,8 +189,10 @@ function model_no_bin_definition(problem_params::DynamicSDDiP.ProblemParams, sce
         ########################################################################
         SDDP.@stageobjective(
             subproblem,
-            -sum(fare[i,j] * book[i,j] - fare[i,j] * canc[i,j] for i in itineraries for j in classes)
+            -sum(fare[itineraries[i],classes[j]] * book[i,j] - fare[itineraries[i],classes[j]] * canc[i,j] for i in 1:num_itineraries for j in 1:num_classes)
         )
+
+        #Infiltrator.@infiltrate
 
         # Switch the model to silent mode
         JuMP.set_silent(subproblem)

@@ -29,7 +29,7 @@ function _solve_unified_Lagrangian_relaxation!(
 
     # Try recovering from numerical issues
     if (JuMP.termination_status(model) != MOI.OPTIMAL)
-        elude_numerical_issues!(model, algo_params)
+        #elude_numerical_issues!(model, algo_params)
     end
 
     # Update the correct values
