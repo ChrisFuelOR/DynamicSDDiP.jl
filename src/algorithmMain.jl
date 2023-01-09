@@ -136,10 +136,7 @@ function solve(
     # fortunately, node.bellman_function requires no specific type
     for (key, node) in model.nodes
         # Set solver
-        JuMP.set_optimizer(node.subproblem, JuMP.optimizer_with_attributes(
-            () -> Gurobi.Optimizer(GURB_ENV[]),"MIPGap"=>1e-4,"TimeLimit"=>300,"NumericFocus"=>algo_params.numerical_focus
-        ))
-        JuMP.set_silent(node.subproblem)
+        set_solver_initially!(node.subproblem, algo_params, applied_solvers, :main_subproblem, algo_params.solver_approach)
 
         if key != model.root_node
 

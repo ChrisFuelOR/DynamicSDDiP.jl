@@ -130,12 +130,7 @@ function algo_config(
 
     # Define solvers to be used
     applied_solvers = DynamicSDDiP.AppliedSolvers(
-        LP = "Gurobi",
-        MILP = "Gurobi",
-        MIQCP = "Gurobi",
-        MINLP = "Gurobi",
-        NLP = "Gurobi",
-        Lagrange = "Gurobi",
+        solver_tol = 0.05,
     )
 
     # Definition of algo_params

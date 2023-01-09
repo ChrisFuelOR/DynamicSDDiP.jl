@@ -199,7 +199,7 @@ function solve_aggregated_lagrangian_dual(
 
     # Set solver for inner problem
     #---------------------------------------------------------------------------
-    set_solver!(node.subproblem, algo_params, applied_solvers, :lagrange_relax, algo_params.solver_approach)
+    reset_solver!(node.subproblem, algo_params, applied_solvers, :lagrange_relax, algo_params.solver_approach)
 
     ############################################################################
     # RELAXING THE COPY CONSTRAINTS
@@ -221,18 +221,8 @@ function solve_aggregated_lagrangian_dual(
         # Approximation of Lagrangian dual by cutting planes
         # Optimizer is re-set anyway
         approx_model = JuMP.Model()
-        JuMP.set_optimizer(approx_model, JuMP.optimizer_with_attributes(
-            () -> Gurobi.Optimizer(GURB_ENV[]),"MIPGap"=>1e-4,"TimeLimit"=>300,"NumericFocus"=>algo_params.numerical_focus
-        ))
-        JuMP.set_silent(approx_model)
-
         approx_model.ext[:sddp_policy_graph] = node.subproblem.ext[:sddp_policy_graph]
-
-        if isa(cut_generation_regime.duality_regime.normalization_regime, DynamicSDDiP.L₂_Deep)
-            set_solver!(approx_model, algo_params, applied_solvers, :l₂, algo_params.solver_approach)
-        else
-            set_solver!(approx_model, algo_params, applied_solvers, :kelley, algo_params.solver_approach)
-        end
+        set_solver_initially!(approx_model, algo_params, applied_solvers, :kelley, algo_params.solver_approach)
 
         # Create the objective
         # Note that it is always formulated as a maximization problem, but that
@@ -431,7 +421,7 @@ function solve_aggregated_lagrangian_dual(
     ############################################################################
     # RESET SOLVER
     ############################################################################
-    set_solver!(node.subproblem, algo_params, applied_solvers, :forward_pass, algo_params.solver_approach)
+    reset_solver!(node.subproblem, algo_params, applied_solvers, :forward_pass, algo_params.solver_approach)
 
     ############################################################################
     # AGGREGATE DUAL COEFFICIENTS

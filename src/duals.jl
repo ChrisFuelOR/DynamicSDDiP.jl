@@ -91,7 +91,7 @@ function solve_LP_relaxation(
     undo_relax = JuMP.relax_integrality(node.subproblem)
 
     # Define appropriate solver
-    set_solver!(subproblem, algo_params, applied_solvers, :LP_relax, algo_params.solver_approach)
+    reset_solver!(subproblem, algo_params, applied_solvers, :LP_relax, algo_params.solver_approach)
 
     TimerOutputs.@timeit DynamicSDDiP_TIMER "solver_call_LP_relax" begin
         JuMP.optimize!(subproblem)
@@ -247,7 +247,11 @@ function get_dual_solution(
     #regularize_bw!(node, node_index, subproblem, cut_generation_regime, DynamicSDDiP.NoRegularization(), cut_generation_regime.state_approximation_regime)
 
     # RESET SOLVER (as it may have been changed in between for some reason)
-    DynamicSDDiP.set_solver!(subproblem, algo_params, applied_solvers, :backward_pass, algo_params.solver_approach)
+    if isa(algo_params.regularization_regime, DynamicSDDiP.NoRegularization)
+        reset_solver!(subproblem, algo_params, applied_solvers, :backward_pass, algo_params.solver_approach)
+    else
+        reset_solver!(subproblem, algo_params, applied_solvers, :reg, algo_params.solver_approach)
+    end
 
     # SOLVE PRIMAL PROBLEM (can be regularized or not)
     TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_primal" begin
@@ -417,7 +421,7 @@ function get_dual_solution(
     """
 
     # RESET SOLVER (as it may have been changed in between for some reason)
-    DynamicSDDiP.set_solver!(subproblem, algo_params, applied_solvers, :backward_pass, algo_params.solver_approach)
+    reset_solver!(subproblem, algo_params, applied_solvers, :backward_pass, algo_params.solver_approach)
 
     # SOLVE PRIMAL SUBPROBLEM (can be regularized or not)
     TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_primal" begin
@@ -439,6 +443,9 @@ function get_dual_solution(
     if isa(normalization_regime, DynamicSDDiP.Core_Midpoint) || isa(normalization_regime, DynamicSDDiP.Core_In_Out) || isa(normalization_regime, DynamicSDDiP.Core_Epsilon) | isa(normalization_regime, DynamicSDDiP.Core_Optimal) || isa(normalization_regime, DynamicSDDiP.Core_Relint)
         # PREPARE PRIMAL TO LAGRANGIAN DUAL PROBLEM (INCLUDES POSSIBLE REGULARIZATION)
         construct_unified_primal_problem!(node, node_index, subproblem, epi_state, normalization_coeff, duality_regime, algo_params.regularization_regime, cut_generation_regime.state_approximation_regime)
+
+        # RESET SOLVER (as it may have been changed in between for some reason)
+        reset_solver!(subproblem, algo_params, applied_solvers, :backward_pass, algo_params.solver_approach)
 
         # SOLVE THE PRIMAL PROBLEM
         TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_primal" begin
@@ -807,7 +814,7 @@ function initialize_duals(
     undo_relax = JuMP.relax_integrality(subproblem);
 
     # Define appropriate solver
-    set_solver!(subproblem, algo_params, applied_solvers, :LP_relax, algo_params.solver_approach)
+    reset_solver!(subproblem, algo_params, applied_solvers, :LP_relax, algo_params.solver_approach)
 
     # Solve LP Relaxation
     TimerOutputs.@timeit DynamicSDDiP_TIMER "solver_call_LP_relax" begin

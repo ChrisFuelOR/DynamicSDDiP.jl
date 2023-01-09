@@ -717,33 +717,87 @@ Default is NoSimulation.
 # DEFINING STRUCT FOR SOLVERS TO BE USED
 ################################################################################
 """
-For the Lagrangian subproblems a separate solver can be defined if for
-    the LP/MILP solver numerical issues occur.
+Allows to define different solvers for different phases of the algorithm.
+However, this leads to some computational overhead for re-setting the solver.
+Therefore, if always the same solver is used for a particular subproblem, then
+it should not be refined. In such case, we can set the general_solver variable
+to true. In that case, the solver for the subproblems (apart from some auxiliary
+problems) is only set once initially.
+Note that using general_solver = false only makes sense if different solvers
+are specified for the phases of the algorithm.
+Note that if general_solver = false, then the non-optional solvers have to be
+defined.
+
+solver_subproblem always has to be satisfied, therefore we have a default there.
+
+solver_subproblem:          forward and backward pass subproblems
+solver_Lagrange_relax:      Lagrangian dual inner problem
+                            (optional, otherwise solver_subproblem is used)
+solver_Lagrange_approx:     Lagrangian dual outer problem
+                            (should be defined if Kelley or LevelBundle method
+                            are used, as this is a different problem)
+solver_Lagrange_Bundle:     quadratic auxiliary problem in Bundle method
+                            (optional, otherwise solver_Lagrange_approx is used)
+solver_Lagrange_subgradient: projection problem in the subgradient method
+                            (should be defined if subgradient method
+                            is used, as this is a different problem)
+solver_cut_selection:       solver for cut selection auxiliary problem
+                            (should be defined if cut selection method is used,
+                            as this is a different problem)
+solver_LP_relax:            solver for LP relaxations of MILP subproblems
+                            (optional, otherwise solver_subproblem is used)
+solver_reg:                 solver for regularization of subproblems
+                            (optional, otherwise solver_subproblem is used)
+solver_norm:                solver for identifying core points or computing
+                            normalization coefficients
+                            (optional, otherwise solver_subproblem is used)
+
+Note that we can also specify the tolerance for solving subproblems. This is the
+same for all problems, though.
+Moreover, (for now only for Gurobi) we can specify a time limit in seconds.
 """
 
 struct AppliedSolvers
-    LP :: Any
-    MILP :: Any
-    MIQCP :: Any
-    MINLP :: Any
-    NLP :: Any
-    Lagrange :: Any
+    general_solver :: Bool
+    solver_subproblem :: Any
+    solver_Lagrange_relax :: Any
+    solver_Lagrange_approx :: Any
+    solver_Lagrange_Bundle :: Any
+    solver_Lagrange_subgradient :: Any
+    solver_cut_selection :: Any
+    solver_LP_relax :: Any
+    solver_reg :: Any
+    solver_norm :: Any
+    solver_tol :: Float64
+    solver_time :: Int64
 
     function AppliedSolvers(;
-        LP = "Gurobi",
-        MILP = "Gurobi",
-        MIQCP = "Gurobi",
-        MINLP = "SCIP",
-        NLP = "SCIP",
-        Lagrange = "Gurobi",
+        general_solver = true,
+        solver_subproblem = "Gurobi",
+        solver_Lagrange_relax = "Gurobi",
+        solver_Lagrange_approx = "Gurobi",
+        solver_Lagrange_Bundle = "Gurobi",
+        solver_Lagrange_subgradient = "Gurobi",
+        solver_cut_selection = "Gurobi",
+        solver_LP_relax = "Gurobi",
+        solver_reg = "Gurobi",
+        solver_norm = "Gurobi",
+        solver_tol = 1e-4,
+        solver_time = 300,
         )
         return new(
-            LP,
-            MILP,
-            MIQCP,
-            MINLP,
-            NLP,
-            Lagrange
+            general_solver,
+            solver_subproblem,
+            solver_Lagrange_relax,
+            solver_Lagrange_approx,
+            solver_Lagrange_Bundle,
+            solver_Lagrange_subgradient,
+            solver_cut_selection,
+            solver_LP_relax,
+            solver_reg,
+            solver_norm,
+            solver_tol,
+            solver_time,
             )
     end
 end

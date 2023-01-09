@@ -61,7 +61,6 @@ function _solve_Lagrangian_relaxation!(
 
     JuMP.set_objective_function(model, JuMP.@expression(model, old_obj - π_k' * h_expr))
 
-    #Infiltrator.@infiltrate
     # Optimization
     TimerOutputs.@timeit DynamicSDDiP_TIMER "solver_call_Lag_inner" begin
         JuMP.optimize!(model)
@@ -127,7 +126,7 @@ function solve_lagrangian_dual(
 
     # Set solver for inner problem
     #---------------------------------------------------------------------------
-    set_solver!(node.subproblem, algo_params, applied_solvers, :lagrange_relax, algo_params.solver_approach)
+    reset_solver!(node.subproblem, algo_params, applied_solvers, :lagrange_relax, algo_params.solver_approach)
 
     # Augmented Lagrangian dual using 1-norm?
     #---------------------------------------------------------------------------
@@ -154,13 +153,8 @@ function solve_lagrangian_dual(
         # Approximation of Lagrangian dual by cutting planes
         # Optimizer is re-set anyway
         approx_model = JuMP.Model()
-        JuMP.set_optimizer(approx_model, JuMP.optimizer_with_attributes(
-            () -> Gurobi.Optimizer(GURB_ENV[]),"MIPGap"=>1e-4,"TimeLimit"=>300,"NumericFocus"=>algo_params.numerical_focus
-        ))
-        JuMP.set_silent(approx_model)
-
         approx_model.ext[:sddp_policy_graph] = node.subproblem.ext[:sddp_policy_graph]
-        set_solver!(approx_model, algo_params, applied_solvers, :kelley, algo_params.solver_approach)
+        set_solver_initially!(approx_model, algo_params, applied_solvers, :kelley, algo_params.solver_approach)
 
         # Create the objective
         # Note that it is always formulated as a maximization problem, but that
@@ -307,7 +301,7 @@ function solve_lagrangian_dual(
     ############################################################################
     # RESET SOLVER
     ############################################################################
-    set_solver!(node.subproblem, algo_params, applied_solvers, :forward_pass, algo_params.solver_approach)
+    reset_solver!(node.subproblem, algo_params, applied_solvers, :forward_pass, algo_params.solver_approach)
 
     ############################################################################
     # LOGGING
@@ -466,7 +460,7 @@ function solve_lagrangian_dual(
 
     # Set solver for inner problem
     #---------------------------------------------------------------------------
-    set_solver!(node.subproblem, algo_params, applied_solvers, :lagrange_relax, algo_params.solver_approach)
+    reset_solver!(node.subproblem, algo_params, applied_solvers, :lagrange_relax, algo_params.solver_approach)
 
     # Set bundle_parameters
     #---------------------------------------------------------------------------
@@ -499,13 +493,8 @@ function solve_lagrangian_dual(
         # Approximation of Lagrangian dual by cutting planes
         # Optimizer is re-set anyway
         approx_model = JuMP.Model()
-        JuMP.set_optimizer(approx_model, JuMP.optimizer_with_attributes(
-            () -> Gurobi.Optimizer(GURB_ENV[]),"MIPGap"=>1e-4,"TimeLimit"=>300,"NumericFocus"=>algo_params.numerical_focus
-        ))
-        JuMP.set_silent(approx_model)
-
         approx_model.ext[:sddp_policy_graph] = node.subproblem.ext[:sddp_policy_graph]
-        set_solver!(approx_model, algo_params, applied_solvers, :kelley, algo_params.solver_approach)
+        set_solver_initially!(approx_model, algo_params, applied_solvers, :kelley, algo_params.solver_approach)
 
         # Create the objective
         # Note that it is always formulated as a maximization problem, but that
@@ -553,7 +542,6 @@ function solve_lagrangian_dual(
             end
         end
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
-        #Infiltrator.@infiltrate
 
         ########################################################################
         # UPDATE BEST FOUND SOLUTION SO FAR
@@ -574,7 +562,7 @@ function solve_lagrangian_dual(
         # RESET OBJECTIVE FOR APPROX_MODEL AFTER NONLINEAR MODEL
         ########################################################################
         JuMP.@objective(approx_model, Max, t)
-        #set_solver!(approx_model, algo_params, applied_solvers, :kelley, algo_params.solver_approach)
+        reset_solver!(approx_model, algo_params, applied_solvers, :kelley, algo_params.solver_approach)
 
         ########################################################################
         # SOLVE APPROXIMATION MODEL
@@ -668,7 +656,7 @@ function solve_lagrangian_dual(
         # Objective function of approx model has to be adapted to new center
         # TODO: Does this work with π[i]?
         JuMP.@objective(approx_model, Min, sum((π_k[i] - π[i])^2 for i in 1:number_of_states))
-        #set_solver!(approx_model, algo_params, applied_solvers, :level_bundle, algo_params.solver_approach)
+        reset_solver!(approx_model, algo_params, applied_solvers, :level_bundle, algo_params.solver_approach)
         TimerOutputs.@timeit DynamicSDDiP_TIMER "bundle_sol" begin
             JuMP.optimize!(approx_model)
         end
@@ -767,7 +755,7 @@ function solve_lagrangian_dual(
     ############################################################################
     # RESET SOLVER
     ############################################################################
-    set_solver!(node.subproblem, algo_params, applied_solvers, :forward_pass, algo_params.solver_approach)
+    reset_solver!(node.subproblem, algo_params, applied_solvers, :forward_pass, algo_params.solver_approach)
 
     ############################################################################
     # LOGGING
@@ -808,7 +796,7 @@ function _getStrengtheningInformation(
 
     # Set solver for inner problem
     #---------------------------------------------------------------------------
-    set_solver!(node.subproblem, algo_params, applied_solvers, :lagrange_relax, algo_params.solver_approach)
+    reset_solver!(node.subproblem, algo_params, applied_solvers, :lagrange_relax, algo_params.solver_approach)
 
     ############################################################################
     # RELAXING THE COPY CONSTRAINTS
@@ -830,7 +818,7 @@ function _getStrengtheningInformation(
     ############################################################################
     # RESET SOLVER
     ############################################################################
-    set_solver!(node.subproblem, algo_params, applied_solvers, :forward_pass, algo_params.solver_approach)
+    reset_solver!(node.subproblem, algo_params, applied_solvers, :forward_pass, algo_params.solver_approach)
 
     return lag_obj
 end
@@ -894,7 +882,7 @@ function solve_lagrangian_dual(
 
     # Set solver for inner problem
     #---------------------------------------------------------------------------
-    set_solver!(node.subproblem, algo_params, applied_solvers, :lagrange_relax, algo_params.solver_approach)
+    reset_solver!(node.subproblem, algo_params, applied_solvers, :lagrange_relax, algo_params.solver_approach)
 
     # Augmented Lagrangian dual using 1-norm?
     #---------------------------------------------------------------------------
@@ -941,11 +929,7 @@ function solve_lagrangian_dual(
             cut_generation_regime.duality_regime)
 
         # Set solver
-        JuMP.set_optimizer(proj_model, JuMP.optimizer_with_attributes(
-            () -> Gurobi.Optimizer(GURB_ENV[]),"MIPGap"=>1e-4,"TimeLimit"=>300,"NumericFocus"=>algo_params.numerical_focus
-        ))
-        JuMP.set_silent(proj_model)
-        #set_solver!(proj_model, algo_params, applied_solvers, :level_bundle, algo_params.solver_approach)
+        reset_solver!(proj_model, algo_params, applied_solvers, :subgradient, algo_params.solver_approach)
     end
 
     ############################################################################
@@ -1081,7 +1065,7 @@ function solve_lagrangian_dual(
     ############################################################################
     # RESET SOLVER
     ############################################################################
-    set_solver!(node.subproblem, algo_params, applied_solvers, :forward_pass, algo_params.solver_approach)
+    reset_solver!(node.subproblem, algo_params, applied_solvers, :forward_pass, algo_params.solver_approach)
 
     # Set dual_vars (here π_k) to the optimal solution
     π_k .= π_star
