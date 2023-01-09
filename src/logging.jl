@@ -150,6 +150,10 @@ function print_parameters(io, algo_params::DynamicSDDiP.AlgoParams, applied_solv
     println(io, algo_params.cut_selection_regime)
 
     println(io, "||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||")
+    println(io, "LATE BINARIZATION")
+    println(io, algo_params.late_binarization_regime)
+
+    println(io, "||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||")
     println(io, "APPLIED SOLVERS (LP, MILP, MIQCP, MINLP, NLP, Lagrange)")
     println(io, applied_solvers)
     println(io, algo_params.solver_approach)
