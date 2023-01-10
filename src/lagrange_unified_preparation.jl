@@ -466,8 +466,6 @@ function get_core_point(
 	# Get the midpoint of the state space
 	core_point_x = get_state_space_midpoint(node, number_of_states, state_approximation_regime)
 
-    Infiltrator.@infiltrate
-
 	# Get optimal value to core point
 	core_point_theta = evaluate_approx_value_function(node, core_point_x, number_of_states, algo_params, applied_solvers, normalization_regime.integer_relax, state_approximation_regime)
 
@@ -726,13 +724,13 @@ function get_normalization_coefficients(
 	epi_state::Float64,
 	algo_params::DynamicSDDiP.AlgoParams,
 	applied_solvers::DynamicSDDiP.AppliedSolvers,
-    state_approximation_regime::Union{DynamicSDDiP.NoStateApproximation,DynamicSDDiP.BinaryApproximation},
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation,
 	normalization_regime::DynamicSDDiP.Core_Benders,
 	copy_regime::DynamicSDDiP.AbstractCopyRegime,
     )
 
 	# Get theta direction
-	ω₀ = 1
+	ω₀ = 1.0
 
 	# Get Benders cut coefficients (as in initialize_duals; for this method
 	# we miss some of the arguments though)
@@ -754,12 +752,57 @@ function get_normalization_coefficients(
     @assert JuMP.termination_status(node.subproblem) == MOI.OPTIMAL
 
     # Get dual values (reduced costs) for binary states as initial solution
-    get_and_set_dual_values!(node, dual_vars_initial, state_approximation_regime)
+    get_and_set_dual_values!(node, dual_vars, state_approximation_regime)
 
     # Undo relaxation
     undo_relax()
 
-	return (ω = dual_vars, ω₀ = ω₀)
+	#println(dual_vars)
+
+	return (ω = -dual_vars, ω₀ = ω₀)
+
+end
+
+function get_normalization_coefficients(
+    node::SDDP.Node,
+    number_of_states::Int,
+	epi_state::Float64,
+	algo_params::DynamicSDDiP.AlgoParams,
+	applied_solvers::DynamicSDDiP.AppliedSolvers,
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation,
+	normalization_regime::DynamicSDDiP.Core_Benders,
+	copy_regime::DynamicSDDiP.AbstractCopyRegime,
+    )
+
+	# Get theta direction
+	ω₀ = 1.0
+
+	# Get Benders cut coefficients (as in initialize_duals; for this method
+	# we miss some of the arguments though)
+	############################################################################
+	# Get number of states and create zero vector for duals
+    number_of_states = get_number_of_states(node, state_approximation_regime)
+    dual_vars = zeros(number_of_states)
+
+    # Create LP Relaxation
+    undo_relax = JuMP.relax_integrality(node.subproblem)
+
+    # Define appropriate solver
+    reset_solver!(node.subproblem, algo_params, applied_solvers, :LP_relax, algo_params.solver_approach)
+
+    # Solve LP Relaxation
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "solver_call_LP_relax_core" begin
+        JuMP.optimize!(node.subproblem)
+    end
+    @assert JuMP.termination_status(node.subproblem) == MOI.OPTIMAL
+
+    # Get dual values (reduced costs) for binary states as initial solution
+    get_and_set_dual_values!(node, dual_vars, state_approximation_regime)
+
+    # Undo relaxation
+    undo_relax()
+
+	return (ω = -dual_vars, ω₀ = ω₀)
 
 end
 
@@ -802,9 +845,9 @@ function evaluate_approx_value_function(
 	node::SDDP.Node,
 	core_point_x::Vector{Float64},
 	number_of_states::Int,
-	integer_relax::Bool,
     algo_params::DynamicSDDiP.AlgoParams,
 	applied_solvers::DynamicSDDiP.AppliedSolvers,
+	integer_relax::Bool,
 	state_approximation_regime::DynamicSDDiP.NoStateApproximation,
 	)
 
@@ -831,8 +874,6 @@ function evaluate_approx_value_function(
         JuMP.optimize!(subproblem)
     end
 
-	Infiltrator.@infiltrate
-
     # Maybe attempt numerical recovery as in SDDP
 	core_obj = JuMP.objective_value(subproblem)
     @assert JuMP.termination_status(subproblem) == MOI.OPTIMAL
@@ -854,9 +895,9 @@ function evaluate_approx_value_function(
 	node::SDDP.Node,
 	core_point_x::Vector{Float64},
 	number_of_states::Int,
-	integer_relax::Bool,
 	algo_params::DynamicSDDiP.AlgoParams,
 	applied_solvers::DynamicSDDiP.AppliedSolvers,
+	integer_relax::Bool,
 	state_approximation_regime::DynamicSDDiP.BinaryApproximation,
 	)
 
