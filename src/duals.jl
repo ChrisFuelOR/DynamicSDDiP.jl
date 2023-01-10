@@ -381,6 +381,7 @@ function get_dual_solution(
         number_of_states,
         epi_state,
         algo_params,
+        applied_solvers,
         cut_generation_regime.state_approximation_regime,
         duality_regime.normalization_regime,
         duality_regime.copy_regime

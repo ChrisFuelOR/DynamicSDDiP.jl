@@ -438,6 +438,7 @@ function get_core_point(
     node::SDDP.Node,
     number_of_states::Int,
 	algo_params::DynamicSDDiP.AlgoParams,
+	applied_solvers::DynamicSDDiP.AppliedSolvers,
     state_approximation_regime::DynamicSDDiP.BinaryApproximation,
 	normalization_regime::DynamicSDDiP.Core_Midpoint,
 	copy_regime::DynamicSDDiP.AbstractCopyRegime,
@@ -447,7 +448,7 @@ function get_core_point(
 	core_point_x = get_state_space_midpoint(node, number_of_states, state_approximation_regime)
 
 	# Get optimal value to core point
-	core_point_theta = evaluate_approx_value_function(node, core_point_x, number_of_states, algo_params, normalization_regime.integer_relax, state_approximation_regime)
+	core_point_theta = evaluate_approx_value_function(node, core_point_x, number_of_states, algo_params, applied_solvers, normalization_regime.integer_relax, state_approximation_regime)
 
     return (x = core_point_x, theta = core_point_theta)
 end
@@ -456,6 +457,7 @@ function get_core_point(
     node::SDDP.Node,
     number_of_states::Int,
 	algo_params::DynamicSDDiP.AlgoParams,
+	applied_solvers::DynamicSDDiP.AppliedSolvers,
     state_approximation_regime::DynamicSDDiP.NoStateApproximation,
 	normalization_regime::DynamicSDDiP.Core_Midpoint,
 	copy_regime::DynamicSDDiP.AbstractCopyRegime,
@@ -467,7 +469,7 @@ function get_core_point(
     Infiltrator.@infiltrate
 
 	# Get optimal value to core point
-	core_point_theta = evaluate_approx_value_function(node, core_point_x, number_of_states, algo_params, normalization_regime.integer_relax, state_approximation_regime)
+	core_point_theta = evaluate_approx_value_function(node, core_point_x, number_of_states, algo_params, applied_solvers, normalization_regime.integer_relax, state_approximation_regime)
 
     return (x = core_point_x, theta = core_point_theta)
 end
@@ -480,6 +482,7 @@ function get_core_point(
     node::SDDP.Node,
     number_of_states::Int,
 	algo_params::DynamicSDDiP.AlgoParams,
+	applied_solvers::DynamicSDDiP.AppliedSolvers,
     state_approximation_regime::DynamicSDDiP.BinaryApproximation,
 	normalization_regime::DynamicSDDiP.Core_Epsilon,
 	copy_regime::DynamicSDDiP.AbstractCopyRegime,
@@ -499,7 +502,7 @@ function get_core_point(
 	end
 
 	# Get optimal value to core point
-	core_point_theta = evaluate_approx_value_function(node, core_point_x, number_of_states, algo_params, normalization_regime.integer_relax, state_approximation_regime)
+	core_point_theta = evaluate_approx_value_function(node, core_point_x, number_of_states, algo_params, applied_solvers, normalization_regime.integer_relax, state_approximation_regime)
 
     return (x = core_point_x, theta = core_point_theta)
 end
@@ -508,6 +511,7 @@ function get_core_point(
     node::SDDP.Node,
     number_of_states::Int,
 	algo_params::DynamicSDDiP.AlgoParams,
+	applied_solvers::DynamicSDDiP.AppliedSolvers,
     state_approximation_regime::DynamicSDDiP.NoStateApproximation,
 	normalization_regime::DynamicSDDiP.Core_Epsilon,
 	copy_regime::DynamicSDDiP.AbstractCopyRegime,
@@ -534,7 +538,7 @@ function get_core_point(
 	end
 
 	# Get optimal value to core point
-	core_point_theta = evaluate_approx_value_function(node, core_point_x, number_of_states, algo_params, normalization_regime.integer_relax, state_approximation_regime)
+	core_point_theta = evaluate_approx_value_function(node, core_point_x, number_of_states, algo_params, applied_solvers, normalization_regime.integer_relax, state_approximation_regime)
 
     return (x = core_point_x, theta = core_point_theta)
 end
@@ -547,6 +551,7 @@ function get_core_point(
     node::SDDP.Node,
     number_of_states::Int,
 	algo_params::DynamicSDDiP.AlgoParams,
+	applied_solvers::DynamicSDDiP.AppliedSolvers,
     state_approximation_regime::DynamicSDDiP.BinaryApproximation,
 	normalization_regime::DynamicSDDiP.Core_In_Out,
 	copy_regime::DynamicSDDiP.AbstractCopyRegime,
@@ -576,7 +581,7 @@ function get_core_point(
 	node.ext[:last_core_point] = core_point_x
 
 	# Get optimal value to core point
-	core_point_theta = evaluate_approx_value_function(node, core_point_x, number_of_states, algo_params, normalization_regime.integer_relax, state_approximation_regime)
+	core_point_theta = evaluate_approx_value_function(node, core_point_x, number_of_states, algo_params, applied_solvers, normalization_regime.integer_relax, state_approximation_regime)
 
 	return (x = core_point_x, theta = core_point_theta)
 end
@@ -585,6 +590,7 @@ function get_core_point(
     node::SDDP.Node,
     number_of_states::Int,
 	algo_params::DynamicSDDiP.AlgoParams,
+	applied_solvers::DynamicSDDiP.AppliedSolvers,
     state_approximation_regime::DynamicSDDiP.NoStateApproximation,
 	normalization_regime::DynamicSDDiP.Core_In_Out,
 	copy_regime::DynamicSDDiP.AbstractCopyRegime,
@@ -614,7 +620,7 @@ function get_core_point(
 	node.ext[:last_core_point] = core_point_x
 
 	# Get optimal value to core point
-	core_point_theta = evaluate_approx_value_function(node, core_point_x, number_of_states, algo_params, normalization_regime.integer_relax, state_approximation_regime)
+	core_point_theta = evaluate_approx_value_function(node, core_point_x, number_of_states, algo_params, applied_solvers, normalization_regime.integer_relax, state_approximation_regime)
 
 	return (x = core_point_x, theta = core_point_theta)
 end
@@ -627,13 +633,14 @@ function get_core_point(
     node::SDDP.Node,
     number_of_states::Int,
 	algo_params::DynamicSDDiP.AlgoParams,
+	applied_solvers::DynamicSDDiP.AppliedSolvers,
     state_approximation_regime::Union{DynamicSDDiP.NoStateApproximation,DynamicSDDiP.BinaryApproximation},
 	normalization_regime::DynamicSDDiP.Core_Optimal,
 	copy_regime::DynamicSDDiP.AbstractCopyRegime,
     )
 
 	# Get core point and corresponding optimal value
-	core_point = evaluate_approx_value_function_no_fix(node, number_of_states, algo_params, normalization_regime.integer_relax, state_approximation_regime, copy_regime)
+	core_point = evaluate_approx_value_function_no_fix(node, number_of_states, algo_params, applied_solvers, normalization_regime.integer_relax, state_approximation_regime, copy_regime)
 
 	return (x = core_point.x, theta = core_point.theta)
 end
@@ -646,13 +653,14 @@ function get_normalization_coefficients(
     number_of_states::Int,
 	epi_state::Float64,
 	algo_params::DynamicSDDiP.AlgoParams,
+	applied_solvers::DynamicSDDiP.AppliedSolvers,
     state_approximation_regime::DynamicSDDiP.BinaryApproximation,
 	normalization_regime::Union{DynamicSDDiP.Core_Midpoint,DynamicSDDiP.Core_Epsilon,DynamicSDDiP.Core_In_Out,DynamicSDDiP.Core_Optimal, DynamicSDDiP.Core_Relint},
 	copy_regime::DynamicSDDiP.AbstractCopyRegime,
     )
 
 	# Get core point
-	core_point = get_core_point(node, number_of_states, algo_params, state_approximation_regime, normalization_regime, copy_regime)
+	core_point = get_core_point(node, number_of_states, algo_params, applied_solvers, state_approximation_regime, normalization_regime, copy_regime)
 
 	# Get theta direction
 	ω₀ = core_point.theta - epi_state
@@ -681,13 +689,14 @@ function get_normalization_coefficients(
     number_of_states::Int,
 	epi_state::Float64,
 	algo_params::DynamicSDDiP.AlgoParams,
+	applied_solvers::DynamicSDDiP.AppliedSolvers,
     state_approximation_regime::DynamicSDDiP.NoStateApproximation,
 	normalization_regime::Union{DynamicSDDiP.Core_Midpoint,DynamicSDDiP.Core_Epsilon,DynamicSDDiP.Core_In_Out,DynamicSDDiP.Core_Optimal, DynamicSDDiP.Core_Relint},
 	copy_regime::DynamicSDDiP.AbstractCopyRegime,
     )
 
 	# Get core point
-	core_point = get_core_point(node, number_of_states, algo_params, state_approximation_regime, normalization_regime, copy_regime)
+	core_point = get_core_point(node, number_of_states, algo_params, applied_solvers, state_approximation_regime, normalization_regime, copy_regime)
 
 	# Get theta direction
 	ω₀ = core_point.theta - epi_state
@@ -720,6 +729,7 @@ function get_normalization_coefficients(
     number_of_states::Int,
 	epi_state::Float64,
 	algo_params::DynamicSDDiP.AlgoParams,
+	applied_solvers::DynamicSDDiP.AppliedSolvers,
     state_approximation_regime::DynamicSDDiP.BinaryApproximation,
 	normalization_regime::DynamicSDDiP.AbstractNormalizationRegime,
 	copy_regime::DynamicSDDiP.AbstractCopyRegime,
@@ -733,6 +743,7 @@ function get_normalization_coefficients(
     number_of_states::Int,
 	epi_state::Float64,
 	algo_params::DynamicSDDiP.AlgoParams,
+	applied_solvers::DynamicSDDiP.AppliedSolvers,
     state_approximation_regime::DynamicSDDiP.NoStateApproximation,
 	normalization_regime::DynamicSDDiP.AbstractNormalizationRegime,
 	copy_regime::DynamicSDDiP.AbstractCopyRegime,
@@ -750,6 +761,7 @@ function evaluate_approx_value_function(
 	number_of_states::Int,
 	integer_relax::Bool,
     algo_params::DynamicSDDiP.AlgoParams,
+	applied_solvers::DynamicSDDiP.AppliedSolvers,
 	state_approximation_regime::DynamicSDDiP.NoStateApproximation,
 	)
 
@@ -801,6 +813,7 @@ function evaluate_approx_value_function(
 	number_of_states::Int,
 	integer_relax::Bool,
 	algo_params::DynamicSDDiP.AlgoParams,
+	applied_solvers::DynamicSDDiP.AppliedSolvers,
 	state_approximation_regime::DynamicSDDiP.BinaryApproximation,
 	)
 
@@ -854,6 +867,7 @@ function evaluate_approx_value_function_no_fix(
 	number_of_states::Int,
 	integer_relax::Bool,
 	algo_params::DynamicSDDiP.AlgoParams,
+	applied_solvers::DynamicSDDiP.AppliedSolvers,
 	state_approximation_regime::DynamicSDDiP.NoStateApproximation,
 	copy_regime::DynamicSDDiP.AbstractCopyRegime,
 	)
@@ -909,7 +923,8 @@ function evaluate_approx_value_function_no_fix(
 	node::SDDP.Node,
 	number_of_states::Int,
 	integer_relax::Bool,
-	algo_params::DynamicSDDiP.AlgoParams,
+	algo_params::DynamicSDDiP.AlgoParams,#
+	applied_solvers::DynamicSDDiP.AppliedSolvers,
 	state_approximation_regime::DynamicSDDiP.BinaryApproximation,
 	copy_regime::DynamicSDDiP.AbstractCopyRegime,
 	)
@@ -970,6 +985,7 @@ function get_core_point(
     node::SDDP.Node,
     number_of_states::Int,
 	algo_params::DynamicSDDiP.AlgoParams,
+    applied_solvers::DynamicSDDiP.AppliedSolvers,
     state_approximation_regime::Union{DynamicSDDiP.BinaryApproximation,DynamicSDDiP.NoStateApproximation},
 	normalization_regime::DynamicSDDiP.Core_Relint,
 	copy_regime::DynamicSDDiP.AbstractCopyRegime,
