@@ -788,8 +788,6 @@ function evaluate_approx_value_function(
         JuMP.optimize!(subproblem)
     end
 
-	Infiltrator.@infiltrate
-
     # Maybe attempt numerical recovery as in SDDP
 	core_obj = JuMP.objective_value(subproblem)
     @assert JuMP.termination_status(subproblem) == MOI.OPTIMAL
