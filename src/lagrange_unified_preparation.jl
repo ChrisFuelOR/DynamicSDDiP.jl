@@ -466,8 +466,6 @@ function get_core_point(
 	# Get the midpoint of the state space
 	core_point_x = get_state_space_midpoint(node, number_of_states, state_approximation_regime)
 
-    Infiltrator.@infiltrate
-
 	# Get optimal value to core point
 	core_point_theta = evaluate_approx_value_function(node, core_point_x, number_of_states, algo_params, applied_solvers, normalization_regime.integer_relax, state_approximation_regime)
 

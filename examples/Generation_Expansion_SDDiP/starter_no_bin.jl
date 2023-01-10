@@ -130,8 +130,8 @@ function model_starter_runs()
     #Dummy run
     # model_starter(0,10,50,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/GenExp_O_Tol.log", 100, 11111, 12345)
 
-    model_starter(1,10,50,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/GenExp_O_10_50_Single_Tol.log", 10800, 9999, 6666)
-    model_starter(2,10,50,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/GenExp_O_10_50_Multi_Tol.log", 10800, 9999, 6666)
+    #model_starter(1,10,50,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/GenExp_O_10_50_Single_Tol.log", 10800, 9999, 6666)
+    #model_starter(2,10,50,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/GenExp_O_10_50_Multi_Tol.log", 10800, 9999, 6666)
     model_starter(3,10,50,:uni_lag, DynamicSDDiP.Core_Midpoint(integer_relax=true), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/GenExp_O_10_50_Mid_Tol.log", 10800, 9999, 6666)
     model_starter(4,10,50,:uni_lag, DynamicSDDiP.Core_In_Out(integer_relax=true), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/GenExp_O_10_50_InOut_Tol.log", 10800, 9999, 6666)
     model_starter(5,10,50,:uni_lag, DynamicSDDiP.Core_Relint(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/GenExp_O_10_50_Relint_Tol.log", 10800, 9999, 6666)
