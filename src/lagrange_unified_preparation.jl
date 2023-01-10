@@ -759,9 +759,9 @@ function evaluate_approx_value_function(
 	node::SDDP.Node,
 	core_point_x::Vector{Float64},
 	number_of_states::Int,
-	integer_relax::Bool,
     algo_params::DynamicSDDiP.AlgoParams,
 	applied_solvers::DynamicSDDiP.AppliedSolvers,
+	integer_relax::Bool,
 	state_approximation_regime::DynamicSDDiP.NoStateApproximation,
 	)
 
@@ -811,9 +811,9 @@ function evaluate_approx_value_function(
 	node::SDDP.Node,
 	core_point_x::Vector{Float64},
 	number_of_states::Int,
-	integer_relax::Bool,
 	algo_params::DynamicSDDiP.AlgoParams,
 	applied_solvers::DynamicSDDiP.AppliedSolvers,
+	integer_relax::Bool,
 	state_approximation_regime::DynamicSDDiP.BinaryApproximation,
 	)
 
