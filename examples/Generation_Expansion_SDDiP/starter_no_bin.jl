@@ -125,7 +125,7 @@ function model_starter_runs()
     Specification of model runs that should be run one after the other.
     """
 
-    det_equiv_no_bin_starter(0,10,50,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/GenExp_O_Tol.log", 7200, 9999, 6666) #11111, 12345
+    #det_equiv_no_bin_starter(0,10,50,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/GenExp_O_Tol.log", 7200, 9999, 6666) #11111, 12345
 
     #Dummy run
     # model_starter(0,10,50,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/GenExp_O_Tol.log", 100, 11111, 12345)
