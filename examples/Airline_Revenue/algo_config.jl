@@ -53,8 +53,8 @@ function algo_config(
         end
 
         duality_regime = DynamicSDDiP.UnifiedLagrangianDuality(
-            atol = 1e-4,
-            rtol = 1e-4,
+            atol = 0.05,
+            rtol = 0.05,
             iteration_limit = 1000,
             dual_initialization_regime = dual_initialization_regime,
             dual_bound_regime = dual_bound_regime,
@@ -70,8 +70,8 @@ function algo_config(
 
     elseif duality_regime_sym == :lag
         duality_regime = DynamicSDDiP.LagrangianDuality(
-            atol = 1e-4,
-            rtol = 1e-4,
+            atol = 0.05,
+            rtol = 0.05,
             iteration_limit = 1000,
             dual_initialization_regime = dual_initialization_regime,
             dual_bound_regime = dual_bound_regime,
@@ -151,7 +151,7 @@ function algo_config(
         numerical_focus = false,
         run_numerical_stability_report = false,
         seed = forward_seed,
-        run_description = "Run with different scenario tree and numerical focus"
+        run_description = "Test with no upper bounds for state variables"
     )
 
     # Return algo_params and applied_solvers

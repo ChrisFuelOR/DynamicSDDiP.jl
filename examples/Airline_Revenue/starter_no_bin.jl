@@ -48,7 +48,7 @@ function model_starter(
         ########################################################################
         # SIMULATE MODEL
         ########################################################################
-        #simulate(model, algo_params, problem_params, algo_params.simulation_regime)
+        simulate(model, algo_params, problem_params, algo_params.simulation_regime)
 
     catch e
         @printf "Case %d terminated with error" num
@@ -103,7 +103,7 @@ function det_equiv_no_bin_starter(
         ############################################################################
         # LOGGING
         ############################################################################
-        log_file_handle = open(algo_params.log_file, "a")
+        log_file_handle = open(algo_params_Tol.log_file, "a")
         DynamicSDDiP.print_helper(DynamicSDDiP.print_det_equiv, log_file_handle, problem_params, JuMP.objective_value(det_equiv))
         close(log_file_handle)
 
@@ -125,32 +125,32 @@ function model_starter_runs()
     Specification of model runs that should be run one after the other.
     """
 
-    #det_equiv_no_bin_starter(0,5,1,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O.log", 7200, 11111, 12345)
+    #det_equiv_no_bin_starter(0,5,1,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_Tol.log", 7200, 11111, 12345)
 
     #Dummy run
-    # model_starter(0,5,50,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O.log", 100, 11111, 12345)
+    #model_starter(0,5,1,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_Tol.log", 100, 11111, 12345)
 
-    model_starter(1,5,1,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_Single.log", 600, 11111, 12345)
-    #model_starter(2,5,1,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_Multi.log", 10800, 11111, 12345)
-    #model_starter(3,5,1,:uni_lag, DynamicSDDiP.Core_Midpoint(integer_relax=true), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_Mid.log", 10800, 11111, 12345)
-    #model_starter(4,5,1,:uni_lag, DynamicSDDiP.Core_In_Out(integer_relax=true), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_InOut.log", 10800, 11111, 12345)
-    #model_starter(5,5,1,:uni_lag, DynamicSDDiP.Core_Relint(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_Relint.log", 10800, 11111, 12345)
-    #model_starter(6,5,1,:uni_lag, DynamicSDDiP.Core_Epsilon(perturb=1e-2,integer_relax=true), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_Eps.log", 10800, 11111, 12345)
-    #model_starter(7,5,1,:uni_lag, DynamicSDDiP.L∞_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_Lsup.log", 10800, 11111, 12345)
-    #model_starter(8,5,1,:uni_lag, DynamicSDDiP.L₁_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_L1.log", 10800, 11111, 12345)
-    #model_starter(9,5,1,:uni_lag, DynamicSDDiP.L₁∞_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_L1sup.log", 10800, 11111, 12345)
+    model_starter(1,5,1,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_Single_Tol.log", 7200, 11111, 12345)
+    model_starter(2,5,1,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_Multi_Tol.log", 7200, 11111, 12345)
+    #model_starter(3,5,1,:uni_lag, DynamicSDDiP.Core_Midpoint(integer_relax=true), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_Mid_Tol.log", 7200, 11111, 12345)
+    model_starter(4,5,1,:uni_lag, DynamicSDDiP.Core_In_Out(integer_relax=true), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_InOut_Tol.log", 7200, 11111, 12345)
+    model_starter(5,5,1,:uni_lag, DynamicSDDiP.Core_Relint(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_Relint_Tol.log", 7200, 11111, 12345)
+    model_starter(6,5,1,:uni_lag, DynamicSDDiP.Core_Epsilon(perturb=1e-2,integer_relax=true), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_Eps_Tol.log", 7200, 11111, 12345)
+    model_starter(7,5,1,:uni_lag, DynamicSDDiP.L∞_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_Lsup_Tol.log", 7200, 11111, 12345)
+    model_starter(8,5,1,:uni_lag, DynamicSDDiP.L₁_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_L1_Tol.log", 7200, 11111, 12345)
+    model_starter(9,5,1,:uni_lag, DynamicSDDiP.L₁∞_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_L1sup_Tol.log", 7200, 11111, 12345)
 
-    #model_starter(10,5,1,:B, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_B.log", 10800, 11111, 12345)
-    #model_starter(11,5,1,:SB, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_SB.log", 10800, 11111, 12345)
-    #model_starter(12,5,50,:B, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_B_Multi.log", 10800, 11111, 12345)
-    #model_starter(13,5,50,:SB, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_SB_Multi.log", 10800, 11111, 12345)
+    #model_starter(10,5,1,:B, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_B_Tol.log", 10800, 11111, 12345)
+    #model_starter(11,5,1,:SB, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_SB_Tol.log", 10800, 11111, 12345)
+    #model_starter(12,5,50,:B, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_B_Multi_Tol.log", 10800, 11111, 12345)
+    #model_starter(13,5,50,:SB, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_SB_Multi_Tol.log", 10800, 11111, 12345)
 
-    #model_starter(14,5,50,:uni_lag, DynamicSDDiP.L₁_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_CL_L1.log", 10800, 11111, 12345)
-    #model_starter(15,5,50,:uni_lag, DynamicSDDiP.ChenLuedtke(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_CL_Span.log", 10800, 11111, 12345)
-    #model_starter(16,5,50,:uni_lag, DynamicSDDiP.Core_Midpoint(integer_relax=true), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_CL_Mid.log", 10800, 11111, 12345)
-    #model_starter(17,5,50,:uni_lag, DynamicSDDiP.Core_Epsilon(perturb=1e-2,integer_relax=true), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_CL_Eps.log", 10800, 11111, 12345)
-    #model_starter(18,5,50,:uni_lag, DynamicSDDiP.Core_Relint(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_CL_Relint.log", 10800, 11111, 12345)
-    #model_starter(19,5,50,:uni_lag, DynamicSDDiP.L∞_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_CL_Lsup.log", 10800, 11111, 12345)
+    #model_starter(14,5,50,:uni_lag, DynamicSDDiP.L₁_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_CL_L1_Tol.log", 10800, 11111, 12345)
+    #model_starter(15,5,50,:uni_lag, DynamicSDDiP.ChenLuedtke(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_CL_Span_Tol.log", 10800, 11111, 12345)
+    #model_starter(16,5,50,:uni_lag, DynamicSDDiP.Core_Midpoint(integer_relax=true), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_CL_Mid_Tol.log", 10800, 11111, 12345)
+    #model_starter(17,5,50,:uni_lag, DynamicSDDiP.Core_Epsilon(perturb=1e-2,integer_relax=true), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_CL_Eps_Tol.log", 10800, 11111, 12345)
+    #model_starter(18,5,50,:uni_lag, DynamicSDDiP.Core_Relint(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_CL_Relint_Tol.log", 10800, 11111, 12345)
+    #model_starter(19,5,50,:uni_lag, DynamicSDDiP.L∞_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/AirRev_O_5_1_CL_Lsup_Tol.log", 10800, 11111, 12345)
 
 end
 

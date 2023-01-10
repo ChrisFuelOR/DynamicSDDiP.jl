@@ -66,6 +66,8 @@ function get_recombining_scenario_tree(algo_params::DynamicSDDiP.AlgoParams, pro
                 # process
                 stage_support = StatsBase.sample(stage_request_realizations, problem_params.number_of_realizations)
 
+                #println((i.sym, j.sym, t, mean(stage_support), mean(stage_request_realizations)))
+
                 push!(support_df, (i, j, t, stage_support))
                 #push!(prob_df, (i, j, t, stage_prob))
             end
@@ -127,60 +129,12 @@ function get_recombining_scenario_tree(algo_params::DynamicSDDiP.AlgoParams, pro
 end
 
 
+function get_scenario_path(algo_params::DynamicSDDiP.AlgoParams, stage::Int)
 
-# function get_scenario_path(algo_params::DynamicSDDiP.AlgoParams, stage::Int)
-#
-#     # Set the seed from algo_params
-#     Random.seed!(algo_params.simulation_regime.sampling_scheme.simulation_seed)
-#
-#     initial_demand = 0.57e6
-#     initial_gas_price = 9.37
-#     number_of_realizations = algo_params.simulation_regime.sampling_scheme.number_of_realizations
-#
-#     if stage == 0
-#         # DETERMINISTIC VALUES FOR STAGE 1
-#         ########################################################################
-#         support_demand = 0
-#         support_gas = initial_gas_price
-#
-#         support = [(dem = support_demand, gas = support_gas)]
-#         probability = [1.0]
-#
-#     else
-#         # SAMPLE FROM THE UNDERLYING DISTRIBUTION
-#         ########################################################################
-#         t = stage
-#
-#         # Mean value
-#         mean = initial_demand * 1.00727^(t-1)
-#
-#         # Demand follows a uniform distribution (we allow for a deviation of t percent)
-#         demand_distribution = Distributions.Uniform(mean*(1-t/100), mean*(1+t/100))
-#
-#         # Sample from this distribution
-#         support_demand = (rand(demand_distribution, number_of_realizations) .- initial_demand) / 8760.0
-#
-#         # Remove negative demand values
-#         support_demand[support_demand .< 0] .= 0
-#
-#         ########################################################################
-#         # Mean value
-#         mean = initial_gas_price * 1.041188^(t-1)
-#         std_dev = 0.8*1.05^(t-1) #own assumption
-#
-#         # Gas prices follow a truncated normal distribution
-#         gas_price_distribution = Distributions.truncated(Distributions.Normal(mean,std_dev), 5, 30)
-#
-#         # Sample from this distribution
-#         support_gas = rand(gas_price_distribution, number_of_realizations)
-#
-#         ########################################################################
-#         # Combination
-#         support = [(dem = support_demand[i], gas = support_gas[i]) for i in 1:number_of_realizations]
-#         # We take an SAA approach
-#         probability = 1/number_of_realizations * ones(number_of_realizations)
-#
-#     end
-#
-#     return [SDDP.Noise(ω, p) for (ω, p) in zip(support, probability)]
-# end
+    # Set the seed from algo_params
+    Random.seed!(algo_params.simulation_regime.sampling_scheme.simulation_seed)
+
+    Error("Out of sample simulation not implemented for this problem yet.")
+
+    return
+end
