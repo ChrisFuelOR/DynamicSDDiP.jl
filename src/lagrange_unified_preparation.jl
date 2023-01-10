@@ -374,7 +374,7 @@ function add_normalization_constraint!(
     approx_model::JuMP.Model,
     number_of_states::Int,
 	normalization_coeff::Union{Nothing,NamedTuple{(:ω, :ω₀),Tuple{Vector{Float64},Float64}}},
-    normalization_regime::Union{DynamicSDDiP.Core_Midpoint,DynamicSDDiP.Core_Epsilon,DynamicSDDiP.Core_In_Out,DynamicSDDiP.Core_Optimal,DynamicSDDiP.Core_Relint},
+    normalization_regime::Union{DynamicSDDiP.Core_Midpoint,DynamicSDDiP.Core_Epsilon,DynamicSDDiP.Core_In_Out,DynamicSDDiP.Core_Optimal,DynamicSDDiP.Core_Relint,DynamicSDDiP.Core_Benders},
 )
 
 	π⁺ = approx_model[:π⁺]
@@ -655,7 +655,7 @@ function get_normalization_coefficients(
 	algo_params::DynamicSDDiP.AlgoParams,
 	applied_solvers::DynamicSDDiP.AppliedSolvers,
     state_approximation_regime::DynamicSDDiP.BinaryApproximation,
-	normalization_regime::Union{DynamicSDDiP.Core_Midpoint,DynamicSDDiP.Core_Epsilon,DynamicSDDiP.Core_In_Out,DynamicSDDiP.Core_Optimal, DynamicSDDiP.Core_Relint},
+	normalization_regime::Union{DynamicSDDiP.Core_Midpoint,DynamicSDDiP.Core_Epsilon,DynamicSDDiP.Core_In_Out,DynamicSDDiP.Core_Optimal,DynamicSDDiP.Core_Relint},
 	copy_regime::DynamicSDDiP.AbstractCopyRegime,
     )
 
@@ -717,6 +717,49 @@ function get_normalization_coefficients(
 		ω[i] = core_point.x[i] - incumbent
 	end
 	return (ω = ω, ω₀ = ω₀)
+
+end
+
+function get_normalization_coefficients(
+    node::SDDP.Node,
+    number_of_states::Int,
+	epi_state::Float64,
+	algo_params::DynamicSDDiP.AlgoParams,
+	applied_solvers::DynamicSDDiP.AppliedSolvers,
+    state_approximation_regime::Union{DynamicSDDiP.NoStateApproximation,DynamicSDDiP.BinaryApproximation},
+	normalization_regime::DynamicSDDiP.Core_Benders,
+	copy_regime::DynamicSDDiP.AbstractCopyRegime,
+    )
+
+	# Get theta direction
+	ω₀ = 1
+
+	# Get Benders cut coefficients (as in initialize_duals; for this method
+	# we miss some of the arguments though)
+	############################################################################
+	# Get number of states and create zero vector for duals
+    number_of_states = get_number_of_states(node, state_approximation_regime)
+    dual_vars = zeros(number_of_states)
+
+    # Create LP Relaxation
+    undo_relax = JuMP.relax_integrality(node.subproblem)
+
+    # Define appropriate solver
+    reset_solver!(node.subproblem, algo_params, applied_solvers, :LP_relax, algo_params.solver_approach)
+
+    # Solve LP Relaxation
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "solver_call_LP_relax_core" begin
+        JuMP.optimize!(node.subproblem)
+    end
+    @assert JuMP.termination_status(node.subproblem) == MOI.OPTIMAL
+
+    # Get dual values (reduced costs) for binary states as initial solution
+    get_and_set_dual_values!(node, dual_vars_initial, state_approximation_regime)
+
+    # Undo relaxation
+    undo_relax()
+
+	return (ω = dual_vars, ω₀ = ω₀)
 
 end
 

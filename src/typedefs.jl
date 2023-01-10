@@ -306,6 +306,9 @@ mutable struct Core_Epsilon <: AbstractNormalizationRegime
     end
 end
 
+mutable struct Core_Benders <: AbstractNormalizationRegime end
+
+
 """
 This AbstractType allows to use different normalization in the Lagrangian dual
 problem if the unified Lagrangian framework is used.
@@ -356,6 +359,8 @@ Core_Relint means that the normalization is based on a core point which is
     that the point lies in the relative interior of the epigraph of the
     closed convex envelope of the value function. This approach is based on
     a similar strategy by Conforti & Wolsey.
+Core_Benders is a new idea to use the direction of the Benders cut normal
+    (π,1) as a normalization direction.
 
 The parameter integer_relax is required because if we fix the state variables
     to the coordinates of the core point and if the problem contains integer

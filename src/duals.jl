@@ -441,7 +441,7 @@ function get_dual_solution(
     # the exact primal problem.
     unbounded_flag = false
 
-    if isa(normalization_regime, DynamicSDDiP.Core_Midpoint) || isa(normalization_regime, DynamicSDDiP.Core_In_Out) || isa(normalization_regime, DynamicSDDiP.Core_Epsilon) | isa(normalization_regime, DynamicSDDiP.Core_Optimal) || isa(normalization_regime, DynamicSDDiP.Core_Relint)
+    if isa(normalization_regime, DynamicSDDiP.Core_Midpoint) || isa(normalization_regime, DynamicSDDiP.Core_In_Out) || isa(normalization_regime, DynamicSDDiP.Core_Epsilon) || isa(normalization_regime, DynamicSDDiP.Core_Optimal) || isa(normalization_regime, DynamicSDDiP.Core_Relint) || isa(normalization_regime, DynamicSDDiP.Core_Benders)
         # PREPARE PRIMAL TO LAGRANGIAN DUAL PROBLEM (INCLUDES POSSIBLE REGULARIZATION)
         construct_unified_primal_problem!(node, node_index, subproblem, epi_state, normalization_coeff, duality_regime, algo_params.regularization_regime, cut_generation_regime.state_approximation_regime)
 
@@ -812,7 +812,7 @@ function initialize_duals(
     dual_vars_initial = zeros(number_of_states)
 
     # Create LP Relaxation
-    undo_relax = JuMP.relax_integrality(subproblem);
+    undo_relax = JuMP.relax_integrality(subproblem)
 
     # Define appropriate solver
     reset_solver!(subproblem, algo_params, applied_solvers, :LP_relax, algo_params.solver_approach)
