@@ -143,7 +143,8 @@ function set_solver!(
             () -> Gurobi.Optimizer(GURB_ENV[]),
             "MIPGap"=>tolerance,
             "TimeLimit"=>time_limit,
-            "NumericFocus"=>numerical_focus)
+            "NumericFocus"=>numerical_focus);
+            #bridge_constraints = false
             )
     elseif solver == "SCIP"
         JuMP.set_optimizer(subproblem, JuMP.optimizer_with_attributes(
