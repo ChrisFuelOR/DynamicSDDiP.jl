@@ -757,8 +757,6 @@ function get_normalization_coefficients(
     # Undo relaxation
     undo_relax()
 
-	#println(dual_vars)
-
 	return (ω = -dual_vars, ω₀ = ω₀)
 
 end
