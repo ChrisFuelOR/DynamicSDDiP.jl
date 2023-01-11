@@ -130,7 +130,7 @@ function algo_config(
 
     # Define solvers to be used
     applied_solvers = DynamicSDDiP.AppliedSolvers(
-        solver_tol = 0.05,
+        solver_tol = 1e-4,
     )
 
     # Definition of algo_params
