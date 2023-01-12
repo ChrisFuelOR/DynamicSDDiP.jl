@@ -54,6 +54,7 @@ function _solve_Lagrangian_relaxation!(
     h_k::Vector{Float64},
     h_k_subopt::Vector{Vector{Float64}},
     L_k_subopt::Vector{Float64},
+    x_in_value::Vector{Float64},
     state_approximation_regime::Union{DynamicSDDiP.BinaryApproximation,DynamicSDDiP.NoStateApproximation},
     update_subgradients::Bool = true,
     use_subopt_sol::Bool = false,
@@ -87,7 +88,7 @@ function _solve_Lagrangian_relaxation!(
         if number_of_solutions > 1
             for i = 2:number_of_solutions
                 # Return the corresponding suboptimal solution and add it to h_k_subopt and L_k_subopt
-                subopt_sol = get_subopt_solution(node, i, state_approximation_regime)
+                subopt_sol = get_subopt_solution(node, i, x_in_value, state_approximation_regime)
 
                 push!(L_k_subopt, subopt_sol.L_k)
 
@@ -222,9 +223,9 @@ function solve_lagrangian_dual(
         # Evaluate the inner problem and determine a subgradient
         TimerOutputs.@timeit DynamicSDDiP_TIMER "inner_sol" begin
             if !augmented
-                L_k = _solve_Lagrangian_relaxation!(node, π_k, h_expr, h_k, h_k_subopt, L_k_subopt, cut_generation_regime.state_approximation_regime, true, dual_solution_regime.use_subopt_sol)
+                L_k = _solve_Lagrangian_relaxation!(node, π_k, h_expr, h_k, h_k_subopt, L_k_subopt, x_in_value, cut_generation_regime.state_approximation_regime, true, dual_solution_regime.use_subopt_sol)
             else
-                L_k = _augmented_Lagrangian_relaxation!(node, node_index, π_k, h_expr, h_k, h_k_subopt, algo_params.regularization_regime, true)
+                L_k = _augmented_Lagrangian_relaxation!(node, node_index, π_k, h_expr, h_k, algo_params.regularization_regime, true)
             end
         end
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
@@ -253,8 +254,6 @@ function solve_lagrangian_dual(
             end
 
         end
-
-        Infiltrator.@infiltrate
 
         ########################################################################
         # SOLVE APPROXIMATION MODEL
@@ -317,7 +316,7 @@ function solve_lagrangian_dual(
         end
     end
 
-    #println(node_index, ",", lag_status, ", ", L_star, ", ", t_k, ", ", primal_obj, ", ", iter, ", ", π_k)
+    #println(node_index, ",", lag_status, ", ", L_star, ", ", t_k, ", ", primal_obj, ", ", iter) #, ", ", π_k)
     #println()
 
     ############################################################################
@@ -352,7 +351,7 @@ function solve_lagrangian_dual(
     ############################################################################
     # LOGGING
     ############################################################################
-    # print_helper(print_lag_iteration, lag_log_file_handle, iter, t_k, L_star, L_k)
+    #print_helper(print_lag_iteration, lag_log_file_handle, iter, t_k, L_star, L_k)
 
     # Set dual_vars (here π_k) to the optimal solution
     π_k .= π_star
@@ -498,6 +497,10 @@ function solve_lagrangian_dual(
     # The current value of ̄x-z (former subgradients)
     h_k = zeros(number_of_states)
 
+    # Vectors to store suboptimal solutions if needed
+    h_k_subopt = Vector{Vector{Float64}}()
+    L_k_subopt = Vector{Float64}()
+
     # Set tolerances
     #---------------------------------------------------------------------------
     atol = cut_generation_regime.duality_regime.atol
@@ -582,7 +585,7 @@ function solve_lagrangian_dual(
         # Evaluate the inner problem and determine a subgradient
         TimerOutputs.@timeit DynamicSDDiP_TIMER "inner_sol" begin
             if !augmented
-                L_k = _solve_Lagrangian_relaxation!(node, π_k, h_expr, h_k, true)
+                L_k = _solve_Lagrangian_relaxation!(node, π_k, h_expr, h_k, h_k_subopt, L_k_subopt, cut_generation_regime.state_approximation_regime, true, dual_solution_regime.use_subopt_sol)
             else
                 L_k = _augmented_Lagrangian_relaxation!(node, node_index, π_k, h_expr, h_k, algo_params.regularization_regime, true)
             end
@@ -602,6 +605,16 @@ function solve_lagrangian_dual(
         ########################################################################
         TimerOutputs.@timeit DynamicSDDiP_TIMER "add_cut" begin
             JuMP.@constraint(approx_model, t <= s * (L_k + h_k' * (π .- π_k)))
+
+            # Also add cuts using suboptimal solutions to accelerate convergence
+            # if intended
+            if dual_solution_regime.use_subopt_sol
+                # Iterate over them
+                for i in 1:length(h_k_subopt)
+                    JuMP.@constraint(approx_model, t <= s * (L_k_subopt[i] + h_k_subopt[i]' * (π .- π_k)))
+                end
+            end
+
         end
 
         ########################################################################
@@ -731,6 +744,9 @@ function solve_lagrangian_dual(
 
         # Delete the level lower bound for the original approx_model again
         JuMP.delete_lower_bound(t)
+
+        h_k_subopt = Vector{Vector{Float64}}()
+        L_k_subopt = Vector{Float64}()
 
         #Infiltrator.@infiltrate
         #print(L_k, ", ", t_k, ", ", level)
@@ -1124,6 +1140,7 @@ end
 function get_subopt_solution(
     node::SDDP.Node,
     sol_number::Int64,
+    x_in_value::Vector{Float64},
     state_approximation_regime::DynamicSDDiP.NoStateApproximation,
     )
 
@@ -1132,7 +1149,7 @@ function get_subopt_solution(
 
     # Iterate over states and store the corresponding optimal solution
     for (i, (name, state_comp)) in enumerate(node.states)
-        h_k[i] = -MOI.get(node.subproblem, MOI.VariablePrimal(sol_number),state_comp.in)
+        h_k[i] = -(MOI.get(node.subproblem, MOI.VariablePrimal(sol_number),state_comp.in) - x_in_value[i])
     end
 
     # Store the optimal objective value
@@ -1146,6 +1163,7 @@ end
 function get_subopt_solution(
     node::SDDP.Node,
     sol_number::Int64,
+    x_in_value::Vector{Float64},
     state_approximation_regime::DynamicSDDiP.BinaryApproximation,
     )
 
@@ -1154,7 +1172,7 @@ function get_subopt_solution(
 
     # Iterate over states and store the corresponding optimal solution
     for (i, (name, state)) in enumerate(node.ext[:backward_data][:bin_states])
-        h_k[i] = -MOI.get(node.subproblem, MOI.VariablePrimal(sol_number),state)
+        h_k[i] = -(MOI.get(node.subproblem, MOI.VariablePrimal(sol_number),state) - x_in_value[i])
     end
 
     # Store the optimal objective value
