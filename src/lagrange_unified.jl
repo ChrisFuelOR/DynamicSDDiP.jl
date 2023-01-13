@@ -355,7 +355,7 @@ function solve_unified_lagrangian_dual(
         end
     end
 
-    println(node_index, ",", lag_status, ", ", L_star, ", ", t_k, ", ", iter, ", ", π0_k, ", ", π_k)
+    #println(node_index, ",", lag_status, ", ", L_star, ", ", t_k, ", ", iter, ", ", π0_k, ", ", π_k)
 
     ############################################################################
     # APPLY MINIMAL NORM CHOICE APPROACH IF INTENDED
