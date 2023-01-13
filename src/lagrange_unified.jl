@@ -57,10 +57,10 @@ function _solve_unified_Lagrangian_relaxation!(
                 subopt_sol = get_subopt_solution_unified(node, i, x_in_value, w_expr, state_approximation_regime)
 
                 push!(L_k_subopt, subopt_sol.L_k)
-                push!(w_k_subopt, subopt_sol.w_k)
 
                 if update_subgradients
                     push!(h_k_subopt, subopt_sol.h_k)
+                    push!(w_k_subopt, subopt_sol.w_k)
                 end
             end
         end
@@ -151,8 +151,6 @@ function solve_unified_lagrangian_dual(
     # SET EPI SLACK
     ############################################################################
     w_expr = JuMP.@expression(node.subproblem, JuMP.objective_function(node.subproblem) - epi_state)
-
-    Infiltrator.@infiltrate
 
     ############################################################################
     # LOGGING OF LAGRANGIAN DUAL
@@ -312,6 +310,7 @@ function solve_unified_lagrangian_dual(
         L_k_subopt = Vector{Float64}()
 
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
+        #println(L_star, ", ", t_k, ", ", iter, ", ", π0_k, ", ", π_k)
 
         ########################################################################
         if L_star > t_k + atol/10.0
@@ -355,6 +354,8 @@ function solve_unified_lagrangian_dual(
             lag_status = :feas_issues
         end
     end
+
+    println(node_index, ",", lag_status, ", ", L_star, ", ", t_k, ", ", iter, ", ", π0_k, ", ", π_k)
 
     ############################################################################
     # APPLY MINIMAL NORM CHOICE APPROACH IF INTENDED
@@ -447,6 +448,11 @@ function solve_unified_lagrangian_dual(
     w_expr = JuMP.AffExpr()
     # The current value of the epi slack
     w_k = 0.0
+    #---------------------------------------------------------------------------
+    # Vectors to store suboptimal solutions if needed
+    h_k_subopt = Vector{Vector{Float64}}()
+    w_k_subopt = Vector{Float64}()
+    L_k_subopt = Vector{Float64}()
 
     # Set tolerances
     #---------------------------------------------------------------------------
@@ -550,7 +556,8 @@ function solve_unified_lagrangian_dual(
         ########################################################################
         # Evaluate the inner problem and determine a subgradient
         TimerOutputs.@timeit DynamicSDDiP_TIMER "inner_sol" begin
-            relax_results = _solve_unified_Lagrangian_relaxation!(node, π_k, π0_k, h_expr, h_k, w_expr, w_k, algo_params, applied_solvers, true)
+            relax_results = _solve_unified_Lagrangian_relaxation!(node, π_k, π0_k, h_expr, h_k, w_expr, w_k, h_k_subopt, w_k_subopt,
+            L_k_subopt, x_in_value, algo_params, applied_solvers, cut_generation_regime.state_approximation_regime, true, dual_solution_regime.use_subopt_sol)
         end
         L_k = relax_results.L_k
         w_k = relax_results.w_k
@@ -572,6 +579,15 @@ function solve_unified_lagrangian_dual(
         ########################################################################
         TimerOutputs.@timeit DynamicSDDiP_TIMER "add_cut" begin
             JuMP.@constraint(approx_model, t <= s * (L_k + h_k' * (π .- π_k) + w_k * (π₀ - π0_k)))
+
+            # Also add cuts using suboptimal solutions to accelerate convergence
+            # if intended
+            if dual_solution_regime.use_subopt_sol
+                # Iterate over them
+                for i in 1:length(h_k_subopt)
+                    JuMP.@constraint(approx_model, t <= s * (L_k_subopt[i] + h_k_subopt[i]' * (π .- π_k) + w_k_subopt[i] * (π₀ - π0_k)))
+                end
+            end
         end
 
         ########################################################################
@@ -724,6 +740,10 @@ function solve_unified_lagrangian_dual(
         if π0_k < 0
             π0_k = 0.0
         end
+
+        h_k_subopt = Vector{Vector{Float64}}()
+        w_k_subopt = Vector{Float64}()
+        L_k_subopt = Vector{Float64}()
 
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
@@ -1280,10 +1300,8 @@ function get_subopt_solution_unified(
 
     # Iterate over states and store the corresponding optimal solution
     for (i, (name, state_comp)) in enumerate(node.states)
-        h_k[i] = -(MOI.get(node.subproblem, MOI.VariablePrimal(sol_number),state_comp.in) - x_in_value[i])
+        h_k[i] = MOI.get(node.subproblem, MOI.VariablePrimal(sol_number),state_comp.in) - x_in_value[i]
     end
-
-    Infiltrator.@infiltrate
 
     # Store the optimal objective value
     L_k = MOI.get(node.subproblem, MOI.ObjectiveValue(sol_number))
@@ -1321,7 +1339,7 @@ function get_subopt_solution_unified(
 
     # Iterate over states and store the corresponding optimal solution
     for (i, (name, state)) in enumerate(node.ext[:backward_data][:bin_states])
-        h_k[i] = -(MOI.get(node.subproblem, MOI.VariablePrimal(sol_number),state) - x_in_value[i])
+        h_k[i] = MOI.get(node.subproblem, MOI.VariablePrimal(sol_number),state) - x_in_value[i]
     end
 
     # Store the optimal objective value
