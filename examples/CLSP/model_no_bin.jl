@@ -101,7 +101,7 @@ function model_no_bin_definition(problem_params::DynamicSDDiP.ProblemParams, sce
                JuMP.fix(demand[3], ω.xi3 * demand_avg[t,3])
         end
 
-        JuMP.relax_integrality(subproblem)
+        #JuMP.relax_integrality(subproblem)
 
         # Switch the model to silent mode
         JuMP.set_silent(subproblem)
