@@ -31,8 +31,8 @@ function algo_config(
         dual_choice_regime = DynamicSDDiP.MinimalNormChoice()
     end
 
-    dual_space_regime = DynamicSDDiP.BendersSpanSpaceRestriction(20, :multi_cut)
-    #dual_space_regime = DynamicSDDiP.NoDualSpaceRestriction()
+    #dual_space_regime = DynamicSDDiP.BendersSpanSpaceRestriction(20, :multi_cut)
+    dual_space_regime = DynamicSDDiP.NoDualSpaceRestriction()
     copy_regime = DynamicSDDiP.ConvexHullCopy()
 
     if duality_regime_sym == :uni_lag
@@ -142,8 +142,8 @@ function algo_config(
         cut_selection_regime = cut_selection_regime,
         cut_generation_regimes = cut_generation_regimes,
         simulation_regime = simulation_regime,
-        late_binarization_regime = DynamicSDDiP.NoLateBinarization(),
-        #late_binarization_regime = DynamicSDDiP.LateBinarization(K, 31),
+        #late_binarization_regime = DynamicSDDiP.NoLateBinarization(),
+        late_binarization_regime = DynamicSDDiP.LateBinarization(K, 21),
         cut_type = cut_type,
         log_file = log_file,
         silent = silent,
