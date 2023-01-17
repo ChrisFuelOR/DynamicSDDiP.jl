@@ -68,7 +68,8 @@ function _solve_Lagrangian_relaxation!(
     @assert JuMP.termination_status(model) == MOI.OPTIMAL
 
     # Update the correct values
-    L_k = JuMP.objective_value(model)
+    #L_k = JuMP.objective_value(model)
+    L_k = JuMP.objective_bound(model)
 
     if update_subgradients
         h_k .= -JuMP.value.(h_expr)
