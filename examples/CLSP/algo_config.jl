@@ -94,7 +94,7 @@ function algo_config(
         state_approximation_regime = state_approximation_regime,
         duality_regime = duality_regime,
         #cut_away_approach = false,
-        iteration_to_start = 21,
+        iteration_to_start = 1,
         #iteration_to_stop = 21,
     )
 
