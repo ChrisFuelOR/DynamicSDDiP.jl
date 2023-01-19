@@ -22,7 +22,7 @@ function algo_config(
 
     # Duality / Cut computation configuration
     dual_initialization_regime = DynamicSDDiP.ZeroDuals()
-    dual_solution_regime = DynamicSDDiP.Kelley(use_subopt_sol=true)
+    dual_solution_regime = DynamicSDDiP.LevelBundle()
     dual_bound_regime = DynamicSDDiP.BothBounds()
     dual_status_regime = DynamicSDDiP.Lax()
 
@@ -100,7 +100,7 @@ function algo_config(
 
     cut_generation_regime_1 = DynamicSDDiP.CutGenerationRegime(
         state_approximation_regime = state_approximation_regime,
-        duality_regime = DynamicSDDiP.LinearDuality(),
+        duality_regime = DynamicSDDiP.StrengthenedDuality(),
     )
 
     cut_generation_regimes = [cut_generation_regime_1, cut_generation_regime_2]
