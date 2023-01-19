@@ -54,7 +54,7 @@ function algo_config(
 
         duality_regime = DynamicSDDiP.UnifiedLagrangianDuality(
             atol = 1e-4,
-            rtol = 0.05,
+            rtol = 1e-4,
             iteration_limit = 1000,
             dual_initialization_regime = dual_initialization_regime,
             dual_bound_regime = dual_bound_regime,
@@ -71,7 +71,7 @@ function algo_config(
     elseif duality_regime_sym == :lag
         duality_regime = DynamicSDDiP.LagrangianDuality(
             atol = 1e-4,
-            rtol = 0.05,
+            rtol = 1e-4,
             iteration_limit = 1000,
             dual_initialization_regime = dual_initialization_regime,
             dual_bound_regime = dual_bound_regime,
@@ -130,7 +130,7 @@ function algo_config(
 
     # Define solvers to be used
     applied_solvers = DynamicSDDiP.AppliedSolvers(
-        solver_tol = 0.05,
+        solver_tol = 1e-4,
     )
 
     # Definition of algo_params

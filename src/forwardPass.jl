@@ -46,8 +46,8 @@ function forward_pass(model::SDDP.PolicyGraph{T}, options::DynamicSDDiP.Options,
         epi_states_stage = Float64[]
 
         # Reset cut counter
-        node.ext[:total_cuts] = 0
-        node.ext[:active_cuts] = 0
+        # node.ext[:total_cuts] = 0
+        #node.ext[:active_cuts] = 0
 
         ########################################################################
         # SET SOLVER

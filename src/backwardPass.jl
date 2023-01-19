@@ -70,6 +70,10 @@ function backward_pass(
                 && model.ext[:iteration] >= cut_generation_regime.iteration_to_start
                 && model.ext[:iteration] <= cut_generation_regime.iteration_to_stop)
 
+                # Reset cut counter
+                node.ext[:total_cuts] = 0
+                node.ext[:active_cuts] = 0
+
                 items = BackwardPassItems(T, SDDP.Noise)
 
                 # Determine required epi_states
