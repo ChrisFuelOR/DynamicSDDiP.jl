@@ -82,18 +82,30 @@ LevelBundle means that a level bundle method with specified parameters is
 Subgradient means that a basic subgradient method (as in Bertsekas "Nonlinear
     Programming") is used to solve the dual problem.
 Default is Kelley.
+
+The parameter use_subopt_sol allows to speed-up the solution by adding additional
+cuts using suboptimal solutions from the Lagrangian dual inner problem.
 """
 
-mutable struct Kelley <: AbstractDualSolutionRegime end
+mutable struct Kelley <: AbstractDualSolutionRegime
+    use_subopt_sol::Bool
+    function Kelley(;
+        use_subopt_sol = false,
+        )
+        return new(use_subopt_sol)
+    end
+end
 
 mutable struct LevelBundle <: AbstractDualSolutionRegime
     level_factor::Float64
     switch_to_kelley::Bool
+    use_subopt_sol::Bool
     function LevelBundle(;
         level_factor = 0.5,
         switch_to_kelley = true,
+        use_subopt_sol = false,
         )
-        return new(level_factor, switch_to_kelley)
+        return new(level_factor, switch_to_kelley, use_subopt_sol)
     end
 end
 
