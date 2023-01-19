@@ -586,7 +586,7 @@ function solve_lagrangian_dual(
         # Evaluate the inner problem and determine a subgradient
         TimerOutputs.@timeit DynamicSDDiP_TIMER "inner_sol" begin
             if !augmented
-                L_k = _solve_Lagrangian_relaxation!(node, π_k, h_expr, h_k, h_k_subopt, L_k_subopt, cut_generation_regime.state_approximation_regime, true, dual_solution_regime.use_subopt_sol)
+                L_k = _solve_Lagrangian_relaxation!(node, π_k, h_expr, h_k, h_k_subopt, L_k_subopt, x_in_value, cut_generation_regime.state_approximation_regime, true, dual_solution_regime.use_subopt_sol)
             else
                 L_k = _augmented_Lagrangian_relaxation!(node, node_index, π_k, h_expr, h_k, algo_params.regularization_regime, true)
             end
