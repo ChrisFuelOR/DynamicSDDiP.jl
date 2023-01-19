@@ -856,6 +856,9 @@ function _getStrengtheningInformation(
     h_k = zeros(number_of_states)
     # The expression for ̄x-z (former slacks)
     h_expr = Vector{JuMP.AffExpr}(undef, number_of_states)
+    # Vectors to store suboptimal solutions if needed
+    h_k_subopt = Vector{Vector{Float64}}()
+    L_k_subopt = Vector{Float64}()
 
     # Set solver for inner problem
     #---------------------------------------------------------------------------
@@ -869,8 +872,11 @@ function _getStrengtheningInformation(
     ########################################################################
     # SOLVE LAGRANGIAN RELAXATION FOR GIVEN DUAL_VARS
     ########################################################################
+    state_approximation_regime = cut_generation_regime.state_approximation_regime
+
     # Evaluate the inner problem and determine a subgradient
-    lag_obj = _solve_Lagrangian_relaxation!(node, π_k, h_expr, h_k, false)
+    lag_obj = _solve_Lagrangian_relaxation!(node, π_k, h_expr, h_k, h_k_subopt, L_k_subopt, x_in_value, state_approximation_regime, false, false)
+
     Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
     ############################################################################
