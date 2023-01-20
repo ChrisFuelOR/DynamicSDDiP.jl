@@ -31,7 +31,7 @@ function algo_config(
         dual_choice_regime = DynamicSDDiP.MinimalNormChoice()
     end
 
-    dual_space_regime = DynamicSDDiP.BendersSpanSpaceRestriction(20, :multi_cut)
+    dual_space_regime = DynamicSDDiP.BendersSpanSpaceRestriction(30, :multi_cut)
     #dual_space_regime = DynamicSDDiP.NoDualSpaceRestriction()
     copy_regime = DynamicSDDiP.ConvexHullCopy()
 
@@ -94,13 +94,13 @@ function algo_config(
         state_approximation_regime = state_approximation_regime,
         duality_regime = duality_regime,
         #cut_away_approach = false,
-        iteration_to_start = 21,
+        iteration_to_start = 31,
         #iteration_to_stop = 21,
     )
 
     cut_generation_regime_1 = DynamicSDDiP.CutGenerationRegime(
         state_approximation_regime = state_approximation_regime,
-        duality_regime = DynamicSDDiP.StrengthenedDuality(),
+        duality_regime = DynamicSDDiP.LinearDuality(),
     )
 
     cut_generation_regimes = [cut_generation_regime_1, cut_generation_regime_2]
