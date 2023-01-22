@@ -143,7 +143,7 @@ function algo_config(
         cut_generation_regimes = cut_generation_regimes,
         simulation_regime = simulation_regime,
         #late_binarization_regime = DynamicSDDiP.NoLateBinarization(),
-        late_binarization_regime = DynamicSDDiP.LateBinarization(K, 11),
+        late_binarization_regime = DynamicSDDiP.LateBinarization(K, 31),
         cut_type = cut_type,
         log_file = log_file,
         silent = silent,
