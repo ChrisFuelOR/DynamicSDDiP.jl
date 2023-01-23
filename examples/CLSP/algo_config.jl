@@ -132,7 +132,7 @@ function algo_config(
     applied_solvers = DynamicSDDiP.AppliedSolvers()
 
     #K_dict = Dict{Symbol, Int64}()
-    K = 10
+    K = 5
 
     # Definition of algo_params
     algo_params = DynamicSDDiP.AlgoParams(
