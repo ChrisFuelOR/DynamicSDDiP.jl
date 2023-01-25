@@ -22,7 +22,7 @@ function algo_config(
 
     # Duality / Cut computation configuration
     dual_initialization_regime = DynamicSDDiP.ZeroDuals()
-    dual_solution_regime = DynamicSDDiP.LevelBundle()
+    dual_solution_regime = DynamicSDDiP.LevelBundle(use_subopt_sol=true)
     dual_bound_regime = DynamicSDDiP.BothBounds()
     dual_status_regime = DynamicSDDiP.Lax()
 
@@ -132,7 +132,7 @@ function algo_config(
     applied_solvers = DynamicSDDiP.AppliedSolvers()
 
     #K_dict = Dict{Symbol, Int64}()
-    K = 5
+    K = 10
 
     # Definition of algo_params
     algo_params = DynamicSDDiP.AlgoParams(
@@ -143,7 +143,7 @@ function algo_config(
         cut_generation_regimes = cut_generation_regimes,
         simulation_regime = simulation_regime,
         #late_binarization_regime = DynamicSDDiP.NoLateBinarization(),
-        late_binarization_regime = DynamicSDDiP.LateBinarization(K, 11),
+        late_binarization_regime = DynamicSDDiP.LateBinarization(K, 21),
         cut_type = cut_type,
         log_file = log_file,
         silent = silent,
