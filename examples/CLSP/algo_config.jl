@@ -22,7 +22,7 @@ function algo_config(
 
     # Duality / Cut computation configuration
     dual_initialization_regime = DynamicSDDiP.ZeroDuals()
-    dual_solution_regime = DynamicSDDiP.LevelBundle(use_subopt_sol=true)
+    dual_solution_regime = DynamicSDDiP.LevelBundle()
     dual_bound_regime = DynamicSDDiP.BothBounds()
     dual_status_regime = DynamicSDDiP.Lax()
 
@@ -56,7 +56,7 @@ function algo_config(
         duality_regime = DynamicSDDiP.UnifiedLagrangianDuality(
             atol = 1e-4,
             rtol = 1e-4,
-            iteration_limit = 1000,
+            iteration_limit = 50,
             dual_initialization_regime = dual_initialization_regime,
             dual_bound_regime = dual_bound_regime,
             dual_solution_regime = dual_solution_regime,
