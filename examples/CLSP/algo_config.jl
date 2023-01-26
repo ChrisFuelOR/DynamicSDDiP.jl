@@ -55,7 +55,7 @@ function algo_config(
 
         duality_regime = DynamicSDDiP.UnifiedLagrangianDuality(
             atol = 1e-4,
-            rtol = 1e-4,
+            rtol = 0.05,
             iteration_limit = 1000,
             dual_initialization_regime = dual_initialization_regime,
             dual_bound_regime = dual_bound_regime,
@@ -129,7 +129,9 @@ function algo_config(
     solver_approach = DynamicSDDiP.Direct_Solver()
 
     # Define solvers to be used
-    applied_solvers = DynamicSDDiP.AppliedSolvers()
+    applied_solvers = DynamicSDDiP.AppliedSolvers(
+        solver_tol = 0.05,
+    )
 
     #K_dict = Dict{Symbol, Int64}()
     K = 10

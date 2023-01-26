@@ -555,7 +555,7 @@ function iteration(
         if model.ext[:iteration] == algo_params.late_binarization_regime.iteration_to_start
             apply_late_binarization_nodes!(model, algo_params)
 
-            algo_params.cut_generation_regimes[1].duality_regime.iteration_limit = 50
+            #algo_params.cut_generation_regimes[1].duality_regime.iteration_limit = 50
         end
     end
 

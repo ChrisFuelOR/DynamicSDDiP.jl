@@ -39,7 +39,9 @@ function _solve_unified_Lagrangian_relaxation!(
     end
 
     # Update the correct values
-    L_k = JuMP.objective_value(model)
+    #L_k = JuMP.objective_value(model)
+    L_k = JuMP.objective_bound(model)
+
     if update_subgradients
         h_k .= JuMP.value.(h_expr)
         w_k = JuMP.value(w_expr)
