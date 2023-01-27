@@ -55,7 +55,7 @@ function algo_config(
 
         duality_regime = DynamicSDDiP.UnifiedLagrangianDuality(
             atol = 1e-4,
-            rtol = 0.05,
+            rtol = 1e-4,
             iteration_limit = 1000,
             dual_initialization_regime = dual_initialization_regime,
             dual_bound_regime = dual_bound_regime,
@@ -94,7 +94,7 @@ function algo_config(
         state_approximation_regime = state_approximation_regime,
         duality_regime = duality_regime,
         #cut_away_approach = false,
-        #iteration_to_start = 21,
+        iteration_to_start = 31,
         #iteration_to_stop = 21,
     )
 
@@ -103,7 +103,7 @@ function algo_config(
         duality_regime = DynamicSDDiP.StrengthenedDuality(),
     )
 
-    cut_generation_regimes = [cut_generation_regime_2]
+    cut_generation_regimes = [cut_generation_regime_1, cut_generation_regime_2]
 
     # Regularization configuration
     regularization_regime = DynamicSDDiP.NoRegularization()
@@ -129,9 +129,7 @@ function algo_config(
     solver_approach = DynamicSDDiP.Direct_Solver()
 
     # Define solvers to be used
-    applied_solvers = DynamicSDDiP.AppliedSolvers(
-        solver_tol = 0.05,
-    )
+    applied_solvers = DynamicSDDiP.AppliedSolvers()
 
     #K_dict = Dict{Symbol, Int64}()
     K = 10
