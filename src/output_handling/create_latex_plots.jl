@@ -21,11 +21,11 @@ function create_latex_plots()
 	# TO BE ADAPTED FOR EACH NEW PLOT
 	############################################################################
 
-    file_path_latex = "C:/Users/cg4102/Documents/julia_plots/CLSP_Real_O_16_50_LB_SB_lb_time.tex"
+    file_path_latex = "C:/Users/cg4102/Documents/julia_plots/CLSP_OT_16_20_LB31_comp_lb_time.tex"
 	plottype = :lb_time
 
     # Create header of LaTeX file
-	create_latex_header(file_path_latex, [0.0, 300.0, 0.0, 10000.0], plottype)
+	create_latex_header(file_path_latex, [0.0, 200.0, 2000.0, 10000.0], plottype)
 
     # Create an array of struct instances which define the plots to be created
 	plots_to_create = (
@@ -158,6 +158,38 @@ function create_latex_plots()
 		# PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_LB_16_20_prim_Eps.log", plottype, "magenta", 1.0, "none", "solid", raw"Eps with LB (31)", "", nothing),
 		# PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_LB_16_20_prim_Relint.log", plottype, "cyan", 1.0, "none", "solid", raw"Relint with LB (31)", "", nothing),
 		# #
+		# ###################################################################### CLSP - 16 - 20 - 3 MORE ANALYSES ################################################################################################################
+		#PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_OT_16_20_L1_SB1.log", plottype, "blue", 1.0, "none", "solid", raw"L1 -- SB(1),L(1)", "", nothing),
+		#PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_OT_16_20_L1_SB21.log", plottype, "blue!50!white", 1.0, "none", "solid", raw"L1 -- SB(1),L(21)", "", nothing),
+		#PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_OT_16_20_L1_B1.log", plottype, "teal", 1.0, "none", "solid", raw"L1 -- B(1),L(1)", "", nothing),
+		#PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_OT_16_20_L1_B21.log", plottype, "cyan", 1.0, "none", "solid", raw"L1 -- B(1),L(21)", "", nothing),
+		#PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_OT_16_20_L1_CL_B_10.log", plottype, "blue", 1.0, "none", "dashed", raw"L1 -- B(1),L(11) -- CL(10)", "", nothing),
+		#PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_OT_16_20_L1_CL_SB_10.txt", plottype, "blue!50!white", 1.0, "none", "dashed", raw"L1 -- SB(1),L(11) -- CL(10)", "", nothing),
+		#PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_OT_16_20_L1_CL_B_20.log", plottype, "teal", 1.0, "none", "dashed", raw"L1 -- B(1),L(21) -- CL(20)", "", nothing),
+		#PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_OT_16_20_L1_CL_SB_20.log", plottype, "cyan", 1.0, "none", "dashed", raw"L1 -- SB(1),L(21) -- CL(20)", "", nothing),
+		#PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_OT_16_20_L1_CL_B_30.log", plottype, "green!50!black", 1.0, "none", "dashed", raw"L1 -- B(1),L(31) -- CL(30)", "", nothing),
+		#PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_OT_16_20_L1_CL_SB_30.log", plottype, "green", 1.0, "none", "dashed", raw"L1 -- SB(1),L(31) -- CL(30)", "", nothing),
+		#PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_OT_16_20_L1_LB_10_21.log", plottype, "green!50!black", 1.0, "none", "solid", raw"L1 -- LB(10,21)", "", nothing),
+		#PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_OT_16_20_L1_LB_10_11.log", plottype, "green", 1.0, "none", "solid", raw"L1 -- LB(10,11)", "", nothing),
+		PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_OT_16_20_L1_LB_10_31.log", plottype, "lime", 1.0, "none", "solid", raw"L1 -- LB(10,31)", "", nothing),
+		#PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_OT_16_20_L1_LB_5_21.log", plottype, "yellow", 1.0, "none", "solid", raw"L1 -- LB(5,21)", "", nothing),
+		#PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_OT_16_20_L1_LB_5_11.log", plottype, "pink", 1.0, "none", "solid", raw"L1 -- LB(5,11)", "", nothing),
+		PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_OT_16_20_L1_LB_5_31.log", plottype, "lightgray", 1.0, "none", "solid", raw"L1 -- LB(5,31)", "", nothing),
+		#PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_OT_16_20_L1_LB_10_21_subopt.log", plottype, "gray", 1.0, "none", "solid", raw"L1 -- LB(10,21) subopt", "", nothing),
+		#PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_OT_16_20_L1_LB_10_21_Lag50.log", plottype, "darkgray", 1.0, "none", "solid", raw"L1 -- LB(10,21) Lag50", "", nothing),
+		#PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_OT_16_20_L1_LB_10_21_Tol.log", plottype, "black", 1.0, "none", "solid", raw"L1 -- LB(10,21) tol", "", nothing),
+		PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_OT_16_20_L1_LB_10_31_Lag50.log", plottype, "olive", 1.0, "none", "solid", raw"L1 -- LB(10,31) Lag50", "", nothing),
+		PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_OT_16_20_L1_LB_10_31_Lag50_onlyLB.log", plottype, "brown", 1.0, "none", "solid", raw"L1 -- LB(10,31) Lag50 after LB", "", nothing),
+		PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_OT_16_20_L1_LB_10_31_Tol.log", plottype, "orange", 1.0, "none", "solid", raw"L1 -- LB(10,31) tol", "", nothing),
+		#PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_OT_16_20_L1_LB_10_21_SB_31.log", plottype, "red", 1.0, "none", "solid", raw"L1 -- SB(1),L(31) -- LB(10,21)", "", nothing),
+		#PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_OT_16_20_L1_LB_10_31_SB_21.log", plottype, "purple", 1.0, "none", "solid", raw"L1 -- SB(1),L(21) -- LB(10,31)", "", nothing),
+		#PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_OT_16_20_L1_LB_10_21_SB_1.log", plottype, "magenta", 1.0, "none", "solid", raw"L1 -- SB(1),L(1) -- LB(10,21)", "", nothing),
+		#PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_OT_16_20_L1_LB_10_31_SB_1.log", plottype, "violet", 1.0, "none", "solid", raw"L1 -- SB(1),L(1) -- LB(10,31)", "", nothing),
+		#PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_OT_16_20_L1_LB_10_21_SB_31_CL.log", plottype, "black", 1.0, "none", "dashed", raw"L1 -- SB(1),L(31) -- CL(10) -- LB(10,21)", "", nothing),
+		#PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_OT_16_20_L1_LB_10_11_SB_31_CL_v2.log", plottype, "brown", 1.0, "none", "dashed", raw"L1 -- SB(1),L(31) -- CL(10) -- LB(10,11)", "", nothing),
+		#PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_OT_16_20_L1_LB_10_21_B_31_CL.log", plottype, "red", 1.0, "none", "dashed", raw"L1 -- B(1),L(31) -- CL(10) -- LB(10,21)", "", nothing),
+		#PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_OT_16_20_L1_LB_10_11_B_31_CL_v2.log", plottype, "purple", 1.0, "none", "dashed", raw"L1 -- B(1),L(31) -- CL(20) -- LB(10,11)", "", nothing),
+
 		# ###################################################################### CLSP - 16 - 20 - 10 #############################################################################################################################
 		# PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_Large_O2_16_20_Single.log", plottype, "red", 1.0, "none", "solid", raw"Single", "", nothing),
 		# PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_Large_O2_16_20_Multi.log", plottype, "black", 1.0, "none", "solid", raw"Multi", "", nothing),
@@ -326,12 +358,12 @@ function create_latex_plots()
 		# PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_Real_LB_16_50_prim_Eps.log", plottype, "magenta", 1.0, "none", "solid", raw"Eps (21) with LB (21)", "", nothing),
 		# PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_Real_LB_16_50_prim_Relint.log", plottype, "cyan", 1.0, "none", "solid", raw"Relint (21) with LB (21)", "", nothing),
 		# #
-		PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_Real_LB_16_50_prim_L1_SB.log", plottype, "blue", 1.0, "none", "solid", raw"SB + L1 (21) with LB (21)", "", nothing),
-		PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_Real_LB_16_50_prim_L1sup_SB.log", plottype, "green!70!black", 1.0, "none", "solid", raw"SB + L1sup (21) with LB (21)", "", nothing),
-		PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_Real_LB_16_50_prim_Lsup_SB.log", plottype, "green", 1.0, "none", "solid", raw"SB + Lsup MNC (21) with LB (21)", "", nothing),
-		PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_Real_LB_16_50_prim_Mid_SB.log", plottype, "yellow", 1.0, "none", "solid", raw"SB + Mid (21) with LB (21)", "", nothing),
-		PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_Real_LB_16_50_prim_Eps_SB.log", plottype, "magenta", 1.0, "none", "solid", raw"SB + Eps (21) with LB (21)", "", nothing),
-		PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_Real_LB_16_50_prim_Relint_SB.log", plottype, "cyan", 1.0, "none", "solid", raw"SB + Relint (21) with LB (21)", "", nothing),
+		# PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_Real_LB_16_50_prim_L1_SB.log", plottype, "blue", 1.0, "none", "solid", raw"SB + L1 (21) with LB (21)", "", nothing),
+		# PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_Real_LB_16_50_prim_L1sup_SB.log", plottype, "green!70!black", 1.0, "none", "solid", raw"SB + L1sup (21) with LB (21)", "", nothing),
+		# PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_Real_LB_16_50_prim_Lsup_SB.log", plottype, "green", 1.0, "none", "solid", raw"SB + Lsup MNC (21) with LB (21)", "", nothing),
+		# PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_Real_LB_16_50_prim_Mid_SB.log", plottype, "yellow", 1.0, "none", "solid", raw"SB + Mid (21) with LB (21)", "", nothing),
+		# PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_Real_LB_16_50_prim_Eps_SB.log", plottype, "magenta", 1.0, "none", "solid", raw"SB + Eps (21) with LB (21)", "", nothing),
+		# PlotConfig("C:/Users/cg4102/Documents/julia_logs/Restructuring/Updated_without_Bin/CLSP_Real_LB_16_50_prim_Relint_SB.log", plottype, "cyan", 1.0, "none", "solid", raw"SB + Relint (21) with LB (21)", "", nothing),
 	)
 
 	############################################################################
