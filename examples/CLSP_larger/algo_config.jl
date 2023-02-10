@@ -129,14 +129,7 @@ function algo_config(
     solver_approach = DynamicSDDiP.Direct_Solver()
 
     # Define solvers to be used
-    applied_solvers = DynamicSDDiP.AppliedSolvers(
-        LP = "Gurobi",
-        MILP = "Gurobi",
-        MIQCP = "Gurobi",
-        MINLP = "Gurobi",
-        NLP = "Gurobi",
-        Lagrange = "Gurobi",
-    )
+    applied_solvers = DynamicSDDiP.AppliedSolvers()
 
     K = 10
 
