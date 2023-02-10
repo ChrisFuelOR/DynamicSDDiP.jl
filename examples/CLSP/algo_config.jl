@@ -31,7 +31,7 @@ function algo_config(
         dual_choice_regime = DynamicSDDiP.MinimalNormChoice()
     end
 
-    dual_space_regime = DynamicSDDiP.BendersSpanSpaceRestriction(20, :multi_cut)
+    dual_space_regime = DynamicSDDiP.BendersSpanSpaceRestriction(10, :multi_cut)
     #dual_space_regime = DynamicSDDiP.NoDualSpaceRestriction()
     copy_regime = DynamicSDDiP.ConvexHullCopy()
 
@@ -94,13 +94,13 @@ function algo_config(
         state_approximation_regime = state_approximation_regime,
         duality_regime = duality_regime,
         #cut_away_approach = false,
-        iteration_to_start = 31,
+        iteration_to_start = 10,
         #iteration_to_stop = 21,
     )
 
     cut_generation_regime_1 = DynamicSDDiP.CutGenerationRegime(
         state_approximation_regime = state_approximation_regime,
-        duality_regime = DynamicSDDiP.LinearDuality(),
+        duality_regime = DynamicSDDiP.StrengthenedDuality(),
     )
 
     cut_generation_regimes = [cut_generation_regime_1, cut_generation_regime_2]
@@ -142,8 +142,8 @@ function algo_config(
         cut_selection_regime = cut_selection_regime,
         cut_generation_regimes = cut_generation_regimes,
         simulation_regime = simulation_regime,
-        #late_binarization_regime = DynamicSDDiP.NoLateBinarization(),
-        late_binarization_regime = DynamicSDDiP.LateBinarization(K, 11),
+        late_binarization_regime = DynamicSDDiP.NoLateBinarization(),
+        #late_binarization_regime = DynamicSDDiP.LateBinarization(K, 11),
         cut_type = cut_type,
         log_file = log_file,
         silent = silent,
