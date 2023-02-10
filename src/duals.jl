@@ -95,6 +95,10 @@ function solve_LP_relaxation(
 
     TimerOutputs.@timeit DynamicSDDiP_TIMER "solver_call_LP_relax" begin
         JuMP.optimize!(subproblem)
+
+        if JuMP.termination_status(subproblem) != MOI.OPTIMAL
+            Infiltrator.@infiltrate
+        end
     end
 
     # Solve LP Relaxation
