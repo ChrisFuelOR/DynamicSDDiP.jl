@@ -440,6 +440,17 @@ function print_simulation(io, algo_params::DynamicSDDiP.AlgoParams, μ::Float64,
     flush(io)
 end
 
+function print_simulation_historical(io, algo_params::DynamicSDDiP.AlgoParams, upper_bound::Float64, lower_bound::Float64)
+
+    println(io)
+    println(io, "||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||")
+    println(io, "SIMULATION RESULTS")
+    println(io, "Deterministic (historical) samples")
+    println(io, "Lower bound: ", lower_bound)
+    println(io, "Upper bound: ", upper_bound)
+    flush(io)
+end
+
 function print_det_equiv(io, problem_params::DynamicSDDiP.ProblemParams, value::Float64)
 
     println(io)

@@ -696,6 +696,8 @@ mutable struct OutOfSampleMonteCarlo <: AbstractSamplingScheme
     end
 end
 
+mutable struct HistoricalSample <: AbstractSamplingScheme end
+
 # Simulation regimes
 abstract type AbstractSimulationRegime end
 
