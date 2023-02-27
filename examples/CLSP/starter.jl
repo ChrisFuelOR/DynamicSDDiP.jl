@@ -112,7 +112,7 @@ function det_equiv_starter(
         ############################################################################
         # SOLVE (TRAIN) MODEL
         ############################################################################
-        det_equiv = SDDP.deterministic_equivalent(model, Gurobi.Optimizer, time_limit = 10800.0)
+        det_equiv = SDDP.deterministic_equivalent(model, Gurobi.Optimizer, time_limit = 7200.0)
         JuMP.set_objective_sense(det_equiv, MathOptInterface.MIN_SENSE)
         JuMP.optimize!(det_equiv)
         print(JuMP.objective_value(det_equiv))
@@ -121,7 +121,7 @@ function det_equiv_starter(
         # LOGGING
         ############################################################################
         log_file_handle = open(algo_params.log_file, "a")
-        DynamicSDDiP.print_helper(DynamicSDDiP.print_det_equiv, log_file_handle, problem_params, JuMP.objective_value(det_equiv))
+        DynamicSDDiP.print_helper(DynamicSDDiP.print_det_equiv, log_file_handle, problem_params, JuMP.objective_value(det_equiv), JuMP.objective_bound(det_equiv))
         close(log_file_handle)
 
     catch e

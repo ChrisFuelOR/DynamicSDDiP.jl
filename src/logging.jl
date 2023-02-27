@@ -451,7 +451,7 @@ function print_simulation_historical(io, algo_params::DynamicSDDiP.AlgoParams, u
     flush(io)
 end
 
-function print_det_equiv(io, problem_params::DynamicSDDiP.ProblemParams, value::Float64)
+function print_det_equiv(io, problem_params::DynamicSDDiP.ProblemParams, value::Float64, dual_bound::Float64)
 
     println(io)
     println(io)
@@ -485,7 +485,8 @@ function print_det_equiv(io, problem_params::DynamicSDDiP.ProblemParams, value::
     end
 
     println(io, "SOLVED DETERMINISTIC EQUIVALENT")
-    println(io, "Optimal value: ", value)
+    println(io, "Optimal value (UB): ", value)
+    println(io, "Dual value (LB): ", dual_bound)
 
     flush(io)
 end
