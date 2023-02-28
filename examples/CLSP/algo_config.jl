@@ -95,13 +95,13 @@ function algo_config(
         duality_regime = duality_regime,
         #cut_away_approach = false,
         #iteration_to_start = 10,
-        iteration_to_stop = 30,
+        #iteration_to_stop = 30,
     )
 
     cut_generation_regime_1 = DynamicSDDiP.CutGenerationRegime(
         state_approximation_regime = state_approximation_regime,
         duality_regime = DynamicSDDiP.StrengthenedDuality(),
-        iteration_to_start = 31,
+        #iteration_to_start = 1,
     )
 
     cut_generation_regimes = [cut_generation_regime_2, cut_generation_regime_1]
