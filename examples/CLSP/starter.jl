@@ -58,14 +58,14 @@ function model_starter(
         ########################################################################
         # DETERMINISTIC EQUIVALENT (INCLUDING CUTS!!!)
         ########################################################################
-        det_equiv = SDDP.deterministic_equivalent(model, Gurobi.Optimizer, time_limit = 7200.0)
-        JuMP.set_objective_sense(det_equiv, MathOptInterface.MIN_SENSE)
-        JuMP.optimize!(det_equiv)
+        #det_equiv = SDDP.deterministic_equivalent(model, Gurobi.Optimizer, time_limit = 7200.0)
+        #JuMP.set_objective_sense(det_equiv, MathOptInterface.MIN_SENSE)
+        #JuMP.optimize!(det_equiv)
         #print(JuMP.objective_value(det_equiv))
 
-        log_file_handle = open(algo_params.log_file, "a")
-        DynamicSDDiP.print_helper(DynamicSDDiP.print_det_equiv, log_file_handle, problem_params, JuMP.objective_value(det_equiv))
-        close(log_file_handle)
+        #log_file_handle = open(algo_params.log_file, "a")
+        #DynamicSDDiP.print_helper(DynamicSDDiP.print_det_equiv, log_file_handle, problem_params, JuMP.objective_value(det_equiv))
+        #close(log_file_handle)
 
     catch e
         @printf "Case %d terminated with error" num

@@ -50,6 +50,11 @@ function model_starter(
         ########################################################################
         simulate(model, algo_params, problem_params, algo_params.simulation_regime)
 
+        ########################################################################
+        # SIMULATE MODEL USING FULL SCENARIO TREE
+        ########################################################################
+        simulate(model, algo_params, problem_params, DynamicSDDiP.HistoricalSample())
+
     catch e
         @printf "Case %d terminated with error" num
         println()

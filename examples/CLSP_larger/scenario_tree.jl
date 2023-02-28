@@ -91,3 +91,46 @@ function get_scenario_path(algo_params::DynamicSDDiP.AlgoParams, stage::Int)
 
     return
 end
+
+
+function get_historical_sample(problem_params::DynamicSDDiP.ProblemParams, scenario_tree)
+
+    # Preparation
+    number_of_realizations = problem_params.number_of_realizations
+    number_of_stages = problem_params.number_of_stages
+    number_of_total_scenarios = number_of_realizations^(number_of_stages - 1)
+    historical_samples_all = Vector{Array{Tuple{Int64,NamedTuple{(:xi1, :xi2, :xi3, :xi4, :xi5, :xi6, :xi7, :xi8, :xi9, :xi10),Tuple{Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64}}},1}}(undef, number_of_total_scenarios)
+
+    # Iterate over number_of_total_scenarios
+    for s in 1:number_of_total_scenarios
+        historical_sample = Vector{Array{NamedTuple{(:xi1, :xi2, :xi3, :xi4, :xi5, :xi6, :xi7, :xi8, :xi9, :xi10),Tuple{Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64}},1}}(undef,problem_params.number_of_stages)
+
+        # Iterate over stages
+        for t in 1:number_of_stages
+            k = 1
+
+            # Number of equivalent stage-t scenarios for each (stage-T) scenario
+            equiv_number = number_of_realizations^(number_of_stages - 1) / number_of_realizations^(t - 1)
+
+            # Get correct index for stage-t scenario for overall scenario s
+            # Index in traditional scenario tree
+            while k * equiv_number < s
+                k += 1
+            end
+
+            # Index in recombining tree
+            pos = k - div(k, number_of_realizations) * number_of_realizations
+            if pos == 0
+                pos = number_of_realizations
+            end
+
+            # Add stage realization to historical_sample
+            historical_sample[t] = (t, scenario_tree.support_array[t][pos])
+        end
+
+        # Add this scenario path to historical_samples_all
+        historical_samples_all[s] = historical_sample
+    end
+
+    return historical_samples_all
+end
