@@ -114,7 +114,7 @@ function det_equiv_no_bin_starter(
         ############################################################################
         det_equiv = SDDP.deterministic_equivalent(model, Gurobi.Optimizer, time_limit = 7200.0)
         JuMP.set_objective_sense(det_equiv, MathOptInterface.MIN_SENSE)
-        JuMP.set_optimizer(det_equiv, JuMP.optimizer_with_attributes(() -> Gurobi.Optimizer(GURB_ENV[],"TimeLimit"=>7200.0,))
+        JuMP.set_optimizer_attribute(det_equiv, "TimeLimit", 7200.0)
         JuMP.optimize!(det_equiv)
         print(JuMP.objective_value(det_equiv))
 
