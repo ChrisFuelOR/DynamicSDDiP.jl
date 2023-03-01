@@ -109,7 +109,7 @@ function det_equiv_starter(
         # LOGGING
         ############################################################################
         log_file_handle = open(algo_params.log_file, "a")
-        DynamicSDDiP.print_helper(DynamicSDDiP.print_det_equiv, log_file_handle, problem_params, JuMP.objective_value(det_equiv))
+        DynamicSDDiP.print_helper(DynamicSDDiP.print_det_equiv, log_file_handle, problem_params, JuMP.objective_value(det_equiv), JuMP.objective_bound(det_equiv))
         close(log_file_handle)
 
     catch e
@@ -131,7 +131,7 @@ function model_starter_runs()
     Specification of model runs that should be run one after the other.
     """
 
-    det_equiv_starter(0,2,20,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.CutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_Large_2_20_det_equiv.log", 3600, 11111, 12345)
+    #det_equiv_starter(0,2,20,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.CutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_Large_2_20_det_equiv.log", 3600, 11111, 12345)
     model_starter(1,2,20,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_Large_2_20_Single.log", 3600, 11111, 12345)
     model_starter(3,2,20,:uni_lag, DynamicSDDiP.Core_Midpoint(integer_relax=false), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_Large_2_20_Mid.log", 3600, 11111, 12345)
     model_starter(4,2,20,:uni_lag, DynamicSDDiP.L₁_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_Large_2_20_L1.log", 3600, 11111, 12345)

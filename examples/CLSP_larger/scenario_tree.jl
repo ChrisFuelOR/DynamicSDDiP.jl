@@ -103,8 +103,8 @@ function get_historical_sample(problem_params::DynamicSDDiP.ProblemParams, scena
 
     # Iterate over number_of_total_scenarios
     for s in 1:number_of_total_scenarios
-        historical_sample = Vector{Array{NamedTuple{(:xi1, :xi2, :xi3, :xi4, :xi5, :xi6, :xi7, :xi8, :xi9, :xi10),Tuple{Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64}},1}}(undef,problem_params.number_of_stages)
-
+        historical_sample = Vector{Tuple{Int64,NamedTuple{(:xi1, :xi2, :xi3, :xi4, :xi5, :xi6, :xi7, :xi8, :xi9, :xi10),Tuple{Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64,Float64}}}}(undef, number_of_stages)
+        
         # Iterate over stages
         for t in 1:number_of_stages
             k = 1

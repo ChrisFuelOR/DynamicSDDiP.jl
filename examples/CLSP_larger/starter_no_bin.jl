@@ -110,7 +110,7 @@ function det_equiv_no_bin_starter(
         # LOGGING
         ############################################################################
         log_file_handle = open(algo_params.log_file, "a")
-        DynamicSDDiP.print_helper(DynamicSDDiP.print_det_equiv, log_file_handle, problem_params, JuMP.objective_value(det_equiv))
+        DynamicSDDiP.print_helper(DynamicSDDiP.print_det_equiv, log_file_handle, problem_params, JuMP.objective_value(det_equiv), JuMP.objective_bound(det_equiv))
         close(log_file_handle)
 
     catch e
