@@ -456,6 +456,7 @@ function minimal_norm_choice!(
     lag_status::Symbol,
     augmented::Bool,
     algo_params::DynamicSDDiP.AlgoParams,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     )
 
     return (iter=iter, lag_status=lag_status)
