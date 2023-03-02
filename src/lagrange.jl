@@ -328,7 +328,7 @@ function solve_lagrangian_dual(
     # so finding the minimal norm optimal solution does not make sense.
         TimerOutputs.@timeit DynamicSDDiP_TIMER "minimal_norm" begin
             mn_results = minimal_norm_choice!(node, node_index, approx_model, π_k, π_star, t_k, h_expr, h_k, s, L_star,
-                iteration_limit, atol, rtol, cut_generation_regime.duality_regime.dual_choice_regime, iter, lag_status, augmented, algo_params)
+                iteration_limit, atol, rtol, cut_generation_regime.duality_regime.dual_choice_regime, iter, lag_status, augmented, algo_params, cut_generation_regime)
 
             iter = mn_results.iter
             lag_status = mn_results.lag_status
@@ -391,6 +391,7 @@ function minimal_norm_choice!(
     lag_status::Symbol,
     augmented::Bool,
     algo_params::DynamicSDDiP.AlgoParams,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     )
 
     π⁺ = approx_model[:π⁺]
@@ -417,7 +418,7 @@ function minimal_norm_choice!(
         π_k .= JuMP.value.(π)
 
         if !augmented
-            L_k = _solve_Lagrangian_relaxation!(node, π_k, h_expr, h_k, true)
+            L_k = _solve_Lagrangian_relaxation!(node, π_k, h_expr, h_k, Vector{Vector{Float64}}(), Vector{Float64}(), zeros(length(π_k)), cut_generation_regime.state_approximation_regime, true, false)
         else
             L_k = _augmented_Lagrangian_relaxation!(node, node_index, π_k, h_expr, h_k, algo_params.regularization_regime, true)
         end
@@ -799,7 +800,7 @@ function solve_lagrangian_dual(
     # so finding the minimal norm optimal solution does not make sense.
         TimerOutputs.@timeit DynamicSDDiP_TIMER "minimal_norm" begin
             mn_results = minimal_norm_choice!(node, node_index, approx_model, π_k, π_star, t_k, h_expr, h_k, s, L_star,
-                iteration_limit, atol, rtol, cut_generation_regime.duality_regime.dual_choice_regime, iter, lag_status, augmented, algo_params)
+                iteration_limit, atol, rtol, cut_generation_regime.duality_regime.dual_choice_regime, iter, lag_status, augmented, algo_params, cut_generation_regime)
 
             iter = mn_results.iter
             lag_status = mn_results.lag_status
