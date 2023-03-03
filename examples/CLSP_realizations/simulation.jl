@@ -92,6 +92,43 @@ function simulate(
     return
 end
 
+function simulate(
+    model::SDDP.PolicyGraph,
+    algo_params::DynamicSDDiP.AlgoParams,
+    problem_params::DynamicSDDiP.ProblemParams,
+    sampling_scheme::DynamicSDDiP.HistoricalSample
+    )
+
+    number_of_realizations = problem_params.number_of_realizations
+    number_of_stages = problem_params.number_of_stages
+    number_of_total_scenarios = number_of_realizations^(number_of_stages - 1)
+
+    ############################################################################
+    # GET A SAMPLE PATH USING THE EXISTING DISTRIBUTIONS
+    ############################################################################
+    historical_sample = get_historical_sample(problem_params, get_recombining_scenario_tree(algo_params, problem_params))
+
+    # SIMULATE THE MODEL
+    ############################################################################
+    simulations = SDDP.simulate(model, number_of_total_scenarios, sampling_scheme = SDDP.Historical(historical_sample))
+
+    # OBTAINING BOUNDS AND CONFIDENCE INTERVAL
+    ############################################################################
+    objectives = map(simulations) do simulation
+        return sum(stage[:stage_objective] for stage in simulation)
+    end
+
+    upper_bound = sum(objectives)/number_of_total_scenarios
+
+    # get last lower bound again
+    lower_bound, _ = DynamicSDDiP.calculate_bound(model)
+
+    # LOGGING OF SIMULATION RESULTS
+    ############################################################################
+    log_simulation_results_historical(algo_params, upper_bound, lower_bound)
+
+    return
+end
 
 function log_simulation_results(
     algo_params::DynamicSDDiP.AlgoParams,
