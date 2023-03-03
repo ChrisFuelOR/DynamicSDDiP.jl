@@ -45,7 +45,6 @@ function simulate(
     end
 
     μ, ci = SDDP.confidence_interval(objectives)
-
     # get last lower bound again
     lower_bound, _ = DynamicSDDiP.calculate_bound(model)
 

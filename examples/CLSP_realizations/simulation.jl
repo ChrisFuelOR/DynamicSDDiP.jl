@@ -106,3 +106,16 @@ function log_simulation_results(
 
     return
 end
+
+function log_simulation_results_historical(
+    algo_params::DynamicSDDiP.AlgoParams,
+    upper_bound::Float64,
+    lower_bound::Float64
+)
+
+    log_file_handle = open(algo_params.log_file, "a")
+    DynamicSDDiP.print_helper(DynamicSDDiP.print_simulation_historical, log_file_handle, algo_params, upper_bound, lower_bound)
+    close(log_file_handle)
+
+    return
+end

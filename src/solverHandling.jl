@@ -242,3 +242,7 @@ function elude_numerical_issues!(
 
     return
 end
+
+
+
+# JuMP.set_optimizer(subproblem, JuMP.optimizer_with_attributes(() -> GAMS.Optimizer()))
