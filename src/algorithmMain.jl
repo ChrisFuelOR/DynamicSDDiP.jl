@@ -615,7 +615,7 @@ function iteration(
     # if model.ext[:iteration] == 1
     #      Infiltrator.@infiltrate
     # end
-    println(last(model.nodes[1].bellman_function.local_thetas[1].cuts).cut_constraint)
+    #println(last(model.nodes[1].bellman_function.local_thetas[1].cuts).cut_constraint)
     #println(last(model.nodes[1].bellman_function.global_theta.cuts).cut_constraint)
 
     ############################################################################
