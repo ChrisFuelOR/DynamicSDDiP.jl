@@ -594,9 +594,6 @@ function get_dual_solution(
         # dual_vars .= zeros(length(dual_vars))
         # lag_obj = 0.0
 
-    elseif dual_0_var < 1e-6
-        add_cut_flag = false
-
     else
         # We have to correct the intercept. We do this at this point, as (in
         # contrast to some other corrections) it is not required for Benders cuts.
@@ -605,9 +602,7 @@ function get_dual_solution(
 
     store_dual_values!(node, dual_values, dual_vars, bin_state, cut_generation_regime.state_approximation_regime)
 
-    #if node.subproblem.ext[:sddp_policy_graph].ext[:iteration] > 20
-    #    Infiltrator.@infiltrate
-    #end
+    #Infiltrator.@infiltrate
 
     return (
         dual_values=dual_values,

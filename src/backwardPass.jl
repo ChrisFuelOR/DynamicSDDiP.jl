@@ -58,10 +58,6 @@ function backward_pass(
         # Boolean variable to check if current incumbent was cut away already.
         cut_away = false
 
-        # Reset cut counter
-        node.ext[:total_cuts] = 0
-        node.ext[:active_cuts] = 0
-
         ########################################################################
         # ITERATE OVER CUT GENERATION REGIMES
         ########################################################################
@@ -73,6 +69,10 @@ function backward_pass(
             if (((cut_generation_regime.cut_away_approach && !cut_away) || !cut_generation_regime.cut_away_approach)
                 && model.ext[:iteration] >= cut_generation_regime.iteration_to_start
                 && model.ext[:iteration] <= cut_generation_regime.iteration_to_stop)
+
+                # Reset cut counter
+                node.ext[:total_cuts] = 0
+                node.ext[:active_cuts] = 0
 
                 items = BackwardPassItems(T, SDDP.Noise)
 
@@ -147,8 +147,6 @@ function backward_pass(
                     )
                 end
 
-                #println(cut_away)
-
                 ################################################################
                 #NOTE: I did not include the similar node thing from SDDP.jl.
                 #Not really sure what it means anyway.
@@ -173,13 +171,6 @@ function backward_pass(
                 end
 
             end
-        end
-
-        # Update cut count
-        count_cuts(node, node.bellman_function.global_theta, 1)
-        for V_index in 1:length(node.bellman_function.local_thetas)
-            V = node.bellman_function.local_thetas[V_index]
-            count_cuts(node, V, V_index)
         end
 
     end
