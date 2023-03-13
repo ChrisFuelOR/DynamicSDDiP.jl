@@ -46,7 +46,7 @@ function _cut_selection_update(
     ############################################################################
     # DETERMINE NUMBER OF CUTS FOR LOGGING
     ############################################################################
-    count_cuts(node, V)
+    # count_cuts(node, V)
 
     return
 end
@@ -81,7 +81,7 @@ function _cut_selection_update(
     ############################################################################
     # DETERMINE NUMBER OF CUTS FOR LOGGING
     ############################################################################
-    count_cuts(node, V)
+    # count_cuts(node, V)
 
     return
 end
@@ -220,7 +220,7 @@ function _cut_selection_update(
     ############################################################################
     # DETERMINE NUMBER OF CUTS FOR LOGGING
     ############################################################################
-    count_cuts(node, V)
+    # count_cuts(node, V)
 
     return
 end
@@ -331,12 +331,12 @@ function _cut_selection_update(
     ############################################################################
     # DETERMINE NUMBER OF CUTS FOR LOGGING
     ############################################################################
-    count_cuts(node, V)
+    # count_cuts(node, V)
 
 end
 
 
-function count_cuts(node::SDDP.Node, V::DynamicSDDiP.CutApproximation)
+function count_cuts(node::SDDP.Node, V::DynamicSDDiP.CutApproximation, V_index::Int)
     node.ext[:total_cuts] += size(V.cuts, 1)
     counter = 0
 
@@ -344,6 +344,9 @@ function count_cuts(node::SDDP.Node, V::DynamicSDDiP.CutApproximation)
         counter = count_cut(cut, counter)
     end
     node.ext[:active_cuts] += counter
+
+    #println(node.index, ", ", V_index, ", ", node.ext[:total_cuts], ", ", node.ext[:active_cuts])
+    #Infiltrator.@infiltrate
 
     return
 
