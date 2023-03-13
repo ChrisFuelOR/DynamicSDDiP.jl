@@ -679,6 +679,11 @@ function get_normalization_coefficients(
 		ω[i] = core_point.x[i] - incumbent
 	end
 
+    # Normalization of the direction
+    norm_factor = sum(abs.(ω)) + ω₀
+    ω = ω ./ norm_factor
+    ω₀ = ω₀ / norm_factor
+
 	return (ω = ω, ω₀ = ω₀)
 end
 
