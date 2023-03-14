@@ -43,11 +43,6 @@ function _cut_selection_update(
 
     push!(V.cuts, cut)
 
-    ############################################################################
-    # DETERMINE NUMBER OF CUTS FOR LOGGING
-    ############################################################################
-    count_cuts(node, V)
-
     return
 end
 
@@ -77,11 +72,6 @@ function _cut_selection_update(
     push!(V.sampled_states, sampled_state_trial)
 
     push!(V.cuts, cut)
-
-    ############################################################################
-    # DETERMINE NUMBER OF CUTS FOR LOGGING
-    ############################################################################
-    count_cuts(node, V)
 
     return
 end
@@ -217,11 +207,6 @@ function _cut_selection_update(
     end
     empty!(V.cuts_to_be_deleted)
 
-    ############################################################################
-    # DETERMINE NUMBER OF CUTS FOR LOGGING
-    ############################################################################
-    count_cuts(node, V)
-
     return
 end
 
@@ -327,11 +312,6 @@ function _cut_selection_update(
         end
     end
     empty!(V.cuts_to_be_deleted)
-
-    ############################################################################
-    # DETERMINE NUMBER OF CUTS FOR LOGGING
-    ############################################################################
-    count_cuts(node, V)
 
 end
 
