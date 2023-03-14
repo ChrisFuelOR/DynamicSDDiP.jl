@@ -280,41 +280,56 @@ mutable struct ChenLuedtke <: AbstractNormalizationRegime end
 
 mutable struct Core_Midpoint <: AbstractNormalizationRegime
     integer_relax::Bool
+    normalize_direction::Bool
     function Core_Midpoint(;
         integer_relax = false,
+        normalize_direction = true,
         )
-        return new(integer_relax)
+        return new(integer_relax, normalize_direction)
     end
 end
 
 mutable struct Core_In_Out <: AbstractNormalizationRegime
     integer_relax::Bool
+    normalize_direction::Bool
     function Core_In_Out(;
         integer_relax = false,
+        normalize_direction = true,
         )
-        return new(integer_relax)
+        return new(integer_relax, normalize_direction)
     end
 end
 
 mutable struct Core_Optimal <: AbstractNormalizationRegime
     integer_relax::Bool
+    normalize_direction::Bool
     function Core_Optimal(;
         integer_relax = false,
+        normalize_direction = true,
         )
-            return new(integer_relax)
+            return new(integer_relax, normalize_direction)
     end
 end
 
-mutable struct Core_Relint <: AbstractNormalizationRegime end
+mutable struct Core_Relint <: AbstractNormalizationRegime
+    normalize_direction::Bool
+    function Core_Relint(;
+        normalize_direction = true,
+        )
+            return new(normalize_direction)
+    end
+end
 
 mutable struct Core_Epsilon <: AbstractNormalizationRegime
     perturb::Float64
     integer_relax::Bool
+    normalize_direction::Bool
     function Core_Epsilon(;
         perturb = 1e-6,
         integer_relax = false,
+        normalize_direction = true,
     )
-            return new(perturb, integer_relax)
+            return new(perturb, integer_relax, normalize_direction)
     end
 end
 
@@ -379,6 +394,9 @@ The parameter integer_relax is required because if we fix the state variables
     satisfy integer constraints. To avoid infeasibility, we can consider the LP
     relaxation of the subproblem. If the original state variables are continuous,
     this is not required (see SLDP_Example_1).
+The parameter normalize_direction allows to normalize the coefficients of the
+    linear pseudonorm in order to prevent them from becoming too small.
+    On the other hand, this may lead to smaller cut coefficients.
 
 Default is L_1_Deep.
 """
@@ -584,7 +602,8 @@ mutable struct CutGenerationRegime
         iteration_to_stop = Inf,
         gap_to_start = Inf,
         gap_to_stop = 0.0,
-        cut_away_approach = false,
+        cut_away_approach = true,
+        cut_away_tol = 1e-4,
     )
         return new(
             state_approximation_regime,
@@ -594,6 +613,7 @@ mutable struct CutGenerationRegime
             gap_to_start,
             gap_to_stop,
             cut_away_approach,
+            cut_away_tol,
         )
     end
 end
@@ -606,11 +626,13 @@ gap_to_start:           relative optimality gap at which this regime is first
                         applied (tricky for stochastic case)
 gap_to_stop:            relative optimality gap at which this regime is last
                         applied (tricky for stochastic case)
-cut_away_approach:      if true, a hierarchy of cuts is used, so that this
-                        regime is only used if the incumbent is not cut away
-                        by the previous cut already. This parameter should
-                        not be true for the first CutGenerationRegime in
-                        AlgoParams.
+cut_away_approach:      if true, cuts of this regime will only be added
+                        to the respective subproblem if they lead to an
+                        improvement (i.e. cut away the current incumbent)
+cut_away_tol:           defines a tolerance which is applied in checking if
+                        an incumbent is cut away (tolerance for cut violation)
+                        if cut_away_approach is used. This allows to prevent
+                        to add almost redundant cuts again and again.
 
 Note that using gap_to_start and gap_to_stop for stochastic problems may be
 misleading as the upper bounds, and thus the gaps, are stochastic.

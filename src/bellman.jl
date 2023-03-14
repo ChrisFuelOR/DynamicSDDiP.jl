@@ -172,7 +172,6 @@ function refine_bellman_function(
     nominal_probability::Vector{Float64},
     objective_realizations::Vector{Float64},
     add_cut_flags::Vector{Bool},
-    cut_away::Bool,
     algo_params::DynamicSDDiP.AlgoParams,
     cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
@@ -222,7 +221,6 @@ function refine_bellman_function(
             dual_0_var,
             offset,
             add_cut_flags,
-            cut_away,
             algo_params,
             cut_generation_regime,
             model.ext[:iteration],
@@ -244,13 +242,14 @@ function refine_bellman_function(
             dual_0_var,
             offset,
             add_cut_flags,
-            cut_away,
             algo_params,
             cut_generation_regime,
             model.ext[:iteration],
             applied_solvers
         )
     end
+
+    return
 end
 
 
@@ -270,7 +269,6 @@ function _add_average_cut(
     dual_0_var::Vector{Float64},
     offset::Float64,
     add_cut_flags::Vector{Bool},
-    cut_away::Bool,
     algo_params::DynamicSDDiP.AlgoParams,
     cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     iteration::Int64,
@@ -323,7 +321,7 @@ function _add_average_cut(
         #belief_y =
         #    node.belief_state === nothing ? nothing : node.belief_state.belief
 
-        cut_away = _add_cut(
+        _add_cut(
             node,
             node.bellman_function.global_theta,
             θᵏ,
@@ -337,7 +335,6 @@ function _add_average_cut(
             # belief_y,
             sigma,
             iteration,
-            cut_away,
             algo_params.infiltrate_state,
             algo_params,
             cut_generation_regime,
@@ -345,11 +342,9 @@ function _add_average_cut(
             cut_generation_regime.state_approximation_regime,
         )
 
-        return cut_away
-
-    else
-        return cut_away
     end
+
+    return
 end
 
 """
@@ -368,7 +363,6 @@ function _add_multi_cut(
     dual_0_var::Vector{Float64},
     offset::Float64,
     add_cut_flags::Vector{Bool},
-    cut_away::Bool,
     algo_params::DynamicSDDiP.AlgoParams,
     cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     iteration::Int64,
@@ -399,7 +393,7 @@ function _add_multi_cut(
     for i in 1:length(dual_variables)
         # A cut is only added if the corresponding add_cut_flag is true
         if add_cut_flags[i]
-            cut_away_single = _add_cut(
+            _add_cut(
                 node,
                 node.bellman_function.local_thetas[i],
                 objective_realizations[i],
@@ -413,7 +407,6 @@ function _add_multi_cut(
                 # belief_y,
                 sigma,
                 iteration,
-                cut_away,
                 algo_params.infiltrate_state,
                 algo_params,
                 cut_generation_regime,
@@ -421,11 +414,6 @@ function _add_multi_cut(
                 cut_generation_regime.state_approximation_regime,
             )
 
-            # If at least one of the multi-cuts is cutting away the current
-            # incumbent, this is sufficient to set the overall cut_away to true
-            if cut_away_single
-                cut_away = true
-            end
         end
     end
 
@@ -475,7 +463,7 @@ function _add_multi_cut(
     # end
     #
 
-    return cut_away
+    return
 end
 
 
@@ -497,7 +485,6 @@ function _add_cut(
     # belief_y::Union{Nothing,Dict{T,Float64}},
     sigma::Union{Nothing,Float64},
     iteration::Int64,
-    cut_away::Bool,
     infiltrate_state::Symbol,
     algo_params::DynamicSDDiP.AlgoParams,
     cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
@@ -547,28 +534,30 @@ function _add_cut(
             )
 
     ############################################################################
-    # ADD CUT PROJECTION TO SUBPROBLEM (we are already at the previous stage)
-    ############################################################################
-    _add_cut_constraints_to_models(node, V, cut, algo_params, cut_generation_regime, infiltrate_state)
-
-    ############################################################################
     # CHECK IF INCUMBENT IS CUT AWAY BY NEW CUT
     ############################################################################
-    cut_away = check_for_cut_away(node, cut, V, xᵏ, epi_state, cut_away, algo_params, applied_solvers)
+    cut_away = check_for_cut_away(node, cut, V, xᵏ, epi_state, algo_params, applied_solvers, cut_generation_regime)
     #NOTE: We might as well want to check this for anchor_state instead of xᵏ,
     #but epi_state is not related to this point.
 
-    ############################################################################
-    # UPDATE CUT SELECTION
-    ############################################################################
-    TimerOutputs.@timeit DynamicSDDiP_TIMER "cut_selection" begin
-        DynamicSDDiP._cut_selection_update(node, V, cut, xᵏ_b, xᵏ,
-            applied_solvers, algo_params, infiltrate_state,
-            cut_generation_regime,
-            algo_params.cut_selection_regime)
+    if cut_away || !cut_generation_regime.cut_away_approach
+        ########################################################################
+        # ADD CUT PROJECTION TO SUBPROBLEM (we are already at the previous stage)
+        ########################################################################
+        _add_cut_constraints_to_models(node, V, cut, algo_params, cut_generation_regime, infiltrate_state)
+
+        ########################################################################
+        # UPDATE CUT SELECTION
+        ########################################################################
+        TimerOutputs.@timeit DynamicSDDiP_TIMER "cut_selection" begin
+            DynamicSDDiP._cut_selection_update(node, V, cut, xᵏ_b, xᵏ,
+                applied_solvers, algo_params, infiltrate_state,
+                cut_generation_regime,
+                algo_params.cut_selection_regime)
+        end
     end
 
-    return cut_away
+    return
 end
 
 
@@ -1345,7 +1334,6 @@ function _add_cut(
     # belief_y::Union{Nothing,Dict{T,Float64}},
     sigma::Union{Nothing,Float64},
     iteration::Int64,
-    cut_away::Bool,
     infiltrate_state::Symbol,
     algo_params::DynamicSDDiP.AlgoParams,
     cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
@@ -1391,26 +1379,28 @@ function _add_cut(
             )
 
     ############################################################################
-    # ADD CUT TO SUBPROBLEM (we are already at the previous stage)
-    ############################################################################
-    _add_cut_constraints_to_models(node, V, cut, algo_params, cut_generation_regime, infiltrate_state)
-
-    ############################################################################
     # CHECK IF INCUMBENT IS CUT AWAY BY NEW CUT
     ############################################################################
-    cut_away = check_for_cut_away(node, cut, V, xᵏ, epi_state, cut_away, algo_params, applied_solvers)
+    cut_away = check_for_cut_away(node, cut, V, xᵏ, epi_state, algo_params, applied_solvers, cut_generation_regime)
 
-    ############################################################################
-    # UPDATE CUT SELECTION
-    ############################################################################
-    TimerOutputs.@timeit DynamicSDDiP_TIMER "cut_selection" begin
-        DynamicSDDiP._cut_selection_update(node, V, cut, xᵏ_b, xᵏ,
-            applied_solvers, algo_params, infiltrate_state,
-            cut_generation_regime,
-            algo_params.cut_selection_regime)
+    if cut_away && !cut_generation_regime.cut_away_approach
+        ############################################################################
+        # ADD CUT TO SUBPROBLEM (we are already at the previous stage)
+        ############################################################################
+        _add_cut_constraints_to_models(node, V, cut, algo_params, cut_generation_regime, infiltrate_state)
+
+        ############################################################################
+        # UPDATE CUT SELECTION
+        ############################################################################
+        TimerOutputs.@timeit DynamicSDDiP_TIMER "cut_selection" begin
+            DynamicSDDiP._cut_selection_update(node, V, cut, xᵏ_b, xᵏ,
+                applied_solvers, algo_params, infiltrate_state,
+                cut_generation_regime,
+                algo_params.cut_selection_regime)
+        end
     end
 
-    return cut_away
+    return
 end
 
 
@@ -1509,26 +1499,25 @@ function check_for_cut_away(
     V::DynamicSDDiP.CutApproximation,
     xᵏ::Dict{Symbol,Float64},
     epi_state::Float64,
-    cut_away::Bool,
     algo_params::DynamicSDDiP.AlgoParams,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     )
 
     sampled_state = DynamicSDDiP.SampledState(xᵏ, cut, NaN)
     height = _eval_height(node, cut, sampled_state, applied_solvers, algo_params)
-    incumbent_cut_away = false
+    cut_away = false
 
     model = JuMP.owner_model(V.theta)
     if JuMP.objective_sense(model) == MOI.MIN_SENSE
-       incumbent_cut_away = epi_state < height
+        if (height-epi_state) / (abs(epi_state) + 1) > cut_generation_regime.cut_away_tol
+            cut_away = true
+        end
     else
-       incumbent_cut_away = epi_state > height
+        if (epi_state-height) / (abs(epi_state) + 1) > cut_generation_regime.cut_away_tol
+            cut_away = true
+        end
     end
-
-    if incumbent_cut_away
-        cut_away = true
-    end
-
     return cut_away
 
 end
