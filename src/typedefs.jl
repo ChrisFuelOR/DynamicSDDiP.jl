@@ -594,6 +594,7 @@ mutable struct CutGenerationRegime
     gap_to_start::Float64       # not used so far
     gap_to_stop::Float64        # not used so far
     cut_away_approach::Bool
+    cut_away_tol::Float64
 
     function CutGenerationRegime(;
         state_approximation_regime = BinaryApproximation(),
