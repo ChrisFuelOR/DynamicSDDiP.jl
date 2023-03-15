@@ -395,8 +395,8 @@ The parameter integer_relax is required because if we fix the state variables
     relaxation of the subproblem. If the original state variables are continuous,
     this is not required (see SLDP_Example_1).
 The parameter normalize_direction allows to normalize the coefficients of the
-    linear pseudonorm in order to prevent them from becoming too small.
-    On the other hand, this may lead to smaller cut coefficients.
+    linear pseudonorm in order to prevent them from becoming too small or
+    too large.
 
 Default is L_1_Deep.
 """
