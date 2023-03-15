@@ -174,7 +174,7 @@ function backward_pass(
         end
 
         # Update cut count
-        count_cuts(node, node.bellman_function.global_theta, 1)
+        count_cuts(node, node.bellman_function.global_theta)
         for V in node.bellman_function.local_thetas
             count_cuts(node, V)
         end
