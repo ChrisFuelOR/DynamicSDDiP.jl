@@ -17,8 +17,8 @@ function algo_config(
 
     # Stopping rules to be used
     #stopping_rules = [SDDP.TimeLimit(time_limit), SDDP.IterationLimit(1000), SDDP.BoundStalling(20,1e-4)]
-    #stopping_rules = [SDDP.TimeLimit(time_limit), SDDP.BoundStalling(20,1e-4)]
-    stopping_rules = [SDDP.IterationLimit(10)]
+    stopping_rules = [SDDP.TimeLimit(time_limit), SDDP.BoundStalling(20,1e-4)]
+    #stopping_rules = [SDDP.IterationLimit(10)]
     #stopping_rules = [ SDDP.IterationLimit(20), SDDP.BoundStalling(20,1e-4)]
 
     # Duality / Cut computation configuration
@@ -105,7 +105,7 @@ function algo_config(
         #iteration_to_start = 1,
     )
 
-    cut_generation_regimes = [cut_generation_regime_2]
+    cut_generation_regimes = [cut_generation_regime_1, cut_generation_regime_2]
 
     # Regularization configuration
     regularization_regime = DynamicSDDiP.NoRegularization()
@@ -144,8 +144,8 @@ function algo_config(
         cut_selection_regime = cut_selection_regime,
         cut_generation_regimes = cut_generation_regimes,
         simulation_regime = simulation_regime,
-        late_binarization_regime = DynamicSDDiP.NoLateBinarization(),
-        #late_binarization_regime = DynamicSDDiP.LateBinarization(K, 11),
+        #late_binarization_regime = DynamicSDDiP.NoLateBinarization(),
+        late_binarization_regime = DynamicSDDiP.LateBinarization(K, 21),
         cut_type = cut_type,
         log_file = log_file,
         silent = silent,
