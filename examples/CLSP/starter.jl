@@ -53,7 +53,7 @@ function model_starter(
         ########################################################################
         # SIMULATE MODEL USING FULL SCENARIO TREE
         ########################################################################
-        simulate(model, algo_params, problem_params, DynamicSDDiP.HistoricalSample())
+        #simulate(model, algo_params, problem_params, DynamicSDDiP.HistoricalSample())
 
         ########################################################################
         # DETERMINISTIC EQUIVALENT (INCLUDING CUTS!!!)
@@ -185,7 +185,7 @@ function model_starter_runs()
     # Dummy run
     # model_starter(0,4,20,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/clsp_binary_single_16_new_CL3.log", 600, 11111, 12345)
 
-    model_starter(1,6,20,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_RR_6_20_Single.log", 14400, 11111, 12345)
+    #model_starter(1,6,20,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_RR_6_20_Single.log", 14400, 11111, 12345)
     #model_starter(2,4,20,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_RR_6_20_Multi.log", 14400, 11111, 12345)
     model_starter(3,6,20,:uni_lag, DynamicSDDiP.Core_Midpoint(integer_relax=false), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_RR_6_20_Mid.log", 14400, 11111, 12345)
     #model_starter(4,4,20,:uni_lag, DynamicSDDiP.Core_In_Out(integer_relax=false), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_6_20_InOut_Bun_1e4_CL3.log", 14400, 11111, 12345)
