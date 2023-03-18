@@ -144,10 +144,10 @@ function model_starter_runs()
     Specification of model runs that should be run one after the other.
     """
 
-    model_starter(13,4,20,:B, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_RR_4_20_B_Multi.log", 10800, 11111, 12345)
-    model_starter(14,4,20,:SB, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_RR_4_20_SB_Multi.log", 10800, 11111, 12345)
+    #model_starter(13,4,20,:B, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_RR_4_20_B_Multi.log", 10800, 11111, 12345)
+    #model_starter(14,4,20,:SB, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_RR_4_20_SB_Multi.log", 10800, 11111, 12345)
     model_starter(14,4,20,:uni_lag, DynamicSDDiP.L∞_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_RR_4_20_Lsup.log", 10800, 11111, 12345)
-    model_starter(14,4,20,:uni_lag, DynamicSDDiP.L1∞_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_RR_4_20_L1sup.log", 10800, 11111, 12345)
+    model_starter(14,4,20,:uni_lag, DynamicSDDiP.L₁∞_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_RR_4_20_L1sup.log", 10800, 11111, 12345)
     model_starter(14,4,20,:uni_lag, DynamicSDDiP.Core_Epsilon(perturb=1e-2,integer_relax=false), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_RR_4_20_Eps.log", 10800, 11111, 12345)
     model_starter(14,4,20,:uni_lag, DynamicSDDiP.Core_Relint(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_RR_4_20_Relint.log", 10800, 11111, 12345)
     model_starter(14,4,20,:uni_lag, DynamicSDDiP.Core_InOut(integer_relax=false), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_RR_4_20_InOut.log", 10800, 11111, 12345)

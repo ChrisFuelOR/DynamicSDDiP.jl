@@ -21,6 +21,7 @@ function _solve_unified_Lagrangian_relaxation!(
     update_subgradients::Bool = true,
     use_subopt_sol::Bool = false,
 )
+
     model = node.subproblem
 
     # Set the objective of the Lagrangian relaxation
@@ -895,7 +896,8 @@ function minimal_norm_choice_unified!(
 
         π_k .= JuMP.value.(π)
 
-        relax_results = _solve_unified_Lagrangian_relaxation!(node, π_k, π0_k, h_expr, h_k, w_expr, w_k, algo_params, applied_solvers, true)
+        relax_results = _solve_unified_Lagrangian_relaxation!(node, π_k, π0_k, h_expr, h_k, w_expr, w_k, Vector{Vector{Float64}}(), Vector{Float64}(),
+        Vector{Float64}(), zeros(length(π_k)), algo_params, applied_solvers, cut_generation_regime.state_approximation_regime, true, false)
 
         L_k = relax_results.L_k
         w_k = relax_results.w_k
