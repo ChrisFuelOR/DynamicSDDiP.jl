@@ -16,8 +16,8 @@ function model_no_bin_definition(problem_params::DynamicSDDiP.ProblemParams, sce
     This is the model version without binary approximation of the state variables.
     """
 
-    number_of_clients = 50
-    number_of_servers = 40
+    number_of_clients = 40
+    number_of_servers = 50
     number_of_realizations = problem_params.number_of_realizations # 200
 
     # C: J
@@ -198,16 +198,6 @@ function model_no_bin_definition(problem_params::DynamicSDDiP.ProblemParams, sce
                 JuMP.fix(h[38], ω.xi38)
                 JuMP.fix(h[39], ω.xi39)
                 JuMP.fix(h[40], ω.xi40)
-                JuMP.fix(h[41], ω.xi41)
-                JuMP.fix(h[42], ω.xi42)
-                JuMP.fix(h[43], ω.xi43)
-                JuMP.fix(h[44], ω.xi44)
-                JuMP.fix(h[45], ω.xi45)
-                JuMP.fix(h[46], ω.xi46)
-                JuMP.fix(h[47], ω.xi47)
-                JuMP.fix(h[48], ω.xi48)
-                JuMP.fix(h[49], ω.xi49)
-                JuMP.fix(h[50], ω.xi50)
             end
         end
 
