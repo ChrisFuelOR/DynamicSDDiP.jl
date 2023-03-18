@@ -368,7 +368,7 @@ function solve_unified_lagrangian_dual(
     # so finding the minimal norm optimal solution does not make sense.
         TimerOutputs.@timeit DynamicSDDiP_TIMER "minimal_norm" begin
             mn_results = minimal_norm_choice_unified!(node, node_index, approx_model, π_k, π_star, π0_k, π0_star, t_k, h_expr, h_k, w_expr, w_k, s, L_star,
-            iteration_limit, atol, rtol, cut_generation_regime.duality_regime.dual_choice_regime, iter, lag_status, algo_params, applied_solvers)
+            iteration_limit, atol, rtol, cut_generation_regime.duality_regime.dual_choice_regime, iter, lag_status, algo_params, applied_solvers, cut_generation_regime)
 
             iter = mn_results.iter
             lag_status = mn_results.lag_status
@@ -800,7 +800,7 @@ function solve_unified_lagrangian_dual(
         # so finding the minimal norm optimal solution does not make sense.
         TimerOutputs.@timeit DynamicSDDiP_TIMER "minimal_norm" begin
             mn_results = minimal_norm_choice_unified!(node, node_index, approx_model, π_k, π_star, π0_k, π0_star, t_k, h_expr, h_k, w_expr, w_k, s, L_star,
-            iteration_limit, atol, rtol, cut_generation_regime.duality_regime.dual_choice_regime, iter, lag_status, algo_params, applied_solvers)
+            iteration_limit, atol, rtol, cut_generation_regime.duality_regime.dual_choice_regime, iter, lag_status, algo_params, applied_solvers, cut_generation_regime)
 
             iter = mn_results.iter
             lag_status = mn_results.lag_status
@@ -863,6 +863,7 @@ function minimal_norm_choice_unified!(
     lag_status::Symbol,
     algo_params::DynamicSDDiP.AlgoParams,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     )
 
     π⁺ = approx_model[:π⁺]
@@ -942,6 +943,7 @@ function minimal_norm_choice_unified!(
     lag_status::Symbol,
     algo_params::DynamicSDDiP.AlgoParams,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     )
 
     return (iter=iter, lag_status=lag_status)
