@@ -403,7 +403,7 @@ function get_dual_solution(
     # Initialize π₀ as 1 (0 is not suitable for relatively complete recourse)
     dual_0_var = 1.0
 
-    if isa(normalization_regime, DynamicSDDiP.Core_Midpoint) || isa(normalization_regime, DynamicSDDiP.Core_In_Out) || isa(normalization_regime, DynamicSDDiP.Core_Epsilon) | isa(normalization_regime, DynamicSDDiP.Core_Optimal) || isa(normalization_regime, DynamicSDDiP.Core_Relint)
+    if isa(normalization_regime, DynamicSDDiP.Core_Midpoint) || isa(normalization_regime, DynamicSDDiP.Core_In_Out) || isa(normalization_regime, DynamicSDDiP.Core_Epsilon) || isa(normalization_regime, DynamicSDDiP.Core_Optimal) || isa(normalization_regime, DynamicSDDiP.Core_Relint)
         dual_0_var = 1.0 #/ normalization_coeff.ω₀
     end
 
@@ -445,7 +445,7 @@ function get_dual_solution(
     # the exact primal problem.
     unbounded_flag = false
 
-    if isa(normalization_regime, DynamicSDDiP.Core_Midpoint) || isa(normalization_regime, DynamicSDDiP.Core_In_Out) || isa(normalization_regime, DynamicSDDiP.Core_Epsilon) | isa(normalization_regime, DynamicSDDiP.Core_Optimal) || isa(normalization_regime, DynamicSDDiP.Core_Relint)
+    if isa(normalization_regime, DynamicSDDiP.Core_Midpoint) || isa(normalization_regime, DynamicSDDiP.Core_In_Out) || isa(normalization_regime, DynamicSDDiP.Core_Epsilon) || isa(normalization_regime, DynamicSDDiP.Core_Optimal) || isa(normalization_regime, DynamicSDDiP.Core_Relint)
         # PREPARE PRIMAL TO LAGRANGIAN DUAL PROBLEM (INCLUDES POSSIBLE REGULARIZATION)
         construct_unified_primal_problem!(node, node_index, subproblem, epi_state, normalization_coeff, duality_regime, algo_params.regularization_regime, cut_generation_regime.state_approximation_regime)
 
