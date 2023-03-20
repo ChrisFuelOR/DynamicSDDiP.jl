@@ -70,8 +70,8 @@ function model_starter(
     catch e
         @printf "Case %d terminated with eRR_Oor" num
         println()
-        #throw(eRR_Oor(e))
-        showeRR_Oor(stdout, e, catch_backtrace())
+        #throw(error(e))
+        showerr(stdout, e, catch_backtrace())
         println()
         println("#############################################################")
         println()
