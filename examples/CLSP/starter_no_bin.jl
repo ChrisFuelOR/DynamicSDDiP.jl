@@ -53,7 +53,7 @@ function model_starter(
         ########################################################################
         # SIMULATE MODEL USING FULL SCENARIO TREE
         ########################################################################
-        simulate(model, algo_params, problem_params, DynamicSDDiP.HistoricalSample())
+        #simulate(model, algo_params, problem_params, DynamicSDDiP.HistoricalSample())
 
         ########################################################################
         # DETERMINISTIC EQUIVALENT (INCLUDING CUTS!!!)
