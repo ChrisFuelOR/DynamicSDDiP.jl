@@ -107,7 +107,7 @@ function simulate(
     ############################################################################
     # GET A SAMPLE PATH USING THE EXISTING DISTRIBUTIONS
     ############################################################################
-    historical_sample = get_historical_sample(problem_params, number_of_servers, number_of_clients)
+    historical_sample = get_historical_sample(algo_params, problem_params, number_of_servers, number_of_clients)
 
     # SIMULATE THE MODEL
     ############################################################################

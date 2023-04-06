@@ -55,7 +55,7 @@ function get_scenario_path(algo_params::DynamicSDDiP.AlgoParams, stage::Int)
 end
 
 
-function get_historical_sample(problem_params::DynamicSDDiP.ProblemParams, number_of_servers::Int, number_of_clients::Int)
+function get_historical_sample(algo_params::DynamicSDDiP.AlgoParams, problem_params::DynamicSDDiP.ProblemParams, number_of_servers::Int, number_of_clients::Int)
 
     # In the 2-stage case we can just use the original scenarios here
 
