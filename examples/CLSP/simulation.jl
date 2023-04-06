@@ -106,6 +106,7 @@ function simulate(
     # GET A SAMPLE PATH USING THE EXISTING DISTRIBUTIONS
     ############################################################################
     historical_sample = get_historical_sample(problem_params, get_recombining_scenario_tree(algo_params, problem_params))
+    Infiltrator.@infiltrate
 
     # SIMULATE THE MODEL
     ############################################################################
