@@ -67,7 +67,7 @@ function model_no_bin_definition(problem_params::DynamicSDDiP.ProblemParams, num
 
     model = SDDP.LinearPolicyGraph(
         stages = problem_params.number_of_stages,
-        lower_bound = -5000.0,
+        lower_bound = -1000.0,
         optimizer = Gurobi.Optimizer,
         sense = :Min,
     ) do subproblem, t

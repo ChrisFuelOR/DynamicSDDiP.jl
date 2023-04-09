@@ -48,7 +48,7 @@ function model_starter(
         ########################################################################
         # SIMULATE MODEL
         ########################################################################
-        #simulate(model, algo_params, problem_params, algo_params.simulation_regime)
+        simulate(model, algo_params, problem_params, algo_params.simulation_regime)
 
         ########################################################################
         # SIMULATE MODEL USING FULL SCENARIO TREE
