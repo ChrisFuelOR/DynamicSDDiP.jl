@@ -105,7 +105,7 @@ function algo_config(
         #iteration_to_start = 1,
     )
 
-    cut_generation_regimes = [cut_generation_regime_2]
+    cut_generation_regimes = [cut_generation_regime_1, cut_generation_regime_2]
 
     # Regularization configuration
     regularization_regime = DynamicSDDiP.NoRegularization()
