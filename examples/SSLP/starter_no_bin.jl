@@ -146,12 +146,12 @@ function model_starter_runs()
     #model_starter(10,50,40,200,:uni_lag, DynamicSDDiP.L∞_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/SSLP_50_40_200_Lsup_SB.log", 3600, 11111, 12345)
     #model_starter(11,50,40,200,:uni_lag, DynamicSDDiP.L₁∞_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/SSLP_50_40_200_L1sup_SB.log", 3600, 11111, 12345)
 
-    model_starter(14,50,40,200,:uni_lag, DynamicSDDiP.L₁_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/SSLP_50_40_200_L1_CL.log", 3600, 11111, 12345)
-    model_starter(15,50,40,200,:uni_lag, DynamicSDDiP.ChenLuedtke(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/SSLP_50_40_200_Span_CL.log", 3600, 11111, 12345)
-    model_starter(15,50,40,200,:uni_lag, DynamicSDDiP.Core_Midpoint(integer_relax=false,normalize_direction=false), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/SSLP_50_40_200_Mid_CL.log", 3600, 11111, 12345)
-    model_starter(15,50,40,200,:uni_lag, DynamicSDDiP.Core_Epsilon(perturb=1e-2,integer_relax=false,normalize_direction=false), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/SSLP_50_40_200_Eps_CL.log", 3600, 11111, 12345)
-    model_starter(15,50,40,200,:uni_lag, DynamicSDDiP.Core_Relint(normalize_direction=false), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/SSLP_50_40_200_Relint_CL.log", 3600, 11111, 12345)
-    model_starter(15,50,40,200,:uni_lag, DynamicSDDiP.L∞_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/SSLP_50_40_200_Lsup_CL.log", 3600, 11111, 12345)
+    model_starter(14,50,40,200,:uni_lag, DynamicSDDiP.L₁_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/SSLP_50_40_200_L1_CL2.log", 3600, 11111, 12345)
+    model_starter(15,50,40,200,:uni_lag, DynamicSDDiP.ChenLuedtke(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/SSLP_50_40_200_Span_CL2.log", 3600, 11111, 12345)
+    model_starter(15,50,40,200,:uni_lag, DynamicSDDiP.Core_Midpoint(integer_relax=false,normalize_direction=false), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/SSLP_50_40_200_Mid_CL2.log", 3600, 11111, 12345)
+    model_starter(15,50,40,200,:uni_lag, DynamicSDDiP.Core_Epsilon(perturb=1e-2,integer_relax=false,normalize_direction=false), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/SSLP_50_40_200_Eps_CL2.log", 3600, 11111, 12345)
+    model_starter(15,50,40,200,:uni_lag, DynamicSDDiP.Core_Relint(normalize_direction=false), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/SSLP_50_40_200_Relint_CL2.log", 3600, 11111, 12345)
+    model_starter(15,50,40,200,:uni_lag, DynamicSDDiP.L∞_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/SSLP_50_40_200_Lsup_CL2.log", 3600, 11111, 12345)
 
 
 end
