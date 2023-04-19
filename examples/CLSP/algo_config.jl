@@ -32,7 +32,7 @@ function algo_config(
 #        dual_choice_regime = DynamicSDDiP.MinimalNormChoice()
 #    end
 
-    dual_space_regime = DynamicSDDiP.BendersSpanSpaceRestriction(20, :multi_cut)
+    #dual_space_regime = DynamicSDDiP.BendersSpanSpaceRestriction(20, :multi_cut)
     #dual_space_regime = DynamicSDDiP.NoDualSpaceRestriction()
     copy_regime = DynamicSDDiP.ConvexHullCopy()
 
@@ -87,6 +87,22 @@ function algo_config(
         duality_regime = DynamicSDDiP.LinearDuality()
     end
 
+    duality_regime_2 = DynamicSDDiP.UnifiedLagrangianDuality(
+        atol = 1e-4,
+        rtol = 1e-4,
+        iteration_limit = 1000,
+        dual_initialization_regime = dual_initialization_regime,
+        dual_bound_regime = dual_bound_regime,
+        dual_solution_regime = dual_solution_regime,
+        dual_choice_regime = dual_choice_regime,
+        dual_status_regime = dual_status_regime,
+        normalization_regime = DynamicSDDiP.L∞_Deep(),
+        dual_space_regime = dual_space_regime,
+        copy_regime = copy_regime,
+        user_dual_multiplier_bound = user_dual_multiplier_bound,
+        user_dual_objective_bound = user_dual_objective_bound,
+    )
+
     # State approximation and cut projection configuration
     state_approximation_regime = DynamicSDDiP.NoStateApproximation()
 
@@ -95,16 +111,23 @@ function algo_config(
         state_approximation_regime = state_approximation_regime,
         duality_regime = duality_regime,
         #cut_away_approach = false,
-        iteration_to_start = 21,
+        #iteration_to_start = 21,
         #iteration_to_stop = 30,
     )
 
     cut_generation_regime_1 = DynamicSDDiP.CutGenerationRegime(
         state_approximation_regime = state_approximation_regime,
-        duality_regime = DynamicSDDiP.StrengthenedDuality(),
+        duality_regime = duality_regime_2,
         #iteration_to_start = 1,
         #cut_away_approach = false,
     )
+
+    # cut_generation_regime_1 = DynamicSDDiP.CutGenerationRegime(
+    #     state_approximation_regime = state_approximation_regime,
+    #     duality_regime = DynamicSDDiP.StrengthenedDuality(),
+    #     #iteration_to_start = 1,
+    #     #cut_away_approach = false,
+    # )
 
     cut_generation_regimes = [cut_generation_regime_1, cut_generation_regime_2]
 
