@@ -590,7 +590,7 @@ mutable struct CutGenerationRegime
     state_approximation_regime::AbstractStateApproximationRegime
     duality_regime::AbstractDualityRegime
     iteration_to_start::Int64
-    iteration_to_stop::Union{Int64,Float64}
+    iteration_to_stop::Union{Int64,Float64} #TODO
     gap_to_start::Float64       # not used so far
     gap_to_stop::Float64        # not used so far
     cut_away_approach::Bool
