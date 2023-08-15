@@ -150,6 +150,8 @@ function solve_subproblem_forward(
     objective = JuMP.objective_value(subproblem)
     stage_objective = objective - JuMP.value(bellman_term(node.bellman_function))
 
+    Infiltrator.@infiltrate
+
     get_epi_states(node, epi_states_stage, algo_params.cut_aggregation_regime)
     Infiltrator.@infiltrate algo_params.infiltrate_state in [:all]
 

@@ -301,6 +301,8 @@ function get_dual_solution(
         lag_iterations = results.iterations
         lag_status = results.lag_status
 
+        Infiltrator.@infiltrate
+
         subproblem.ext[:sddp_policy_graph].ext[:agg_lag_iterations] += results.iterations
 
         # Counter to compare only number of iterations for converged cases

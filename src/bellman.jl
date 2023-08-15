@@ -1383,6 +1383,8 @@ function _add_cut(
     ############################################################################
     cut_away = check_for_cut_away(node, cut, V, xᵏ, epi_state, algo_params, applied_solvers, cut_generation_regime)
 
+    Infiltrator.@infiltrate
+
     if cut_away || !cut_generation_regime.cut_away_approach
         ############################################################################
         # ADD CUT TO SUBPROBLEM (we are already at the previous stage)
