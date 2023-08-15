@@ -34,7 +34,7 @@ function algo_config(
 
     #dual_space_regime = DynamicSDDiP.BendersSpanSpaceRestriction(20, :multi_cut)
     dual_space_regime = DynamicSDDiP.NoDualSpaceRestriction()
-    copy_regime = DynamicSDDiP.ConvexHullCopy()
+    copy_regime = DynamicSDDiP.StateSpaceCopy()
 
     if duality_regime_sym == :uni_lag
         if isa(normalization_regime, DynamicSDDiP.Core_Epsilon)
