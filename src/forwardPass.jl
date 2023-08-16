@@ -148,6 +148,14 @@ function solve_subproblem_forward(
     end
 
     state = get_outgoing_state(node)
+
+    # Fixed values may have to be rounded if they are not exactly integer in order to avoid infeasibilities.
+    for (state_name, value) in state
+        if node.ext[:state_info_storage][state_name].out.binary || node.ext[:state_info_storage][state_name].out.integer
+            JuMP.fix(node.states[state_name].in, round(value))
+        end
+    end
+
     objective = JuMP.objective_value(subproblem)
     stage_objective = objective - JuMP.value(bellman_term(node.bellman_function))
 
