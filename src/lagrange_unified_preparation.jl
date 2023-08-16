@@ -1506,8 +1506,9 @@ function construct_unified_primal_problem!(
         push!(primal_data[:slacks], primal_data[:fixed_state_value][name] - state_comp.in)
         JuMP.unfix(state_comp.in)
         variable_info = node.ext[:state_info_storage][name].in
-        follow_state_unfixing!(state_comp, variable_info, duality_regime.copy_regime)
-        number_of_states = i
+        #follow_state_unfixing!(state_comp, variable_info, duality_regime.copy_regime)
+		follow_state_unfixing!(state_comp, variable_info, DynamicSDDiP.ConvexHullCopy())
+		number_of_states = i
     end
     slack = primal_data[:slacks]
 

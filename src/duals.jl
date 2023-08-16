@@ -534,7 +534,7 @@ function get_dual_solution(
         end
 
         #if node.subproblem.ext[:sddp_policy_graph].ext[:iteration] == 4
-        #    Infiltrator.@infiltrate
+        #   Infiltrator.@infiltrate
         #end
 
         ########################################################################
