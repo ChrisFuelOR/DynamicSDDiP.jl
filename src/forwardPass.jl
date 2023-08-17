@@ -142,7 +142,6 @@ function solve_subproblem_forward(
         JuMP.optimize!(subproblem)
 
         if (JuMP.termination_status(subproblem) != MOI.OPTIMAL)
-            Infiltrator.@infiltrate
             #elude_numerical_issues!(subproblem, algo_params)
         end
     end
@@ -151,7 +150,12 @@ function solve_subproblem_forward(
 
     # Fixed values may have to be rounded if they are not exactly integer in order to avoid infeasibilities.
     for (state_name, value) in state
+        if value != 0.0 && value != 1.0
+            Infiltrator.@infiltrate
+        end
+
         if node.ext[:state_info_storage][state_name].out.binary || node.ext[:state_info_storage][state_name].out.integer
+            #Infiltrator.@infiltrate
             value = round(value)
         end
     end
