@@ -152,7 +152,7 @@ function solve_subproblem_forward(
     # Fixed values may have to be rounded if they are not exactly integer in order to avoid infeasibilities.
     for (state_name, value) in state
         if node.ext[:state_info_storage][state_name].out.binary || node.ext[:state_info_storage][state_name].out.integer
-            JuMP.fix(node.states[state_name].in, round(value))
+            value = round(value)
         end
     end
 
