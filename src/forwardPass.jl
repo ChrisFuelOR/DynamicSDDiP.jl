@@ -155,7 +155,7 @@ function solve_subproblem_forward(
 
         if node.ext[:state_info_storage][state_name].out.binary || node.ext[:state_info_storage][state_name].out.integer
             #Infiltrator.@infiltrate
-            state_name[value] = round(value)
+            state[state_name] = round(value)
         end
     end
 
