@@ -2,7 +2,7 @@ import SDDP
 import DynamicSDDiP
 import JuMP
 import Infiltrator
-import DataFramesMeta
+using DataFramesMeta
 using Revise
 
 
