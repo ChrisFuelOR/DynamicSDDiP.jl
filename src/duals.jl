@@ -48,7 +48,7 @@ function get_dual_solution(
     TimerOutputs.@timeit DynamicSDDiP_TIMER "LP_relaxation" begin
         dual_results = solve_LP_relaxation(node, subproblem, algo_params, cut_generation_regime, applied_solvers, DynamicSDDiP.LPDuals())
     end
-
+ 
     dual_vars = dual_results.dual_vars
     dual_obj = dual_results.dual_obj
 
@@ -95,10 +95,6 @@ function solve_LP_relaxation(
 
     TimerOutputs.@timeit DynamicSDDiP_TIMER "solver_call_LP_relax" begin
         JuMP.optimize!(subproblem)
-
-    #    if JuMP.termination_status(subproblem) != MOI.OPTIMAL
-    #        Infiltrator.@infiltrate
-    #    end
     end
 
     # Solve LP Relaxation
@@ -799,7 +795,7 @@ function initialize_duals(
     dual_vars_initial = zeros(number_of_states)
 
     # Create LP Relaxation
-    undo_relax = JuMP.relax_integrality(subproblem);
+    undo_relax = JuMP.relax_integrality(subproblem)
 
     # Define appropriate solver
     reset_solver!(subproblem, algo_params, applied_solvers, :LP_relax, algo_params.solver_approach)
@@ -843,7 +839,6 @@ function get_and_set_dual_values!(
     )
 
     for (i, name) in enumerate(keys(node.states))
-
         reference_to_constr = JuMP.FixRef(node.states[name].in)
         dual_vars_initial[i] = JuMP.dual(reference_to_constr)
     end

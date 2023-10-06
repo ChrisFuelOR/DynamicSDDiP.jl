@@ -1431,6 +1431,7 @@ function _add_cut_constraints_to_models(
         model,
         cut.scaling_coeff * V.theta - sum(cut.coefficients[i] * x for (i, x) in V.states)
     )
+    #println(node.index, expr >= cut.incercept)
 
     cut.cut_constraint = if JuMP.objective_sense(model) == MOI.MIN_SENSE
         JuMP.@constraint(model, expr >= cut.intercept)
