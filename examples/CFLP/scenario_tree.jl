@@ -1,7 +1,7 @@
 import Infiltrator
 import CSV
 import DataFrames
-import DataFramesMeta
+using DataFramesMeta
 
 function read_scenario_data(file_name::String)
     return CSV.read(file_name, DataFrames.DataFrame; delim=",", header=false)
