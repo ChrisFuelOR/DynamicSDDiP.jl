@@ -57,7 +57,7 @@ function algo_config(
         duality_regime = DynamicSDDiP.UnifiedLagrangianDuality(
             atol = 1e-4,
             rtol = 1e-4,
-            iteration_limit = 1000,
+            iteration_limit = 5,
             dual_initialization_regime = dual_initialization_regime,
             dual_bound_regime = dual_bound_regime,
             dual_solution_regime = dual_solution_regime,
