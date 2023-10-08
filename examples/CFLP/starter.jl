@@ -84,10 +84,10 @@ function model_starter_runs()
     #model_starter(7,100,20,:uni_lag, DynamicSDDiP.L₁_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CFLP_L1.log", 7200, 11111, 12345)
     #model_starter(8,100,20,:uni_lag, DynamicSDDiP.L∞_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CFLP_Lsup.log", 7200, 11111, 12345)
     #model_starter(9,100,20,:uni_lag, DynamicSDDiP.L₁∞_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CFLP_L1sup.log", 7200, 11111, 12345)
-    model_starter(10,100,20,:uni_lag, DynamicSDDiP.Core_Epsilon(perturb=1e-2,integer_relax=true,normalize_direction=false), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CFLP_Eps.log", 7200, 11111, 12345)
-    #model_starter(11,100,20,:uni_lag, DynamicSDDiP.Core_Relint(normalize_direction=false), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CFLP_Relint.log", 7200, 11111, 12345)
-    model_starter(12,100,20,:uni_lag, DynamicSDDiP.Core_In_Out(integer_relax=true,normalize_direction=false), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CFLP_InOut.log", 7200, 11111, 12345)
-    model_starter(13,100,20,:uni_lag, DynamicSDDiP.Core_Midpoint(integer_relax=true,normalize_direction=false), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CFLP_Mid.log", 7200, 11111, 12345)
+    model_starter(10,100,20,:uni_lag, DynamicSDDiP.Core_Epsilon(perturb=1e-2,integer_relax=true,normalize_direction=true), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CFLP_Eps.log", 7200, 11111, 12345)
+    model_starter(11,100,20,:uni_lag, DynamicSDDiP.Core_Relint(normalize_direction=true), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CFLP_Relint.log", 7200, 11111, 12345)
+    model_starter(12,100,20,:uni_lag, DynamicSDDiP.Core_In_Out(integer_relax=true,normalize_direction=true), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CFLP_InOut.log", 7200, 11111, 12345)
+    model_starter(13,100,20,:uni_lag, DynamicSDDiP.Core_Midpoint(integer_relax=true,normalize_direction=true), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CFLP_Mid.log", 7200, 11111, 12345)
 
     
 
