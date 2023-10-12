@@ -101,7 +101,7 @@ function algo_config(
 
     cut_generation_regime_1 = DynamicSDDiP.CutGenerationRegime(
          state_approximation_regime = state_approximation_regime,
-         duality_regime = DynamicSDDiP.StrengthenedDuality(),
+         duality_regime = DynamicSDDiP.LinearDuality(),
          iteration_to_start = 1,
          #cut_away_approach = false,
     )
