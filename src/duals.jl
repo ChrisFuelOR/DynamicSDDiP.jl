@@ -271,6 +271,7 @@ function get_dual_solution(
     ############################################################################
     # GET BOUNDS FOR LAGRANGIAN DUAL
     ############################################################################
+    # primal_obj = 1.3735 #augmented case #1.3735, 1.3
     bound_results = get_dual_bounds(node, node_index, algo_params, primal_obj, duality_regime.dual_bound_regime)
     Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
