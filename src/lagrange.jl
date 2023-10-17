@@ -357,8 +357,6 @@ function solve_lagrangian_dual(
     # Set dual_vars (here π_k) to the optimal solution
     π_k .= π_star
 
-    #Infiltrator.@infiltrate
-
     return (lag_obj = s * L_star, iterations = iter, lag_status = lag_status)
 
 end
