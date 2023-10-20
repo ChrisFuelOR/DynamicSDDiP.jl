@@ -27,14 +27,14 @@ function algo_config(
     dual_bound_regime = DynamicSDDiP.BothBounds()
     dual_status_regime = DynamicSDDiP.Lax()
 
-    dual_choice_regime = DynamicSDDiP.StandardChoice()
+    dual_choice_regime = DynamicSDDiP.MinimalNormChoice()
     #if isa(normalization_regime, DynamicSDDiP.L∞_Deep)
 #        dual_choice_regime = DynamicSDDiP.MinimalNormChoice()
 #    end
 
     #dual_space_regime = DynamicSDDiP.BendersSpanSpaceRestriction(20, :multi_cut)
     dual_space_regime = DynamicSDDiP.NoDualSpaceRestriction()
-    copy_regime = DynamicSDDiP.ConvexHullCopy()
+    copy_regime = DynamicSDDiP.StateSpaceCopy()
 
     if duality_regime_sym == :uni_lag
         if isa(normalization_regime, DynamicSDDiP.Core_Epsilon)
