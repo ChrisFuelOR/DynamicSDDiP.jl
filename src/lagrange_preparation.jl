@@ -10,6 +10,7 @@ function relax_copy_constraints!(
     for (i, (_, state)) in enumerate(node.ext[:backward_data][:bin_states])
         # Store original value of ̄x, which z was fixed to
         x_in_value[i] = JuMP.fix_value(state)
+        print(x_in_value, ", ")
         # Store expression for slack
         h_expr[i] = JuMP.@expression(node.subproblem, state - x_in_value[i])
         # Relax copy constraint (i.e. z does not have to take the value of ̄x anymore)
@@ -18,6 +19,7 @@ function relax_copy_constraints!(
         # Set bounds and integer constraints based on copy_regime
         follow_state_unfixing_binary!(state, copy_regime)
     end
+    println()
 
     return
 end

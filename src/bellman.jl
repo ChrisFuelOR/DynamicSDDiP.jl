@@ -1438,6 +1438,8 @@ function _add_cut_constraints_to_models(
         JuMP.@constraint(model, expr <= cut.intercept)
     end
 
+    println(cut.cut_constraint)
+
     return
 
 end
