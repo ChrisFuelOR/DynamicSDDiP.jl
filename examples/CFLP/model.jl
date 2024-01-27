@@ -118,7 +118,7 @@ function model_definition(problem_params::DynamicSDDiP.ProblemParams, scenario_t
         JuMP.@constraint(subproblem, dem[j=1:number_of_customers], sum(x[i,j] for i in 1:number_of_facilities) == D[j])
 
         # Add stage objective
-        SDDP.@stageobjective(subproblem, sum(f[i] * y[i] for i in 1:number_of_facilities) + sum(d[j][i] * x[i,j] for j in 1:number_of_customers for i in 1:number_of_facilities))
+        SDDP.@stageobjective(subproblem, 1/1000 * sum(f[i] * y[i] for i in 1:number_of_facilities) + sum(d[j][i] * x[i,j] for j in 1:number_of_customers for i in 1:number_of_facilities))
 
         # PARAMETERIZE THE RANDOM VARIABLES
         ########################################################################
