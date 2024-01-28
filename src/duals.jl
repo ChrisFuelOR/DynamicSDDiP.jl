@@ -298,7 +298,7 @@ function get_dual_solution(
         lag_iterations = results.iterations
         lag_status = results.lag_status
 
-        println(primal_obj, ", ", lag_obj, ", ", lag_iterations, ", ", lag_status)
+        #println(primal_obj, ", ", lag_obj, ", ", lag_iterations, ", ", lag_status)
 
         subproblem.ext[:sddp_policy_graph].ext[:agg_lag_iterations] += results.iterations
 
@@ -517,8 +517,8 @@ function get_dual_solution(
         lag_status = results.lag_status
         dual_0_var = results.dual_0_var
 
-        println(primal_original_obj, ", ", primal_unified_obj, ", ", lag_obj, ", ", lag_iterations, ", ", lag_status, ", ", dual_0_var)
-
+        #println(primal_original_obj, ", ", primal_unified_obj, ", ", lag_obj, ", ", lag_iterations, ", ", lag_status, ", ", dual_0_var)    
+        println(lag_iterations, ", ", lag_status, ", ", dual_0_var, ", ", sum(abs.(dual_vars)))
         #println(node_index, " ,", i, " ,", primal_unified_obj, " ,", lag_obj, " ,", lag_status, " ,", lag_iterations)
 
         subproblem.ext[:sddp_policy_graph].ext[:agg_lag_iterations] += results.iterations
@@ -586,7 +586,7 @@ function get_dual_solution(
 
     store_dual_values!(node, dual_values, dual_vars, bin_state, cut_generation_regime.state_approximation_regime)
 
-    println(dual_vars/dual_0_var)
+    #println(dual_vars/dual_0_var)
 
     return (
         dual_values=dual_values,

@@ -18,7 +18,6 @@ function relax_copy_constraints!(
         # Set bounds and integer constraints based on copy_regime
         follow_state_unfixing_binary!(state, copy_regime)
     end
-    println()
 
     return
 end
@@ -44,7 +43,6 @@ function relax_copy_constraints!(
         variable_info = node.ext[:state_info_storage][name].in
         follow_state_unfixing!(state, variable_info, copy_regime)
     end
-    println(x_in_value)
 
     return
 end
