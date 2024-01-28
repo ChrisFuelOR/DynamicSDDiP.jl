@@ -10,7 +10,6 @@ function relax_copy_constraints!(
     for (i, (_, state)) in enumerate(node.ext[:backward_data][:bin_states])
         # Store original value of ̄x, which z was fixed to
         x_in_value[i] = JuMP.fix_value(state)
-        print(x_in_value, ", ")
         # Store expression for slack
         h_expr[i] = JuMP.@expression(node.subproblem, state - x_in_value[i])
         # Relax copy constraint (i.e. z does not have to take the value of ̄x anymore)
@@ -45,6 +44,7 @@ function relax_copy_constraints!(
         variable_info = node.ext[:state_info_storage][name].in
         follow_state_unfixing!(state, variable_info, copy_regime)
     end
+    println(x_in_value)
 
     return
 end
