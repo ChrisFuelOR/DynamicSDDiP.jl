@@ -16,7 +16,7 @@ function algo_config(
     )
 
     # Stopping rules to be used
-    stopping_rules = [SDDP.TimeLimit(time_limit), SDDP.IterationLimit(50), SDDP.BoundStalling(20,1e-4)]
+    stopping_rules = [SDDP.TimeLimit(time_limit), SDDP.BoundStalling(20,1e-4)]
     #stopping_rules = [SDDP.TimeLimit(time_limit), SDDP.BoundStalling(20,1e-4)]
     #stopping_rules = [SDDP.IterationLimit(10)]
     #stopping_rules = [ SDDP.IterationLimit(20), SDDP.BoundStalling(20,1e-4)]
@@ -55,8 +55,8 @@ function algo_config(
         end
 
         duality_regime = DynamicSDDiP.UnifiedLagrangianDuality(
-            atol = 1e-4,
-            rtol = 1e-4,
+            atol = 1e-2,
+            rtol = 1e-2,
             iteration_limit = 1000,
             dual_initialization_regime = dual_initialization_regime,
             dual_bound_regime = dual_bound_regime,
@@ -71,8 +71,8 @@ function algo_config(
         )
     elseif duality_regime_sym == :lag
         duality_regime = DynamicSDDiP.LagrangianDuality(
-            atol = 1e-4,
-            rtol = 1e-4,
+            atol = 1e-2,
+            rtol = 1e-2,
             iteration_limit = 1000,
             dual_initialization_regime = dual_initialization_regime,
             dual_bound_regime = dual_bound_regime,
