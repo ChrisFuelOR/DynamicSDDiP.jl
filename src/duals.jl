@@ -585,6 +585,7 @@ function get_dual_solution(
     end
 
     # SPECIAL CASE
+    lag_obj = lag_obj / dual_0_var
     dual_vars = dual_vars / dual_0_var
     dual_0_var = 1
 
