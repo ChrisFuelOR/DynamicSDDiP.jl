@@ -584,11 +584,6 @@ function get_dual_solution(
         lag_obj = lag_obj + epi_state * dual_0_var
     end
 
-    # SPECIAL CASE
-    lag_obj = lag_obj / dual_0_var
-    dual_vars = dual_vars / dual_0_var
-    dual_0_var = 1
-
     store_dual_values!(node, dual_values, dual_vars, bin_state, cut_generation_regime.state_approximation_regime)
 
     #println(dual_vars/dual_0_var)
