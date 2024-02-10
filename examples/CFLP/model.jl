@@ -141,7 +141,7 @@ function model_definition(problem_params::DynamicSDDiP.ProblemParams, scenario_t
         # Parameterize the disruptions
         SDDP.parameterize(subproblem, support) do ω
             for i in 1:number_of_facilities
-               JuMP.fix(disrupt[i], ω[i])
+               JuMP.fix(disrupt[i], ω[i], force=true)
             end
         end
 
