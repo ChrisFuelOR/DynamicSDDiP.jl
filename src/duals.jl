@@ -473,7 +473,7 @@ function get_dual_solution(
         #primal_unified_obj = Inf ?
     end
 
-    println(normalization_coeff.ω, round(normalization_coeff.ω₀, digits=2), ", ", round(primal_original_obj, digits=2), ", ", normalization_coeff >= primal_original_obj, ", ", unbounded_flag)
+    println(normalization_coeff.ω, round(normalization_coeff.ω₀, digits=2), ", ", round(primal_original_obj, digits=2), ", ", normalization_coeff.ω₀ >= primal_original_obj, ", ", unbounded_flag)
 
     if isnothing(primal_unified_obj)
         primal_unified_obj = Inf
