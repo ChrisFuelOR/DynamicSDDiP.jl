@@ -702,7 +702,6 @@ function get_normalization_coefficients(
 
 	# Get core point
 	core_point = get_core_point(node, number_of_states, algo_params, applied_solvers, state_approximation_regime, normalization_regime, copy_regime)
-	Infiltrator.@infiltrate
 
 	# Get theta direction
 	ω₀ = core_point.theta - epi_state
@@ -803,8 +802,6 @@ function evaluate_approx_value_function(
 	TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_core" begin
         JuMP.optimize!(subproblem)
     end
-
-	Infiltrator.@infiltrate
 
     # Maybe attempt numerical recovery as in SDDP
 	core_obj = JuMP.objective_value(subproblem)
