@@ -433,6 +433,7 @@ function get_dual_solution(
     end
 
     primal_original_obj = JuMP.objective_value(subproblem)
+    Infiltrator.@infiltrate
 
     # Set default values
     primal_unified_obj = cut_generation_regime.duality_regime.user_dual_objective_bound
@@ -455,6 +456,8 @@ function get_dual_solution(
         TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_primal" begin
             JuMP.optimize!(subproblem)
         end
+
+        Infiltrator.@infiltrate
 
         # CHECK TERMINATION STATUS TO GET BOUNDS FOR LAGRANGIAN DUAL
         if JuMP.termination_status(subproblem) == MOI.OPTIMAL
