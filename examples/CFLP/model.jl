@@ -98,7 +98,7 @@ function model_definition(problem_params::DynamicSDDiP.ProblemParams, scenario_t
         JuMP.@variable(subproblem, y[1:number_of_facilities], Bin)
 
         # Add random variable (disruption)
-        JuMP.@variable(subproblem, disrupt[1:number_of_facilities], Bin)
+        JuMP.@variable(subproblem, disrupt[1:number_of_facilities]) #TODO: Bin
 
         # Add coupling constraint 
         # JuMP.@constraint(subproblem, coupling[i=1:number_of_facilities], u[i].out == u[i].in * (1 - disrupt[i]) + y[i])
