@@ -261,6 +261,31 @@ end
 
 mutable struct NoLateBinarization <: AbstractLateBinarizationRegime end
 
+################################################################################
+# COPY RESTRICTION
+################################################################################
+abstract type AbstractCopyRegime end
+
+mutable struct StateSpaceCopy <: AbstractCopyRegime end
+mutable struct ConvexHullCopy <: AbstractCopyRegime end
+mutable struct NoBoundsCopy <: AbstractCopyRegime end
+
+"""
+StateSpaceCopy means that the copy variable has to satisfy the state space
+    bounds and integer requirements. This is the classical approach in SDDP.jl.
+ConvexHullCopy means that the copy variables has to be in the convex hull of
+    the state space (e.g. [0,1] for binary state variables as in SDDiP).
+    Since we cannot compute the convex hull for complicated state spaces,
+    we assume that the state space is just box-constrained and maybe requires
+    integer or binary states. Hence, using this regime the bounds are kept
+    as they are, but the integer requirements are relaxed.
+NoBoundsCopy means that the copy variables do not have to satisfy any state
+    space constraints at all. To avoid unboundedness and infeasibility of the
+    dual problem, we set the lower bound of the states to zero and
+    the upper bound of the states to 1e9.
+    This is equivalent to the approach of relaxing the linking constraint
+    without introducing a copy constraint at all.
+"""
 
 ################################################################################
 # DUAL NORMALIZATION
@@ -271,61 +296,112 @@ mutable struct L₁_Deep <: AbstractNormalizationRegime end
 mutable struct L₂_Deep <: AbstractNormalizationRegime end
 mutable struct L∞_Deep <: AbstractNormalizationRegime end
 mutable struct L₁∞_Deep <: AbstractNormalizationRegime end
-mutable struct Fischetti <: AbstractNormalizationRegime end #TODO
 mutable struct ChenLuedtke <: AbstractNormalizationRegime end
 
+################################################################################
+abstract type AbstractIntegerRegime end
+
+mutable struct IntegerRelax <: AbstractIntegerRegime end
+mutable struct NoIntegerRelax <: AbstractIntegerRegime end
+################################################################################
+abstract type AbstractUnboundedRegime end
+
+mutable struct Unbounded_Opt_None <: AbstractUnboundedRegime end
+
+mutable struct Unbounded_Opt_SB <: AbstractUnboundedRegime 
+    strict::Bool
+    function Unbounded_Opt_SB(;
+        strict = true,
+        )
+        return new(strict)
+end
+
+mutable struct Unbounded_Opt_Bound <: AbstractUnboundedRegime
+    strict::Bool
+    type_of_bound::AbstractDualBoundRegime
+    bound_value::Float64
+    function Unbounded_Opt_Bound(;
+        strict = true,
+        bound_regime = NormBound(),
+        bound_value = 10.0,
+        )
+        return new(strict, bound_regime, bound_value)
+end
+
+################################################################################
+abstract type AbstractImprovementRegime end
+mutable struct NoImprovement <: AbstractImprovementRegime end
+mutable struct EpiState <: AbstractImprovementRegime end
+mutable struct PrimalObj <: AbstractImprovementRegime end
+################################################################################
+
 mutable struct Core_Midpoint <: AbstractNormalizationRegime
-    integer_relax::Bool
+    copy_regime::AbstractCopyRegime
+    integer_regime::AbstractIntegerRegime
+    unbounded_regime::AbstractUnboundedRegime
+    improvement_regime::AbstractImprovementRegime
     normalize_direction::Bool
     function Core_Midpoint(;
-        integer_relax = false,
-        normalize_direction = true,
+        copy_regime = StateSpaceCopy(),
+        integer_regime = NoIntegerRelax(),
+        unbounded_regime = Unbounded_Opt_Strict(),
+        improvement_regime = NoImprovement(),
+        normalize_direction = false,
         )
-        return new(integer_relax, normalize_direction)
+        return new(copy_regime, integer_regime, unbounded_regime, improvement_regime, normalize_direction)
     end
 end
 
 mutable struct Core_In_Out <: AbstractNormalizationRegime
-    integer_relax::Bool
+    copy_regime::AbstractCopyRegime
+    integer_regime::AbstractIntegerRegime
+    unbounded_regime::AbstractUnboundedRegime
+    improvement_regime::AbstractImprovementRegime
     normalize_direction::Bool
     function Core_In_Out(;
-        integer_relax = false,
-        normalize_direction = true,
+        copy_regime = StateSpaceCopy(),
+        integer_regime = NoIntegerRelax(),
+        unbounded_regime = Unbounded_Opt_Strict(),
+        improvement_regime = NoImprovement(),
+        normalize_direction = false,
         )
-        return new(integer_relax, normalize_direction)
-    end
-end
-
-mutable struct Core_Optimal <: AbstractNormalizationRegime
-    integer_relax::Bool
-    normalize_direction::Bool
-    function Core_Optimal(;
-        integer_relax = false,
-        normalize_direction = true,
-        )
-            return new(integer_relax, normalize_direction)
+        return new(copy_regime, integer_regime, unbounded_regime, improvement_regime, normalize_direction)
     end
 end
 
 mutable struct Core_Relint <: AbstractNormalizationRegime
+    copy_regime::AbstractCopyRegime
+    integer_regime::AbstractIntegerRegime
+    unbounded_regime::AbstractUnboundedRegime
+    improvement_regime::AbstractImprovementRegime
     normalize_direction::Bool
     function Core_Relint(;
-        normalize_direction = true,
+        copy_regime = StateSpaceCopy(),
+        integer_regime = NoIntegerRelax(),
+        unbounded_regime = Unbounded_Opt_Strict(),
+        improvement_regime = NoImprovement(),
+        normalize_direction = false,
         )
-            return new(normalize_direction)
+        return new(copy_regime, integer_regime, unbounded_regime, improvement_regime, normalize_direction)
     end
 end
 
 mutable struct Core_Epsilon <: AbstractNormalizationRegime
     perturb::Float64
-    integer_relax::Bool
+    copy_regime::AbstractCopyRegime
+    integer_regime::AbstractIntegerRegime
+    unbounded_regime::AbstractUnboundedRegime
+    improvement_regime::AbstractImprovementRegime
     normalize_direction::Bool
     function Core_Epsilon(;
         perturb = 1e-6,
-        integer_relax = false,
-        normalize_direction = true,
+        copy_regime = StateSpaceCopy(),
+        integer_regime = NoIntegerRelax(),
+        unbounded_regime = Unbounded_Opt_Strict(),
+        improvement_regime = NoImprovement(),
+        normalize_direction = false,
     )
-            return new(perturb, integer_relax, normalize_direction)
+            return new(perturb, copy_regime, integer_regime, unbounded_regime, improvement_regime, normalize_direction)
     end
 end
 
@@ -357,10 +433,9 @@ multipliers (a linear pseudonorm) is bounded. In all but the first approach
 direction between a core point in the epigraph and the current incumbent
 (see Brandenberg & Stursberg for some theory behind this approach).
 These approaches are also similar to the traditional strategy by Magnanti
-and Wong to compute Pareto-optimal cuts.
+and Wong to compute Pareto-optimal cuts. The approaches differ in the 
+heuristics used to obtain a core point candidate.
 
-Fischetti means that the classical normalization approach by Fischetti et al.
-    (2010) is used for the Lagrangian dual.
 Core_Midpoint means that the normalization is based on a core point which is
     the midpoint of the state space. This requires that all state variables
     are bounded from below and above.
@@ -371,28 +446,41 @@ Core_In_Out means that the normalization is based on a  core point which is
 Core_Epsilon means that the normalization is based on a core point which is a
     a slight perturbation of the current incumbent. This ideas is similar to the
     approach by Sherali & Lunday to compute Pareto-optimal cuts.
-Core_Optimal means that the normalization is based on a core point which is the
-    optimal point of the current subproblem (with updated cuts and a non-fixed
-    state variable).
 Core_Relint means that the normalization is based on a core point which is
     determined by solving a special feasibility problem, which guarantees
     that the point lies in the relative interior of the epigraph of the
     closed convex envelope of the value function. This approach is based on
     a similar strategy by Conforti & Wolsey.
 
-The parameter integer_relax is required because if we fix the state variables
-    to the coordinates of the core point and if the problem contains integer
-    original state or local variables, then these integer requirements may
-    not be satisfiable, resulting in an infeasible problem to compute the
-    y-coordinate of the core point. For instance, for Generation_Expansion,
-    the sum of the binary state variables are fixed to non-integer values for
-    the core point computation, but the original state variables still have to
-    satisfy integer constraints. To avoid infeasibility, we can consider the LP
-    relaxation of the subproblem. If the original state variables are continuous,
-    this is not required (see SLDP_Example_1).
 The parameter normalize_direction allows to normalize the coefficients of the
     linear pseudonorm in order to prevent them from becoming too small or
     too large.
+The parameter copy_regime defines which constraints are imposed for the copy of the 
+    core point state when evaluating it in the objective function.
+The parameter integer_regime defines whether integer requirements are relaxed when
+    evaluating the core point state in the objective function.
+    Background: If we fix the state variables to the core point state and if the 
+    problem contains integer original state or local variables, then these integer
+    requirements may not be satisfiable, resulting in an infeasible problem to compute the
+    y-coordinate of the core point. For instance, the sum of binary state variables 
+    may be fixed to non-integer values for the core point computation, but their sum
+    still has to satisfy integer constraints. To avoid infeasibility, we can consider the LP
+    relaxation of the subproblem. If the original state variables are continuous,
+    this is not required.
+The parameter unbounded_regime defines which approach is used if the detected core 
+    point candidate is not inside of the epigraph (or at least has potential
+    for this to be the case). Depending on the choice of parameter
+    "strict", the conditions under which this is applied vary.   
+    We can use 
+    > Unbounded_Opt_None:   
+    nothing is done; there is the risk of the dual problem to be unbounded, resulting in an error
+    > Unbounded_Opt_SB:     
+    no linear normalization cut is computed, but due to the risk of unboundedness, a standard
+    SB cut is computed instead
+    > Unbounded_opt_Bound:
+    the dual problem is bounded to prevent boundedness. 
+The parameter improvement_regime defines whether the y-coordinate of the candidate core 
+    point is improved using the existing epi_state or primal_original_obj if possible.
 
 Default is L_1_Deep.
 """
@@ -414,32 +502,6 @@ NoDualSpaceRestriction means that no additional restriction is imposed
 BendersSpanSpaceRestriction means that only dual multipliers are considered
     which are in the span of the last K Benders multipliers (see Chen & Luedtke).
 Default is NoDualSpaceRestriction.
-"""
-
-################################################################################
-# COPY RESTRICTION
-################################################################################
-abstract type AbstractCopyRegime end
-
-mutable struct StateSpaceCopy <: AbstractCopyRegime end
-mutable struct ConvexHullCopy <: AbstractCopyRegime end
-mutable struct NoBoundsCopy <: AbstractCopyRegime end
-
-"""
-StateSpaceCopy means that the copy variable has to satisfy the state space
-    bounds and integer requirements. This is the classical approach in SDDP.jl.
-ConvexHullCopy means that the copy variables has to be in the convex hull of
-    the state space (e.g. [0,1] for binary state variables as in SDDiP).
-    Since we cannot compute the convex hull for complicated state spaces,
-    we assume that the state space is just box-constrained and maybe requires
-    integer or binary states. Hence, using this regime the bounds are kept
-    as they are, but the integer requirements are relaxed.
-NoBoundsCopy means that the copy variables do not have to satisfy any state
-    space constraints at all. To avoid unboundedness and infeasibility of the
-    dual problem, we set the lower bound of the states to zero and
-    the upper bound of the states to 1e9.
-    This is equivalent to the approach of relaxing the linking constraint
-    without introducing a copy constraint at all.
 """
 
 ################################################################################
