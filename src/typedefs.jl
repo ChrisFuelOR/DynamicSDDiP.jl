@@ -309,7 +309,7 @@ abstract type AbstractUnboundedRegime end
 mutable struct Unbounded_Opt_None <: AbstractUnboundedRegime end
 
 mutable struct Unbounded_Opt_SB <: AbstractUnboundedRegime 
-    strict::Bool
+    strict_proxy::Bool
     function Unbounded_Opt_SB(;
         strict = true,
         )
@@ -317,7 +317,7 @@ mutable struct Unbounded_Opt_SB <: AbstractUnboundedRegime
 end
 
 mutable struct Unbounded_Opt_Bound <: AbstractUnboundedRegime
-    strict::Bool
+    strict_proxy::Bool
     type_of_bound::AbstractDualBoundRegime
     bound_value::Float64
     function Unbounded_Opt_Bound(;
