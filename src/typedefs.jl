@@ -306,26 +306,26 @@ mutable struct NoIntegerRelax <: AbstractIntegerRegime end
 ################################################################################
 abstract type AbstractUnboundedRegime end
 
-mutable struct Unbounded_Opt_None <: AbstractUnboundedRegime end
-
 mutable struct Unbounded_Opt_SB <: AbstractUnboundedRegime 
     strict_proxy::Bool
     function Unbounded_Opt_SB(;
         strict = true,
         )
         return new(strict)
+    end
 end
 
 mutable struct Unbounded_Opt_Bound <: AbstractUnboundedRegime
     strict_proxy::Bool
-    type_of_bound::AbstractDualBoundRegime
-    bound_value::Float64
+    user_dual_multiplier_bound::Float64
+    user_dual_objective_bound::Float64
     function Unbounded_Opt_Bound(;
         strict = true,
-        bound_regime = NormBound(),
-        bound_value = 10.0,
+        user_dual_multiplier_bound = 10.0,
+        user_dual_objective_bound = Inf,
         )
-        return new(strict, bound_regime, bound_value)
+        return new(strict, user_dual_multiplier_bound, user_dual_objective_bound)
+    end
 end
 
 ################################################################################
@@ -344,7 +344,7 @@ mutable struct Core_Midpoint <: AbstractNormalizationRegime
     function Core_Midpoint(;
         copy_regime = StateSpaceCopy(),
         integer_regime = NoIntegerRelax(),
-        unbounded_regime = Unbounded_Opt_Strict(),
+        unbounded_regime = Unbounded_Opt_Bound(),
         improvement_regime = NoImprovement(),
         normalize_direction = false,
         )

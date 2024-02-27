@@ -375,24 +375,6 @@ function get_dual_solution(
     lag_status = :none
 
     ############################################################################
-    # GET CORE POINT RESP. NORMALIZATION COEFFICIENTS
-    ############################################################################
-    """ If we do not use a normalization that requires a core point, we simply
-    return nothing """
-    normalization_coeff = get_normalization_coefficients(
-        node,
-        number_of_states,
-        epi_state,
-        algo_params,
-        applied_solvers,
-        cut_generation_regime.state_approximation_regime,
-        duality_regime.normalization_regime,
-        duality_regime.copy_regime
-    )
-
-    normalization_regime = cut_generation_regime.duality_regime.normalization_regime
-
-    ############################################################################
     # INITIALIZE DUALS
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "dual_initialization" begin
@@ -402,28 +384,9 @@ function get_dual_solution(
     # Initialize π₀ as 1 (0 is not suitable for relatively complete recourse)
     dual_0_var = 1.0
 
-    if isa(normalization_regime, DynamicSDDiP.Core_Midpoint) || isa(normalization_regime, DynamicSDDiP.Core_In_Out) || isa(normalization_regime, DynamicSDDiP.Core_Epsilon) | isa(normalization_regime, DynamicSDDiP.Core_Optimal) || isa(normalization_regime, DynamicSDDiP.Core_Relint)
-        dual_0_var = 1.0 #/ normalization_coeff.ω₀
-    end
-
     ############################################################################
-    # GET PRIMAL SOLUTION
+    # GET TRUE PRIMAL OBJECTIVE VALUE
     ############################################################################
-    """
-    For reverse polar cuts (linear normalization), we solve an approximation of
-    the primal of the normalized Lagrangian dual.
-
-    For deep cuts solving the primal projection problem is not implemented
-    so far, so primal_obj is a user-specified bound (or nothing).
-
-    The primal_obj value is then used as an upper bound for the normalized
-    Lagrangian dual problem. For RP cuts such bound is required, as the outer
-    problem may be unbounded.
-
-    If the primal problem is infeasible, we artificially introduce some bounds
-    (either on the Lagrangian objective or the multipliers).
-    """
-
     # RESET SOLVER (as it may have been changed in between for some reason)
     reset_solver!(subproblem, algo_params, applied_solvers, :backward_pass, algo_params.solver_approach)
 
@@ -434,63 +397,84 @@ function get_dual_solution(
 
     primal_original_obj = JuMP.objective_value(subproblem)
 
-    # Set default values
-    primal_unified_obj = cut_generation_regime.duality_regime.user_dual_objective_bound
-    dual_multiplier_bound = cut_generation_regime.duality_regime.user_dual_multiplier_bound
+    ############################################################################
+    # GET CORE POINT RESP. NORMALIZATION COEFFICIENTS
+    ############################################################################
+    normalization_regime = cut_generation_regime.duality_regime.normalization_regime
+
+    """ If we do not use a normalization that requires a core point, we simply
+    return nothing """
+    normalization_coeff = get_normalization_coefficients(
+        node,
+        number_of_states,
+        epi_state,
+        primal_original_obj,
+        algo_params,
+        applied_solvers,
+        cut_generation_regime.state_approximation_regime,
+        normalization_regime,
+    )
+  
+    ############################################################################
+    # GET PRIMAL SOLUTION AND ADDRESS UNBOUNDEDNESS
+    ############################################################################
+    """
+    For reverse polar cuts (linear normalization) cuts, we solve approximations of the 
+    primal of the normalized Lagrangian dual problem first.
+    
+    First, their feasibility/infeasibility helps us to detect if a core point 
+    candidate could be bad and lead to an unbounded dual problem. 
+    Then, we may introduce artificial bounds to the dual problem.
+    
+    Second, the primal_obj value can be used as an upper bound for the normalized
+    Lagrangian dual problem. For RP cuts such bound is required, as the outer
+    problem may be unbounded.
+
+    For deep cuts solving the primal projection problem is not implemented
+    so far, so primal_obj is a user-specified bound (or nothing).
+
+    """
+
+    # Initialize values
     node.ext[:primal_data] = Dict{Symbol,Any}()
+    primal_unified_obj = Inf
+    dual_multiplier_bound = nothing
 
-    # Introduce an unboundedness flag for the Lagrangian dual
-    # Note that this does not detect unboundedness exactly because we do not solve
-    # the exact primal problem.
-    unbounded_flag = false
+    # Call primal solution method to possibly detect unboundedness
+    unbounded_result = detect_unboundedness(node, epi_state, normalization_coeff, cut_generation_regime.duality_regime, algo_params, applied_solvers, cut_generation_regime, normalization_regime)
+    
+    # Take a measure to address unboundedness
+    if unbounded_result.unbounded_flag
+        println(normalization_coeff.ω, round(normalization_coeff.ω₀, digits=2), ", ", round(primal_original_obj, digits=2), ", ", normalization_coeff.ω₀ >= primal_original_obj, ", ", epi_state)
 
-    if isa(normalization_regime, DynamicSDDiP.Core_Midpoint) || isa(normalization_regime, DynamicSDDiP.Core_In_Out) || isa(normalization_regime, DynamicSDDiP.Core_Epsilon) | isa(normalization_regime, DynamicSDDiP.Core_Optimal) || isa(normalization_regime, DynamicSDDiP.Core_Relint)
-        # PREPARE PRIMAL TO LAGRANGIAN DUAL PROBLEM (INCLUDES POSSIBLE REGULARIZATION)
-        construct_unified_primal_problem!(node, node_index, subproblem, epi_state, normalization_coeff, duality_regime, algo_params.regularization_regime, cut_generation_regime.state_approximation_regime)
+        if isa(normalization_regime.unbounded_regime, DynamicSDDiP.Unbounded_Opt_SB)
+            # Get strengthened Benders cut
+            dual_results = get_dual_solution(node, node_index, i, epi_state, add_cut_flag, algo_params, cut_generation_regime, applied_solvers, duality_regime)
 
-        # RESET SOLVER (as it may have been changed in between for some reason)
-        reset_solver!(subproblem, algo_params, applied_solvers, :backward_pass, algo_params.solver_approach)
+            return (
+                dual_values = dual_results.dual_values,
+                dual_0_var = dual_results.dual_0_var,
+                bin_state = dual_results.bin_state,
+                intercept = dual_results.lag_obj,
+                iterations = dual_results.lag_iterations,
+                lag_status = :unbounded,
+                add_cut_flag = dual_results.add_cut_flag,
+            )
 
-        # SOLVE THE PRIMAL PROBLEM
-        TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_primal" begin
-            JuMP.optimize!(subproblem)
+        elseif isa(normalization_regime.unbounded_regime, DynamicSDDiP.Unbounded_Opt_Bound)
+            primal_unified_obj = normalization_regime.unbounded_regime.user_dual_objective_bound
+            dual_multiplier_bound = normalization_regime.unbounded_regime.user_dual_multiplier_bound
+            # Prepare bounds for Lagrangian dual
+            bound_results = get_dual_bounds(node, node_index, algo_params, primal_unified_obj, duality_regime.dual_bound_regime)
         end
-
-        # CHECK TERMINATION STATUS TO GET BOUNDS FOR LAGRANGIAN DUAL
-        if JuMP.termination_status(subproblem) == MOI.OPTIMAL
-            primal_unified_obj = JuMP.objective_value(subproblem)
-            dual_multiplier_bound = nothing
-        else
-            # Infeasibility is an indicator for unboundedness of the Lagrangian dual
-            # We do not differentiate termination statuses here, because we need artificial bounds anyway
-            unbounded_flag = true
-            Infiltrator.@infiltrate
-        end
-
-        # CHANGE THE PROBLEM TO THE PREVIOUS FORM AGAIN (INCLUDES POSSIBLE DEREGULARIZATION)
-        deconstruct_unified_primal_problem!(node, subproblem, algo_params.regularization_regime, cut_generation_regime.state_approximation_regime)
 
     else
-        #primal_unified_obj = Inf ?
-    end
-
-    if unbounded_flag
-        println(normalization_coeff.ω, round(normalization_coeff.ω₀, digits=2), ", ", round(primal_original_obj, digits=2), ", ", normalization_coeff.ω₀ >= primal_original_obj, ", ", epi_state)
-    end
-
-    if isnothing(primal_unified_obj)
-        primal_unified_obj = Inf
-    end
-    if isnothing(dual_multiplier_bound)
+        # Prepare bounds for Lagrangian dual
+        primal_unified_obj = unbounded_result.primal_unified_obj
         dual_multiplier_bound = Inf
+        bound_results = get_dual_bounds(node, node_index, algo_params, primal_unified_obj, duality_regime.dual_bound_regime)
     end
-
-    Infiltrator.@infiltrate algo_params.infiltrate_state in [:all]
-
-    ############################################################################
-    # GET BOUNDS FOR LAGRANGIAN DUAL
-    ############################################################################
-    bound_results = get_dual_bounds(node, node_index, algo_params, primal_unified_obj, duality_regime.dual_bound_regime)
+      
     Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
     try
@@ -522,14 +506,14 @@ function get_dual_solution(
         lag_status = results.lag_status
         dual_0_var = results.dual_0_var
 
-        #println(primal_original_obj, ", ", primal_unified_obj, ", ", lag_obj, ", ", lag_iterations, ", ", lag_status, ", ", dual_0_var)    
+        println(primal_original_obj, ", ", primal_unified_obj, ", ", lag_obj, ", ", lag_iterations, ", ", lag_status, ", ", dual_0_var)    
         #println(lag_iterations, ", ", lag_status, ", ", dual_0_var, ", ", sum(abs.(dual_vars)))
         #println(node_index, " ,", i, " ,", primal_unified_obj, " ,", lag_obj, " ,", lag_status, " ,", lag_iterations)
 
         subproblem.ext[:sddp_policy_graph].ext[:agg_lag_iterations] += results.iterations
 
         # Re-set lag status if we had to introduce artificial bounds due to unboundedness
-        if unbounded_flag
+        if unbounded_result.unbounded_flag
             lag_status = :unbounded
         end
 
@@ -538,10 +522,6 @@ function get_dual_solution(
             subproblem.ext[:sddp_policy_graph].ext[:corr_lag_iterations] += results.iterations
             subproblem.ext[:sddp_policy_graph].ext[:corr_realizations] += 1
         end
-
-        #if node.subproblem.ext[:sddp_policy_graph].ext[:iteration] == 4
-        #   Infiltrator.@infiltrate
-        #end
 
         ########################################################################
         # CHECK STATUS FOR ABNORMAL BEHAVIOR
@@ -603,3 +583,101 @@ function get_dual_solution(
         add_cut_flag=add_cut_flag,
     )
 end
+
+function detect_unboundedness(
+    node::SDDP.Node,
+    epi_state::Float64,
+    normalization_coeff::Union{Nothing,NamedTuple{(:ω, :ω₀),Tuple{Vector{Float64},Float64}}},
+    duality_regime::DynamicSDDiP.UnifiedLagrangianDuality,
+    algo_params::DynamicSDDiP.AlgoParams,
+    applied_solvers::DynamicSDDiP.AppliedSolvers,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
+    normalization_regime::Union{DynamicSDDiP.Core_Midpoint, DynamicSDDiP.Core_In_Out, DynamicSDDiP.Core_Epsilon, DynamicSDDiP.Core_Relint}
+)
+    # Initialization
+    unbounded_flag = false
+
+    # Solve first auxiliary primal problem
+    results_1 = solve_primal_projection_problem(node, epi_state, normalization_coeff, DynamicSDDiP.NoIntegerRelax(), normalization_regime.copy_regime, duality_regime, algo_params, applied_solvers, cut_generation_regime)
+
+    # Solve second auxiliary primal problem
+    node.ext[:primal_data] = Dict{Symbol,Any}()
+    results_2 = solve_primal_projection_problem(node, epi_state, normalization_coeff, DynamicSDDiP.IntegerRelax(), normalization_regime.copy_regime, duality_regime, algo_params, applied_solvers, cut_generation_regime)
+
+    # Unboundedness check
+    if !results_1.unbounded_flag && !results_2.unbounded_flag
+        # both problems feasible
+        unbounded_flag = false
+    elseif results_1.unbounded_flag && results_2.unbounded_flag
+        # both problems infeasible
+        unbounded_flag = true
+    else
+        # both problems feasible
+        if normalization_regime.unbounded_regime.strict_proxy
+            unbounded_flag = true
+        else
+            unbounded_flag = false
+        end
+    end
+
+    Infiltrator.@infiltrate
+
+    return (unbounded_flag = unbounded_flag, primal_unified_obj = results_1.primal_unified_obj)
+end
+
+function detect_unboundedness(
+    node::SDDP.Node,
+    epi_state::Float64,
+    normalization_coeff::Union{Nothing,NamedTuple{(:ω, :ω₀),Tuple{Vector{Float64},Float64}}},
+    duality_regime::DynamicSDDiP.UnifiedLagrangianDuality,
+    algo_params::DynamicSDDiP.AlgoParams,
+    applied_solvers::DynamicSDDiP.AppliedSolvers,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
+    normalization_regime::Union{DynamicSDDiP.L₁_Deep, DynamicSDDiP.L₂_Deep, DynamicSDDiP.L∞_Deep, DynamicSDDiP.L₁∞_Deep, DynamicSDDiP.ChenLuedtke}
+)
+
+    return (unbounded_flag = false, primal_unified_obj = Inf)
+end
+
+function solve_primal_projection_problem(
+    node::SDDP.Node,
+    epi_state::Float64,
+    normalization_coeff::Union{Nothing,NamedTuple{(:ω, :ω₀),Tuple{Vector{Float64},Float64}}},
+    integer_regime::DynamicSDDiP.AbstractIntegerRegime,
+    copy_regime::DynamicSDDiP.AbstractCopyRegime,
+    duality_regime::DynamicSDDiP.UnifiedLagrangianDuality,
+    algo_params::DynamicSDDiP.AlgoParams,
+    applied_solvers::DynamicSDDiP.AppliedSolvers,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
+)
+
+    # INITIALIZE VALUES
+    unbounded_flag = false
+    primal_unified_obj = Inf
+
+    # PREPARE PRIMAL TO LAGRANGIAN DUAL PROBLEM (INCLUDES POSSIBLE REGULARIZATION)
+    undo_relax = construct_unified_primal_problem!(node, node.index, node.subproblem, epi_state, normalization_coeff, integer_regime, copy_regime, duality_regime, algo_params.regularization_regime, cut_generation_regime.state_approximation_regime)
+
+    # RESET SOLVER (as it may have been changed in between for some reason)
+    reset_solver!(node.subproblem, algo_params, applied_solvers, :backward_pass, algo_params.solver_approach)
+
+    # SOLVE THE PRIMAL PROBLEM
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_primal" begin
+        JuMP.optimize!(node.subproblem)
+    end
+
+    # CHECK TERMINATION STATUS TO GET BOUNDS FOR LAGRANGIAN DUAL
+    if JuMP.termination_status(node.subproblem) == MOI.OPTIMAL
+        primal_unified_obj = JuMP.objective_value(node.subproblem)
+    else
+        # Infeasibility is an indicator for unboundedness of the Lagrangian dual
+        # We do not differentiate termination statuses here, because we need artificial bounds anyway
+        unbounded_flag = true
+    end
+
+    # CHANGE THE PROBLEM TO THE PREVIOUS FORM AGAIN (INCLUDES POSSIBLE DEREGULARIZATION)
+    deconstruct_unified_primal_problem!(node, node.subproblem, undo_relax, algo_params.regularization_regime, cut_generation_regime.state_approximation_regime)
+
+    return (unbounded_flag = unbounded_flag, primal_unified_obj = primal_unified_obj)
+end
+

@@ -2,9 +2,10 @@ function integer_relax(
     subproblem::JuMP.Model,
     integer_regime::DynamicSDDiP.NoIntegerRelax
 )
-    function do_nothing(
+    function do_nothing()
         return
-    )
+    end
+
     return do_nothing
 end
 
@@ -58,17 +59,17 @@ function get_state_space_midpoint(
 end
 
 
-function update_core_point_candidate!(
+function update_core_point_candidate(
     core_point_candidate,
     epi_state::Float64,
     primal_obj::Float64,
     improvement_regime::DynamicSDDiP.NoImprovement
 )
 
-    return
+    return core_point_candidate
 end
 
-function update_core_point_candidate!(
+function update_core_point_candidate(
     core_point_candidate,
     epi_state::Float64,
     primal_obj::Float64,
@@ -76,11 +77,13 @@ function update_core_point_candidate!(
 )
 
     if core_point_candidate.theta < epi_state
-        core_point_candidate.theta = epi_state
-    return
+        return (x = core_point_candidate.x, theta = epi_state)
+    else
+        return core_point_candidate
+    end
 end
 
-function update_core_point_candidate!(
+function update_core_point_candidate(
     core_point_candidate,
     epi_state::Float64,
     primal_obj::Float64,
@@ -88,8 +91,10 @@ function update_core_point_candidate!(
 )
 
     if core_point_candidate.theta < primal_obj
-        core_point_candidate.theta = primal_obj
-    return
+        return (x = core_point_candidate.x, theta = primal_obj)
+    else
+        return core_point_candidate
+    end
 end
 
 """
@@ -103,15 +108,14 @@ function get_normalization_coefficients(
 	algo_params::DynamicSDDiP.AlgoParams,
 	applied_solvers::DynamicSDDiP.AppliedSolvers,
     state_approximation_regime::DynamicSDDiP.BinaryApproximation,
-	normalization_regime::Union{DynamicSDDiP.Core_Midpoint,DynamicSDDiP.Core_Epsilon,DynamicSDDiP.Core_In_Out,DynamicSDDiP.Core_Optimal, DynamicSDDiP.Core_Relint},
-	copy_regime::DynamicSDDiP.AbstractCopyRegime,
+	normalization_regime::Union{DynamicSDDiP.Core_Midpoint,DynamicSDDiP.Core_Epsilon,DynamicSDDiP.Core_In_Out, DynamicSDDiP.Core_Relint},
     )
 
 	# Get core point
-	core_point_candidate = get_core_point(node, number_of_states, algo_params, applied_solvers, state_approximation_regime, normalization_regime, copy_regime)
+	core_point_candidate = get_core_point(node, number_of_states, algo_params, applied_solvers, state_approximation_regime, normalization_regime)
 
     # Update core point candidate based on improvement regime
-    update_core_point_candidate!(core_point_candidate, epi_state, primal_obj, normalization_regime.improvement_regime)
+    core_point_candidate = update_core_point_candidate(core_point_candidate, epi_state, primal_obj, normalization_regime.improvement_regime)
 
 	# Get theta direction
 	ω₀ = core_point_candidate.theta - epi_state
@@ -147,15 +151,15 @@ function get_normalization_coefficients(
 	algo_params::DynamicSDDiP.AlgoParams,
 	applied_solvers::DynamicSDDiP.AppliedSolvers,
     state_approximation_regime::DynamicSDDiP.NoStateApproximation,
-	normalization_regime::Union{DynamicSDDiP.Core_Midpoint,DynamicSDDiP.Core_Epsilon,DynamicSDDiP.Core_In_Out,DynamicSDDiP.Core_Optimal, DynamicSDDiP.Core_Relint},
-	copy_regime::DynamicSDDiP.AbstractCopyRegime,
+	normalization_regime::Union{DynamicSDDiP.Core_Midpoint,DynamicSDDiP.Core_Epsilon,DynamicSDDiP.Core_In_Out, DynamicSDDiP.Core_Relint},
     )
 
 	# Get core point
-	core_point_candidate = get_core_point(node, number_of_states, algo_params, applied_solvers, state_approximation_regime, normalization_regime, copy_regime)
-
+	core_point_candidate = get_core_point(node, number_of_states, algo_params, applied_solvers, state_approximation_regime, normalization_regime)
+    Infiltrator.@infiltrate
+    
     # Update core point candidate based on improvement regime
-    update_core_point_candidate!(core_point_candidate, epi_state, primal_obj, normalization_regime.improvement_regime)
+    core_point_candidate = update_core_point_candidate(core_point_candidate, epi_state, primal_obj, normalization_regime.improvement_regime)
 
 	# Get theta direction
 	ω₀ = core_point_candidate.theta - epi_state
@@ -184,6 +188,7 @@ function get_normalization_coefficients(
 	end
 
 	# println(core_point, ", ", ω, ", ", ω₀)
+    Infiltrator.@infiltrate
 	
 	return (ω = ω, ω₀ = ω₀)
 
@@ -202,7 +207,6 @@ function get_normalization_coefficients(
 	applied_solvers::DynamicSDDiP.AppliedSolvers,
     state_approximation_regime::DynamicSDDiP.BinaryApproximation,
 	normalization_regime::DynamicSDDiP.AbstractNormalizationRegime,
-	copy_regime::DynamicSDDiP.AbstractCopyRegime,
     )
 
 	return
@@ -217,7 +221,6 @@ function get_normalization_coefficients(
 	applied_solvers::DynamicSDDiP.AppliedSolvers,
     state_approximation_regime::DynamicSDDiP.NoStateApproximation,
 	normalization_regime::DynamicSDDiP.AbstractNormalizationRegime,
-	copy_regime::DynamicSDDiP.AbstractCopyRegime,
     )
 
 	return
@@ -232,7 +235,7 @@ function evaluate_approx_value_function(
 	number_of_states::Int,
     algo_params::DynamicSDDiP.AlgoParams,
 	applied_solvers::DynamicSDDiP.AppliedSolvers,
-	normalization_regime::Union{DynamicSDDiP.Core_Midpoint,DynamicSDDiP.Core_Epsilon,DynamicSDDiP.Core_In_Out,DynamicSDDiP.Core_Optimal},
+	normalization_regime::Union{DynamicSDDiP.Core_Midpoint,DynamicSDDiP.Core_Epsilon,DynamicSDDiP.Core_In_Out},
 	state_approximation_regime::DynamicSDDiP.NoStateApproximation,
 	)
 
@@ -259,8 +262,8 @@ function evaluate_approx_value_function(
     end
 
     # Maybe attempt numerical recovery as in SDDP
-	core_obj = JuMP.objective_value(subproblem)
     @assert JuMP.termination_status(subproblem) == MOI.OPTIMAL
+	core_obj = JuMP.objective_value(subproblem)
 
 	# Restore the original state value
 	for (i, (name, state_comp)) in enumerate(node.states)
@@ -280,7 +283,7 @@ function evaluate_approx_value_function(
 	number_of_states::Int,
 	algo_params::DynamicSDDiP.AlgoParams,
 	applied_solvers::DynamicSDDiP.AppliedSolvers,
-	normalization_regime::Union{DynamicSDDiP.Core_Midpoint,DynamicSDDiP.Core_Epsilon,DynamicSDDiP.Core_In_Out,DynamicSDDiP.Core_Optimal},
+	normalization_regime::Union{DynamicSDDiP.Core_Midpoint,DynamicSDDiP.Core_Epsilon,DynamicSDDiP.Core_In_Out},
 	state_approximation_regime::DynamicSDDiP.BinaryApproximation,
 	)
 
@@ -307,8 +310,8 @@ function evaluate_approx_value_function(
     end
 
     # Maybe attempt numerical recovery as in SDDP
-    core_obj = JuMP.objective_value(subproblem)
     @assert JuMP.termination_status(subproblem) == MOI.OPTIMAL
+    core_obj = JuMP.objective_value(subproblem)
 
 	# Restore the original state value
 	for (i, (_, state)) in enumerate(node.ext[:backward_data][:bin_states])
@@ -337,9 +340,10 @@ function get_core_point(
 
 	# Get the midpoint of the state space
 	core_point_x = get_state_space_midpoint(node, number_of_states, state_approximation_regime)
+    Infiltrator.@infiltrate
 
 	# Get optimal value to core point
-	core_point_theta = evaluate_approx_value_function(node, core_point_x, number_of_states, algo_params, applied_solvers, normalization_regime.integer_relax, state_approximation_regime)
+	core_point_theta = evaluate_approx_value_function(node, core_point_x, number_of_states, algo_params, applied_solvers, normalization_regime, state_approximation_regime)
 
     return (x = core_point_x, theta = core_point_theta)
 end

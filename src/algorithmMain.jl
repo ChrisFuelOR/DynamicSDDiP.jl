@@ -612,6 +612,8 @@ function iteration(
     end
     bound = first_stage_results.bound
 
+    Infiltrator.@infiltrate
+
     # if model.ext[:iteration] == 1
     #      Infiltrator.@infiltrate
     # end
