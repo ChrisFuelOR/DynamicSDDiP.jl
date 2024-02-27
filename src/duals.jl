@@ -592,7 +592,7 @@ function detect_unboundedness(
     algo_params::DynamicSDDiP.AlgoParams,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
-    normalization_regime::Union{DynamicSDDiP.Core_Midpoint, DynamicSDDiP.Core_In_Out, DynamicSDDiP.Core_Epsilon, DynamicSDDiP.Core_Relint}
+    normalization_regime::Union{DynamicSDDiP.Core_Midpoint,DynamicSDDiP.Core_In_Out,DynamicSDDiP.Core_Epsilon,DynamicSDDiP.Core_Relint,DynamicSDDiP.Core_Conv}
 )
     # Initialization
     unbounded_flag = false
@@ -633,7 +633,7 @@ function detect_unboundedness(
     algo_params::DynamicSDDiP.AlgoParams,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
-    normalization_regime::Union{DynamicSDDiP.L₁_Deep, DynamicSDDiP.L₂_Deep, DynamicSDDiP.L∞_Deep, DynamicSDDiP.L₁∞_Deep, DynamicSDDiP.ChenLuedtke}
+    normalization_regime::Union{DynamicSDDiP.L₁_Deep,DynamicSDDiP.L₂_Deep,DynamicSDDiP.L∞_Deep,DynamicSDDiP.L₁∞_Deep,DynamicSDDiP.ChenLuedtke}
 )
 
     return (unbounded_flag = false, primal_unified_obj = Inf)

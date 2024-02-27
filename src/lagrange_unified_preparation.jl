@@ -328,7 +328,7 @@ function add_normalization_constraint!(
     approx_model::JuMP.Model,
     number_of_states::Int,
 	normalization_coeff::Union{Nothing,NamedTuple{(:ω, :ω₀),Tuple{Vector{Float64},Float64}}},
-    normalization_regime::Union{DynamicSDDiP.Core_Midpoint,DynamicSDDiP.Core_Epsilon,DynamicSDDiP.Core_In_Out,DynamicSDDiP.Core_Relint},
+    normalization_regime::Union{DynamicSDDiP.Core_Midpoint,DynamicSDDiP.Core_Epsilon,DynamicSDDiP.Core_In_Out,DynamicSDDiP.Core_Relint,DynamicSDDiP.Core_Conv},
 )
 
 	π⁺ = approx_model[:π⁺]

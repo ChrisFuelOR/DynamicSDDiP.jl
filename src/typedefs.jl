@@ -405,6 +405,26 @@ mutable struct Core_Epsilon <: AbstractNormalizationRegime
     end
 end
 
+mutable struct Core_Conv <: AbstractNormalizationRegime
+    lambda::Float64 #large values are closer to the trial state
+    copy_regime::AbstractCopyRegime
+    integer_regime::AbstractIntegerRegime
+    unbounded_regime::AbstractUnboundedRegime
+    improvement_regime::AbstractImprovementRegime
+    normalize_direction::Bool
+    function Core_Conv(;
+        lambda = 0.5,
+        copy_regime = StateSpaceCopy(),
+        integer_regime = NoIntegerRelax(),
+        unbounded_regime = Unbounded_Opt_Strict(),
+        improvement_regime = NoImprovement(),
+        normalize_direction = false,
+    )
+            return new(lambda, copy_regime, integer_regime, unbounded_regime, improvement_regime, normalize_direction)
+    end
+end
+
+
 """
 This AbstractType allows to use different normalization in the Lagrangian dual
 problem if the unified Lagrangian framework is used.
@@ -451,6 +471,12 @@ Core_Relint means that the normalization is based on a core point which is
     that the point lies in the relative interior of the epigraph of the
     closed convex envelope of the value function. This approach is based on
     a similar strategy by Conforti & Wolsey.
+Core_Conv means that a convex combination between (trial_state, primal_original_obj)
+    and a second point is computed to identify a core point.
+    The second point is determined as the lower or upper bound of the state 
+    (those bounds are required, otherwise the algorithm stops with an error),
+    depending on the position of the first points. For the binary case, this 
+    implies that 0 and 1 are swapped for all components of the trial state.
 
 The parameter normalize_direction allows to normalize the coefficients of the
     linear pseudonorm in order to prevent them from becoming too small or

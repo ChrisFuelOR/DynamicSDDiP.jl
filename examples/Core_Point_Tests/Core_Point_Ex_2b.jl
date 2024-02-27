@@ -36,6 +36,8 @@ function algo_config(
         dual_normalization_regime = DynamicSDDiP.Core_In_Out(copy_regime=copy_regime, integer_regime=integer_regime, unbounded_regime=unbounded_regime, improvement_regime=improvement_regime, normalize_direction=false)
     elseif core_point_approach == :eps
         dual_normalization_regime = DynamicSDDiP.Core_Epsilon(perturb=0.01, copy_regime=copy_regime, integer_regime=integer_regime, unbounded_regime=unbounded_regime, improvement_regime=improvement_regime, normalize_direction=false)
+    elseif core_point_approach == :conv
+        dual_normalization_regime = DynamicSDDiP.Core_Conv(lambda=0.5, copy_regime=copy_regime, integer_regime=integer_regime, unbounded_regime=unbounded_regime, improvement_regime=improvement_regime, normalize_direction=false)
     end
 
     duality_regime = DynamicSDDiP.UnifiedLagrangianDuality(
@@ -241,4 +243,4 @@ model_starter(3.0, :midpoint, DynamicSDDiP.StateSpaceCopy(), DynamicSDDiP.NoInte
 
 """
 
-model_starter(0.0, :relint, DynamicSDDiP.StateSpaceCopy(), DynamicSDDiP.NoIntegerRelax(), DynamicSDDiP.NoImprovement(), DynamicSDDiP.Unbounded_Opt_Bound(strict=true, user_dual_multiplier_bound=3.0))
+model_starter(0.0, :conv, DynamicSDDiP.StateSpaceCopy(), DynamicSDDiP.NoIntegerRelax(), DynamicSDDiP.NoImprovement(), DynamicSDDiP.Unbounded_Opt_Bound(strict=true, user_dual_multiplier_bound=3.0))

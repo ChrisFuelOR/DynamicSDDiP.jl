@@ -108,11 +108,11 @@ function get_normalization_coefficients(
 	algo_params::DynamicSDDiP.AlgoParams,
 	applied_solvers::DynamicSDDiP.AppliedSolvers,
     state_approximation_regime::DynamicSDDiP.BinaryApproximation,
-	normalization_regime::Union{DynamicSDDiP.Core_Midpoint,DynamicSDDiP.Core_Epsilon,DynamicSDDiP.Core_In_Out, DynamicSDDiP.Core_Relint},
+	normalization_regime::Union{DynamicSDDiP.Core_Midpoint,DynamicSDDiP.Core_Epsilon,DynamicSDDiP.Core_In_Out, DynamicSDDiP.Core_Relint,DynamicSDDiP.Core_Conv},
     )
 
 	# Get core point
-	core_point_candidate = get_core_point(node, number_of_states, algo_params, applied_solvers, state_approximation_regime, normalization_regime)
+	core_point_candidate = get_core_point(node, number_of_states, primal_obj, algo_params, applied_solvers, state_approximation_regime, normalization_regime)
 
     # Update core point candidate based on improvement regime
     core_point_candidate = update_core_point_candidate(core_point_candidate, epi_state, primal_obj, normalization_regime.improvement_regime)
@@ -151,11 +151,11 @@ function get_normalization_coefficients(
 	algo_params::DynamicSDDiP.AlgoParams,
 	applied_solvers::DynamicSDDiP.AppliedSolvers,
     state_approximation_regime::DynamicSDDiP.NoStateApproximation,
-	normalization_regime::Union{DynamicSDDiP.Core_Midpoint,DynamicSDDiP.Core_Epsilon,DynamicSDDiP.Core_In_Out, DynamicSDDiP.Core_Relint},
+	normalization_regime::Union{DynamicSDDiP.Core_Midpoint,DynamicSDDiP.Core_Epsilon,DynamicSDDiP.Core_In_Out,DynamicSDDiP.Core_Relint,DynamicSDDiP.Core_Conv},
     )
 
 	# Get core point
-	core_point_candidate = get_core_point(node, number_of_states, algo_params, applied_solvers, state_approximation_regime, normalization_regime)
+	core_point_candidate = get_core_point(node, number_of_states, primal_obj, algo_params, applied_solvers, state_approximation_regime, normalization_regime)
     Infiltrator.@infiltrate
     
     # Update core point candidate based on improvement regime
@@ -235,7 +235,7 @@ function evaluate_approx_value_function(
 	number_of_states::Int,
     algo_params::DynamicSDDiP.AlgoParams,
 	applied_solvers::DynamicSDDiP.AppliedSolvers,
-	normalization_regime::Union{DynamicSDDiP.Core_Midpoint,DynamicSDDiP.Core_Epsilon,DynamicSDDiP.Core_In_Out},
+	normalization_regime::Union{DynamicSDDiP.Core_Midpoint,DynamicSDDiP.Core_Epsilon,DynamicSDDiP.Core_In_Out,DynamicSDDiP.Core_Conv},
 	state_approximation_regime::DynamicSDDiP.NoStateApproximation,
 	)
 
@@ -283,7 +283,7 @@ function evaluate_approx_value_function(
 	number_of_states::Int,
 	algo_params::DynamicSDDiP.AlgoParams,
 	applied_solvers::DynamicSDDiP.AppliedSolvers,
-	normalization_regime::Union{DynamicSDDiP.Core_Midpoint,DynamicSDDiP.Core_Epsilon,DynamicSDDiP.Core_In_Out},
+	normalization_regime::Union{DynamicSDDiP.Core_Midpoint,DynamicSDDiP.Core_Epsilon,DynamicSDDiP.Core_In_Out,DynamicSDDiP.Core_Conv},
 	state_approximation_regime::DynamicSDDiP.BinaryApproximation,
 	)
 
@@ -332,6 +332,7 @@ NormalizationRegime Core_Midpoint.
 function get_core_point(
     node::SDDP.Node,
     number_of_states::Int,
+    primal_obj::Float64,
 	algo_params::DynamicSDDiP.AlgoParams,
 	applied_solvers::DynamicSDDiP.AppliedSolvers,
     state_approximation_regime::Union{DynamicSDDiP.BinaryApproximation,DynamicSDDiP.NoStateApproximation},
@@ -355,6 +356,7 @@ NormalizationRegime Core_Epsilon.
 function get_core_point(
     node::SDDP.Node,
     number_of_states::Int,
+    primal_obj::Float64,
 	algo_params::DynamicSDDiP.AlgoParams,
 	applied_solvers::DynamicSDDiP.AppliedSolvers,
     state_approximation_regime::DynamicSDDiP.BinaryApproximation,
@@ -383,6 +385,7 @@ end
 function get_core_point(
     node::SDDP.Node,
     number_of_states::Int,
+    primal_obj::Float64,
 	algo_params::DynamicSDDiP.AlgoParams,
 	applied_solvers::DynamicSDDiP.AppliedSolvers,
     state_approximation_regime::DynamicSDDiP.NoStateApproximation,
@@ -422,6 +425,7 @@ NormalizationRegime Core_Epsilon.
 function get_core_point(
     node::SDDP.Node,
     number_of_states::Int,
+    primal_obj::Float64,
 	algo_params::DynamicSDDiP.AlgoParams,
 	applied_solvers::DynamicSDDiP.AppliedSolvers,
     state_approximation_regime::DynamicSDDiP.BinaryApproximation,
@@ -460,6 +464,7 @@ end
 function get_core_point(
     node::SDDP.Node,
     number_of_states::Int,
+    primal_obj::Float64,
 	algo_params::DynamicSDDiP.AlgoParams,
 	applied_solvers::DynamicSDDiP.AppliedSolvers,
     state_approximation_regime::DynamicSDDiP.NoStateApproximation,
@@ -497,11 +502,65 @@ end
 
 """
 Compute a core point based on the used StateApproximationRegime and the
+NormalizationRegime Core_Conv.
+"""
+function get_core_point(
+    node::SDDP.Node,
+    number_of_states::Int,
+    primal_obj::Float64,
+	algo_params::DynamicSDDiP.AlgoParams,
+	applied_solvers::DynamicSDDiP.AppliedSolvers,
+    state_approximation_regime::Union{DynamicSDDiP.BinaryApproximation,DynamicSDDiP.NoStateApproximation},
+	normalization_regime::DynamicSDDiP.Core_Conv,
+    )
+
+    # Initialization of two points
+    x_1 = zeros(number_of_states)
+    x_2 = zeros(number_of_states)
+
+    # First get the midpoint of the state space
+	midpoint = get_state_space_midpoint(node, number_of_states, state_approximation_regime)
+
+    for (i, (name, state)) in enumerate(node.states)
+        # Get info on state bounds
+        variable_info = node.ext[:state_info_storage][name].in
+
+        # This approach only works if lower and upper bounds are defined
+        @assert variable_info.binary || (variable_info.has_lb && variable_info.has_ub)
+        lower_bound = variable_info.binary ? 0 : variable_info.lower_bound
+        upper_bound = variable_info.binary ? 1 : variable_info.upper_bound
+
+        # Store original value of ̄x (trial state)
+        x_1[i] = JuMP.fix_value(state.in)
+    
+        # If the component is closer to the lower bound, then use the upper bound, and vice versa.
+        # For binary case, this means that values 0 and 1 are swapped.
+        x_2[i] = x_1[i] > midpoint[i] ? lower_bound : upper_bound
+    end
+
+    # Store function value for trial state
+    y_1 = primal_obj
+
+    # Compute function value for second state (evaluate the approximate value function)
+	y_2 = evaluate_approx_value_function(node, x_2, number_of_states, algo_params, applied_solvers, normalization_regime, state_approximation_regime)
+
+    # Compute the core point as a convex combination of both points
+    lambda = normalization_regime.lambda
+    core_point_x = lambda * x_1 + (1-lambda) * x_2
+    core_point_theta = lambda * y_1 + (1-lambda) * y_2
+	
+    return (x = core_point_x, theta = core_point_theta)
+end
+
+
+"""
+Compute a core point based on the used StateApproximationRegime and the
 NormalizationRegime Core_Relint.
 """
 function get_core_point(
     node::SDDP.Node,
     number_of_states::Int,
+    primal_obj::Float64,
 	algo_params::DynamicSDDiP.AlgoParams,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     state_approximation_regime::Union{DynamicSDDiP.BinaryApproximation,DynamicSDDiP.NoStateApproximation},
