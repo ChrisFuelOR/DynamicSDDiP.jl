@@ -240,4 +240,4 @@ model_starter(3.0, :midpoint, DynamicSDDiP.StateSpaceCopy(), DynamicSDDiP.NoInte
 
 """
 
-model_starter(7.0, :conv, DynamicSDDiP.StateSpaceCopy(), DynamicSDDiP.NoIntegerRelax(), DynamicSDDiP.NoImprovement(), DynamicSDDiP.Unbounded_Opt_Bound(strict=true, user_dual_multiplier_bound=10.0))
+model_starter(7.0, :relint, DynamicSDDiP.StateSpaceCopy(), DynamicSDDiP.NoIntegerRelax(), DynamicSDDiP.NoImprovement(), DynamicSDDiP.Unbounded_Opt_Bound(strict=true, user_dual_multiplier_bound=10.0))
