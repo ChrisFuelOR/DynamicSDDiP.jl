@@ -129,7 +129,7 @@ end
 function model_starter_runs()
 
     """
-    Specification of model runs that should be run one after the other.
+    Specification of model runs that should be run one after the other (for CLSP larger with 10 state variables).
     """
 
     #model_starter(2,16,20,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_SSC_Large_O_16_20_Single.log", 10800, 11111, 12345)
