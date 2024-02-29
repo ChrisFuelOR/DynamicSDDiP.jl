@@ -464,7 +464,6 @@ function get_dual_solution(
             # Infeasibility is an indicator for unboundedness of the Lagrangian dual
             # We do not differentiate termination statuses here, because we need artificial bounds anyway
             unbounded_flag = true
-            Infiltrator.@infiltrate
         end
 
         # CHANGE THE PROBLEM TO THE PREVIOUS FORM AGAIN (INCLUDES POSSIBLE DEREGULARIZATION)
