@@ -474,7 +474,7 @@ function get_dual_solution(
     end
 
     if unbounded_flag
-        println(normalization_coeff.ω, round(normalization_coeff.ω₀, digits=2), ", ", round(primal_original_obj, digits=2), ", ", normalization_coeff.ω₀ >= primal_original_obj, ", ", epi_state)
+        #println(normalization_coeff.ω, round(normalization_coeff.ω₀, digits=2), ", ", round(primal_original_obj, digits=2), ", ", normalization_coeff.ω₀ >= primal_original_obj, ", ", epi_state)
     end
 
     if isnothing(primal_unified_obj)
