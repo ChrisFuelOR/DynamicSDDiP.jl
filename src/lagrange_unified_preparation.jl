@@ -1041,7 +1041,7 @@ function get_core_point(
 	# Get the optimal solution
     core_obj = JuMP.value(theta) / JuMP.value(scaling_var)
 	for (i, (name, state)) in enumerate(node.states)
-        core_point_x[i] = JuMP.value(slack_variables[i]) / JuMP.value(scaling_var)
+        core_point_x[i] = JuMP.value(state.in) / JuMP.value(scaling_var)
     end
 
 	############################################################################
@@ -1104,11 +1104,11 @@ function construct_feasibility_problem!(
 
 		# Add new constraint
 		if constraint_type == MOI.GreaterThan{Float64}
-			slack_con = JuMP.@constraint(subproblem, expr + slack_var >= rhs * scaling_var)
+			slack_con = JuMP.@constraint(subproblem, expr - slack_var >= rhs * scaling_var)
 		elseif constraint_type == MOI.LessThan{Float64}
 			slack_con = JuMP.@constraint(subproblem, expr + slack_var <= rhs * scaling_var)
 		elseif constraint_type == MOI.EqualTo{Float64}
-			slack_con = JuMP.@constraint(subproblem, expr + slack_var == rhs * scaling_var)
+			slack_con = JuMP.@constraint(subproblem, expr == rhs)
 		end
 		push!(relint_data[:relint_constraints], slack_con)
 
