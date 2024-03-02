@@ -36,23 +36,6 @@ function algo_config(
     copy_regime = DynamicSDDiP.StateSpaceCopy()
 
     if duality_regime_sym == :uni_lag
-        if isa(normalization_regime, DynamicSDDiP.Core_Epsilon)
-            user_dual_multiplier_bound = nothing
-            user_dual_objective_bound = 1e4
-        elseif isa(normalization_regime, DynamicSDDiP.Core_In_Out)
-            user_dual_multiplier_bound = nothing
-            user_dual_objective_bound = 1e4
-        elseif isa(normalization_regime, DynamicSDDiP.Core_Midpoint)
-            user_dual_multiplier_bound = 10.0
-            user_dual_objective_bound = nothing
-        elseif isa(normalization_regime, DynamicSDDiP.Core_Relint)
-            user_dual_multiplier_bound = 10.0
-            user_dual_objective_bound = nothing
-        else
-            user_dual_multiplier_bound = nothing
-            user_dual_objective_bound = nothing
-        end
-
         duality_regime = DynamicSDDiP.UnifiedLagrangianDuality(
             atol = 1e-4,
             rtol = 1e-4,
@@ -94,7 +77,7 @@ function algo_config(
         state_approximation_regime = state_approximation_regime,
         duality_regime = duality_regime,
         #cut_away_approach = false,
-        iteration_to_start = 21,
+        #iteration_to_start = 21,
         #iteration_to_stop = 21,
     )
 
@@ -103,7 +86,7 @@ function algo_config(
         duality_regime = DynamicSDDiP.StrengthenedDuality(),
     )
 
-    cut_generation_regimes = [cut_generation_regime_1, cut_generation_regime_2]
+    cut_generation_regimes = [cut_generation_regime_2]
 
     # Regularization configuration
     regularization_regime = DynamicSDDiP.NoRegularization()
