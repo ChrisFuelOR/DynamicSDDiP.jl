@@ -156,7 +156,6 @@ function get_normalization_coefficients(
 
 	# Get core point
 	core_point_candidate = get_core_point(node, number_of_states, primal_obj, algo_params, applied_solvers, state_approximation_regime, normalization_regime)
-    Infiltrator.@infiltrate
     
     # Update core point candidate based on improvement regime
     core_point_candidate = update_core_point_candidate(core_point_candidate, epi_state, primal_obj, normalization_regime.improvement_regime)
@@ -188,7 +187,6 @@ function get_normalization_coefficients(
 	end
 
 	# println(core_point, ", ", ω, ", ", ω₀)
-    Infiltrator.@infiltrate
 	
 	return (ω = ω, ω₀ = ω₀)
 
@@ -341,7 +339,6 @@ function get_core_point(
 
 	# Get the midpoint of the state space
 	core_point_x = get_state_space_midpoint(node, number_of_states, state_approximation_regime)
-    Infiltrator.@infiltrate
 
 	# Get optimal value to core point
 	core_point_theta = evaluate_approx_value_function(node, core_point_x, number_of_states, algo_params, applied_solvers, normalization_regime, state_approximation_regime)
@@ -604,7 +601,6 @@ function get_core_point(
 	# Get the optimal solution
     core_obj = JuMP.value(theta) / JuMP.value(scaling_var)
 	for (i, (name, state)) in enumerate(node.states)
-        Infiltrator.@infiltrate
         core_point_x[i] = JuMP.value(state.in) / JuMP.value(scaling_var)
     end
 

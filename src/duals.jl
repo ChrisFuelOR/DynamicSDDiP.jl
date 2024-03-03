@@ -445,7 +445,7 @@ function get_dual_solution(
     
     # Take a measure to address unboundedness
     if unbounded_result.unbounded_flag
-        println(normalization_coeff.ω, round(normalization_coeff.ω₀, digits=2), ", ", round(primal_original_obj, digits=2), ", ", normalization_coeff.ω₀ >= primal_original_obj, ", ", epi_state)
+        #println(normalization_coeff.ω, round(normalization_coeff.ω₀, digits=2), ", ", round(primal_original_obj, digits=2), ", ", normalization_coeff.ω₀ >= primal_original_obj, ", ", epi_state)
 
         if isa(normalization_regime.unbounded_regime, DynamicSDDiP.Unbounded_Opt_SB)
             # Get strengthened Benders cut
@@ -506,7 +506,7 @@ function get_dual_solution(
         lag_status = results.lag_status
         dual_0_var = results.dual_0_var
 
-        println(primal_original_obj, ", ", primal_unified_obj, ", ", lag_obj, ", ", lag_iterations, ", ", lag_status, ", ", dual_0_var)    
+        #println(primal_original_obj, ", ", primal_unified_obj, ", ", lag_obj, ", ", lag_iterations, ", ", lag_status, ", ", dual_0_var)    
         #println(lag_iterations, ", ", lag_status, ", ", dual_0_var, ", ", sum(abs.(dual_vars)))
         #println(node_index, " ,", i, " ,", primal_unified_obj, " ,", lag_obj, " ,", lag_status, " ,", lag_iterations)
 
@@ -619,8 +619,6 @@ function detect_unboundedness(
             unbounded_flag = false
         end
     end
-
-    Infiltrator.@infiltrate
 
     return (unbounded_flag = unbounded_flag, primal_unified_obj = results_1.primal_unified_obj)
 end
