@@ -518,9 +518,9 @@ function get_core_point(
     # First get the midpoint of the state space
 	midpoint = get_state_space_midpoint(node, number_of_states, state_approximation_regime)
 
-    # # Specific for CLSP ******
-    # sums = [0.0, 0.0, 0.0]
-    # indices = [0, 0, 0]
+    # Specific for CLSP ******
+    sums = [0.0, 0.0, 0.0]
+    indices = [0, 0, 0]
 
     for (i, (name, state)) in enumerate(node.states)
         # Get info on state bounds
@@ -538,28 +538,28 @@ function get_core_point(
         # For binary case, this means that values 0 and 1 are swapped.
         x_2[i] = x_1[i] > midpoint[i] ? lower_bound : upper_bound
 
-        # # Specific for CLSP ******
-        # for j in 1:3
-        #     for k in 1:10
-        #         symb = Symbol("λ[" * string(j) * "," * string(k) * "]")
-        #         if name == symb
-        #             sums[j] += 2^(k-1) * x_2[i]
+        # Specific for CLSP ******
+        for j in 1:3
+            for k in 1:10
+                symb = Symbol("λ[" * string(j) * "," * string(k) * "]")
+                if name == symb
+                    sums[j] += 2^(k-1) * x_2[i]
 
-        #             if k == 10
-        #                 indices[j] = i
-        #             end
-        #         end
-        #     end
-        # end
+                    if k == 10
+                        indices[j] = i
+                    end
+                end
+            end
+        end
 
     end
 
-    # # Specific for CLSP ******
-    # for j in 1:3
-    #     if sums[j] > 600.0
-    #         x_2[indices[j]] = 0.0
-    #     end
-    # end
+    # Specific for CLSP ******
+    for j in 1:3
+        if sums[j] > 600.0
+            x_2[indices[j]] = 0.0
+        end
+    end
 
     # Store function value for trial state
     y_1 = primal_obj
