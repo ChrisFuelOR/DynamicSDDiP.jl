@@ -33,7 +33,7 @@ function algo_config(
 
     dual_space_regime = DynamicSDDiP.BendersSpanSpaceRestriction(20, :multi_cut)
     #dual_space_regime = DynamicSDDiP.NoDualSpaceRestriction()
-    copy_regime = DynamicSDDiP.StateSpaceCopy()
+    copy_regime = DynamicSDDiP.ConvexHullCopy()
 
     if duality_regime_sym == :uni_lag
         duality_regime = DynamicSDDiP.UnifiedLagrangianDuality(
