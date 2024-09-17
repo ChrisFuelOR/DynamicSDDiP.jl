@@ -186,7 +186,7 @@ function get_normalization_coefficients(
     	ω₀ = ω₀ / norm_factor
 	end
 
-	# println(core_point, ", ", ω, ", ", ω₀)
+	#println(core_point_candidate, ", ", ω, ", ", ω₀)
 	
 	return (ω = ω, ω₀ = ω₀)
 

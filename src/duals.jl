@@ -414,7 +414,8 @@ function get_dual_solution(
         cut_generation_regime.state_approximation_regime,
         normalization_regime,
     )
-  
+    #dual_0_var = (1 - normalization_coeff.ω' * dual_vars) / normalization_coeff.ω₀
+    
     ############################################################################
     # GET PRIMAL SOLUTION AND ADDRESS UNBOUNDEDNESS
     ############################################################################
@@ -449,14 +450,17 @@ function get_dual_solution(
 
         if isa(normalization_regime.unbounded_regime, DynamicSDDiP.Unbounded_Opt_SB)
             # Get strengthened Benders cut
-            dual_results = get_dual_solution(node, node_index, i, epi_state, add_cut_flag, algo_params, cut_generation_regime, applied_solvers, duality_regime)
+            dual_results = get_dual_solution(node, node_index, i, epi_state, add_cut_flag, algo_params, cut_generation_regime, applied_solvers, DynamicSDDiP.StrengthenedDuality())
+            
+            # if status is not as intended, the algorithm terminates with an error
+            lagrangian_status_check(subproblem.ext[:sddp_policy_graph], :unbounded, duality_regime.dual_status_regime)
 
             return (
                 dual_values = dual_results.dual_values,
                 dual_0_var = dual_results.dual_0_var,
                 bin_state = dual_results.bin_state,
-                intercept = dual_results.lag_obj,
-                iterations = dual_results.lag_iterations,
+                intercept = dual_results.intercept,
+                iterations = dual_results.iterations,
                 lag_status = :unbounded,
                 add_cut_flag = dual_results.add_cut_flag,
             )
@@ -506,7 +510,7 @@ function get_dual_solution(
         lag_status = results.lag_status
         dual_0_var = results.dual_0_var
 
-        #println(primal_original_obj, ", ", primal_unified_obj, ", ", lag_obj, ", ", lag_iterations, ", ", lag_status, ", ", dual_0_var)    
+        #println(round(primal_original_obj, digits=2), ", ", round(primal_unified_obj, digits=2), ", ", round(epi_state, digits=2), ", ", round(lag_obj, digits=2), ", ", lag_iterations, ", ", lag_status, ", ", round(dual_0_var, digits=5), ", ", round(normalization_coeff.ω₀, digits=2))    
         #println(lag_iterations, ", ", lag_status, ", ", dual_0_var, ", ", sum(abs.(dual_vars)))
         #println(node_index, " ,", i, " ,", primal_unified_obj, " ,", lag_obj, " ,", lag_status, " ,", lag_iterations)
 
@@ -612,7 +616,7 @@ function detect_unboundedness(
         # both problems infeasible
         unbounded_flag = true
     else
-        # both problems feasible
+        # one problem feasible
         if normalization_regime.unbounded_regime.strict_proxy
             unbounded_flag = true
         else
