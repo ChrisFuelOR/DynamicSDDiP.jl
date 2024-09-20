@@ -298,7 +298,8 @@ function get_dual_solution(
         lag_iterations = results.iterations
         lag_status = results.lag_status
 
-        #println(primal_obj, ", ", lag_obj, ", ", lag_iterations, ", ", lag_status)
+        println(node_index, ", ", primal_obj, ", ", lag_obj, ", ", lag_iterations, ", ", lag_status, ", ", sum(abs(dual_vars[i]) for i in 1:length(dual_vars)))
+        # Infiltrator.@infiltrate node_index == 74
 
         subproblem.ext[:sddp_policy_graph].ext[:agg_lag_iterations] += results.iterations
 

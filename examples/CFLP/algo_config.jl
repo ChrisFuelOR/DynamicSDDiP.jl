@@ -17,8 +17,7 @@ function algo_config(
 
     # Stopping rules to be used
     stopping_rules = [SDDP.TimeLimit(time_limit), SDDP.BoundStalling(20,1e-4)]
-    #stopping_rules = [SDDP.TimeLimit(time_limit), SDDP.BoundStalling(20,1e-4)]
-    #stopping_rules = [SDDP.IterationLimit(20)]
+    #stopping_rules = [SDDP.IterationLimit(1)]
     #stopping_rules = [ SDDP.IterationLimit(20), SDDP.BoundStalling(20,1e-4)]
 
     # Duality / Cut computation configuration

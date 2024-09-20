@@ -749,8 +749,9 @@ function solve_lagrangian_dual(
         h_k_subopt = Vector{Vector{Float64}}()
         L_k_subopt = Vector{Float64}()
 
-        #Infiltrator.@infiltrate
-        #print(L_k, ", ", t_k, ", ", level)
+        # Infiltrator.@infiltrate node_index == 100 
+        # Infiltrator.@infiltrate node_index == 63 
+        #print(node_index, ", ", iter, ", ", L_star, ", ", t_k)
 
         ########################################################################
         if L_star > t_k + atol/10.0
