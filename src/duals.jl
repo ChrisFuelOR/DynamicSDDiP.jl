@@ -298,8 +298,8 @@ function get_dual_solution(
         lag_iterations = results.iterations
         lag_status = results.lag_status
 
-        println(node_index, ", ", primal_obj, ", ", lag_obj, ", ", lag_iterations, ", ", lag_status, ", ", sum(abs(dual_vars[i]) for i in 1:length(dual_vars)))
-        # Infiltrator.@infiltrate node_index == 74
+        #println(node_index, ", ", primal_obj, ", ", lag_obj, ", ", lag_iterations, ", ", lag_status, ", ", sum(abs.(dual_vars)))
+        #Infiltrator.@infiltrate
 
         subproblem.ext[:sddp_policy_graph].ext[:agg_lag_iterations] += results.iterations
 
@@ -511,9 +511,11 @@ function get_dual_solution(
         lag_status = results.lag_status
         dual_0_var = results.dual_0_var
 
-        #println(round(primal_original_obj, digits=2), ", ", round(primal_unified_obj, digits=2), ", ", round(epi_state, digits=2), ", ", round(lag_obj, digits=2), ", ", lag_iterations, ", ", lag_status, ", ", round(dual_0_var, digits=5), ", ", round(normalization_coeff.ω₀, digits=2))    
+        println(round(primal_original_obj, digits=2), ", ", round(primal_unified_obj, digits=2), ", ", round(epi_state, digits=2), ", ", round(lag_obj, digits=2), ", ", lag_iterations, ", ", lag_status, ", ", round(dual_0_var, digits=5), ", ", round(normalization_coeff.ω₀, digits=2), ", ", sum(abs.(dual_vars/dual_0_var)))    
         #println(lag_iterations, ", ", lag_status, ", ", dual_0_var, ", ", sum(abs.(dual_vars)))
         #println(node_index, " ,", i, " ,", primal_unified_obj, " ,", lag_obj, " ,", lag_status, " ,", lag_iterations)
+        #Infiltrator.@infiltrate node_index == 100
+        #Infiltrator.@infiltrate node_index == 99
 
         subproblem.ext[:sddp_policy_graph].ext[:agg_lag_iterations] += results.iterations
 
@@ -624,6 +626,7 @@ function detect_unboundedness(
             unbounded_flag = false
         end
     end
+    #Infiltrator.@infiltrate
 
     return (unbounded_flag = unbounded_flag, primal_unified_obj = results_1.primal_unified_obj)
 end

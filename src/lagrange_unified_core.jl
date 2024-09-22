@@ -187,6 +187,7 @@ function get_normalization_coefficients(
 	end
 
 	#println(core_point_candidate, ", ", ω, ", ", ω₀)
+    #Infiltrator.@infiltrate
 	
 	return (ω = ω, ω₀ = ω₀)
 

@@ -731,6 +731,7 @@ function solve_unified_lagrangian_dual(
         # println( iter, ", ", L_star, ", ", t_k, ", ", π0_k)
 
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
+        #Infiltrator.@infiltrate
 
         # Delete the level lower bound for the original approx_model again
         JuMP.delete_lower_bound(t)
