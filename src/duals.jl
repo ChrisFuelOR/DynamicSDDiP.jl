@@ -511,7 +511,7 @@ function get_dual_solution(
         lag_status = results.lag_status
         dual_0_var = results.dual_0_var
 
-        println(round(primal_original_obj, digits=2), ", ", round(primal_unified_obj, digits=2), ", ", round(epi_state, digits=2), ", ", round(lag_obj, digits=2), ", ", lag_iterations, ", ", lag_status, ", ", round(dual_0_var, digits=5), ", ", round(normalization_coeff.ω₀, digits=2), ", ", sum(abs.(dual_vars/dual_0_var)))    
+        #println(round(primal_original_obj, digits=2), ", ", round(primal_unified_obj, digits=2), ", ", round(epi_state, digits=2), ", ", round(lag_obj, digits=2), ", ", lag_iterations, ", ", lag_status, ", ", round(dual_0_var, digits=5), ", ", round(normalization_coeff.ω₀, digits=2), ", ", sum(abs.(dual_vars/dual_0_var)))    
         #println(lag_iterations, ", ", lag_status, ", ", dual_0_var, ", ", sum(abs.(dual_vars)))
         #println(node_index, " ,", i, " ,", primal_unified_obj, " ,", lag_obj, " ,", lag_status, " ,", lag_iterations)
         #Infiltrator.@infiltrate node_index == 100
