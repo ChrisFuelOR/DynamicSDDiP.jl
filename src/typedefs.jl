@@ -123,6 +123,15 @@ mutable struct Subgradient <: AbstractDualSolutionRegime
     end
 end
 
+mutable struct BFGSMethod <: AbstractDualSolutionRegime
+    iteration_limit::Int
+    function BFGSMethod(;
+        iteration_limit = 100
+        )
+        return new(iteration_limit)
+    end
+end
+
 
 ################################################################################
 # BOUNDS IN LAGRANGIAL DUAL

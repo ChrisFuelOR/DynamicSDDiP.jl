@@ -1189,3 +1189,143 @@ function get_subopt_solution(
     return (L_k = L_k, h_k = h_k)
 
 end
+
+
+"""
+Subgradient method to solve Lagrangian dual
+"""
+function solve_lagrangian_dual(
+    node::SDDP.Node,
+    node_index::Int64,
+    primal_obj::Float64,
+    π_k::Vector{Float64},
+    bound_results::NamedTuple{(:obj_bound, :dual_bound),Tuple{Float64,Float64}},
+    algo_params::DynamicSDDiP.AlgoParams,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
+    applied_solvers::DynamicSDDiP.AppliedSolvers,
+    dual_solution_regime::DynamicSDDiP.BFGSMethod
+    )
+
+    ############################################################################
+    # INITIALIZATION
+    ############################################################################
+    # A sign bit that is used to avoid if-statements in the models (see SDDP.jl)
+    s = JuMP.objective_sense(node.subproblem) == MOI.MIN_SENSE ? 1 : -1
+
+    # Storage for the cutting-plane method
+    #---------------------------------------------------------------------------
+    number_of_states = get_number_of_states(node, cut_generation_regime.state_approximation_regime)
+    # The original value for x (former old_rhs)
+    x_in_value = zeros(number_of_states)
+    # The current estimate for π (in our case determined in initialization)
+    # π_k
+    # The best estimate for π (former best_mult)
+    π_star = zeros(number_of_states)
+    # The best estimate for the dual objective value (ignoring optimization sense)
+    L_star = -Inf
+    # The expression for ̄x-z (former slacks)
+    h_expr = Vector{JuMP.AffExpr}(undef, number_of_states)
+    # The current value of ̄x-z (former subgradients)
+    h_k = zeros(number_of_states)
+
+    # Vectors to store suboptimal solutions if needed
+    h_k_subopt = Vector{Vector{Float64}}()
+    L_k_subopt = Vector{Float64}()
+
+    # Set tolerances
+    #---------------------------------------------------------------------------
+        # Set tolerances
+    #---------------------------------------------------------------------------
+    atol = cut_generation_regime.duality_regime.atol
+    rtol = cut_generation_regime.duality_regime.rtol
+    iteration_limit = cut_generation_regime.duality_regime.iteration_limit
+
+    # Set solver for inner problem
+    #---------------------------------------------------------------------------
+    reset_solver!(node.subproblem, algo_params, applied_solvers, :lagrange_relax, algo_params.solver_approach)
+
+    ############################################################################
+    # RELAXING THE COPY CONSTRAINTS
+    ############################################################################
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "relax_copy" begin
+        relax_copy_constraints!(node, x_in_value, h_expr, cut_generation_regime.state_approximation_regime, cut_generation_regime.duality_regime.copy_regime)
+    end
+    node.ext[:backward_data][:old_rhs] = x_in_value
+
+    ############################################################################
+    # FEASIBILITY CHECK
+    ############################################################################
+    """ Check that the conic dual is feasible for the subproblem. Sometimes it is not if the LP dual solution is slightly infeasible due to numerical issues."""
+
+    # Evaluate the inner problem
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "inner_sol" begin
+        L_k = _solve_Lagrangian_relaxation!(node, π_k, h_expr, h_k, h_k_subopt, L_k_subopt, x_in_value, cut_generation_regime.state_approximation_regime, true, false)
+    end
+
+    if L_k === nothing
+        # TODO: return LP dual solution, i.e. standard Benders cut
+    end
+
+    ############################################################################
+    # BFGS METHOD
+    ############################################################################
+    lag_status = :none
+
+    L_star, π_star = LocalImprovementSearch.minimize(LocalImprovementSearch.BFGS(dual_solution_regime.iteration_limit), π_star, primal_obj) do x
+        # TODO: Should this be the primal_obj or the LP relaxation objective?
+
+        # Defines the function that is handed to the minimize method - based on evaluating the inner problem of the Lagrangian relaxation
+        L_k = _solve_Lagrangian_relaxation!(node, π_k, h_expr, h_k, h_k_subopt, L_k_subopt, x_in_value, cut_generation_regime.state_approximation_regime, true, false)
+        # println(node_index, ", ", L_k, ", ", ",", π_k, ",", primal_obj)
+
+        return L_k === nothing ? nothing : s * L_k, s * h_k
+    end
+
+     ############################################################################
+    # CONVERGENCE ANALYSIS
+    ############################################################################
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "convergence_check" begin
+        if isapprox(L_star, primal_obj, atol = atol, rtol = rtol)
+            # CONVERGENCE ACHIEVED
+            if isapprox(L_star, s * primal_obj, atol = atol, rtol = rtol)
+                # CONVERGENCE TO TRUE OPTIMUM (APPROXIMATELY)
+                lag_status = :opt
+            else
+                # CONVERGENCE TO A SMALLER VALUE THAN THE PRIMAL OBJECTIVE
+                # sometimes this occurs due to numerical issues
+                # still leads to a valid cut
+                lag_status = :conv
+            end
+        elseif all(h_k .== 0)
+            # NO OPTIMALITY ACHIEVED, BUT STILL ALL SUBGRADIENTS ARE ZERO
+            # may occur due to numerical issues
+            lag_status = :sub
+        elseif L_star > primal_obj + atol/10.0
+            # NUMERICAL ISSUES, LOWER BOUND EXCEEDS UPPER BOUND
+            lag_status = :issues
+        else
+            # BFGS (Local Improvement Search) has reached its maximum number of iterations.
+            lag_status = :iter
+        end
+    end
+
+    # println(node_index, ", ", L_star, ", ", sum(abs.(π_k)), ", ", lag_status)
+
+    ############################################################################
+    # RESTORE THE COPY CONSTRAINT x.in = value(x.in) (̄x = z)
+    ############################################################################
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "restore_copy" begin
+        restore_copy_constraints!(node, x_in_value, cut_generation_regime.state_approximation_regime)
+    end
+
+    ############################################################################
+    # RESET SOLVER
+    ############################################################################
+    reset_solver!(node.subproblem, algo_params, applied_solvers, :forward_pass, algo_params.solver_approach)
+
+    # Set dual_vars (here π_k) to the optimal solution
+    π_k .= π_star
+
+    return (lag_obj = s * L_star, iterations = 0, lag_status = lag_status)
+
+end
