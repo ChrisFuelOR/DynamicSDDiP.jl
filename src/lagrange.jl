@@ -1276,7 +1276,7 @@ function solve_lagrangian_dual(
 
         # Defines the function that is handed to the minimize method - based on evaluating the inner problem of the Lagrangian relaxation
         L_k = _solve_Lagrangian_relaxation!(node, π_k, h_expr, h_k, h_k_subopt, L_k_subopt, x_in_value, cut_generation_regime.state_approximation_regime, true, false)
-        # println(node_index, ", ", L_k, ", ", ",", π_k, ",", primal_obj)
+        #println(node_index, ", ", L_k, ", ", ",", π_k, ",", primal_obj)
 
         return L_k === nothing ? nothing : s * L_k, s * h_k
     end
@@ -1309,7 +1309,7 @@ function solve_lagrangian_dual(
         end
     end
 
-    # println(node_index, ", ", L_star, ", ", sum(abs.(π_k)), ", ", lag_status)
+    #println(node_index, ", ", primal_obj, ", ", L_star, ", ", π_star, ", ", lag_status)
 
     ############################################################################
     # RESTORE THE COPY CONSTRAINT x.in = value(x.in) (̄x = z)

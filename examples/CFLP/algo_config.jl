@@ -21,8 +21,8 @@ function algo_config(
     #stopping_rules = [ SDDP.IterationLimit(20), SDDP.BoundStalling(20,1e-4)]
 
     # Duality / Cut computation configuration
-    dual_initialization_regime = DynamicSDDiP.LPDuals()
-    dual_solution_regime = DynamicSDDiP.BFGSMethod()
+    dual_initialization_regime = DynamicSDDiP.ZeroDuals()
+    dual_solution_regime = DynamicSDDiP.LevelBundle()
     dual_bound_regime = DynamicSDDiP.BothBounds()
     dual_status_regime = DynamicSDDiP.Lax()
 
