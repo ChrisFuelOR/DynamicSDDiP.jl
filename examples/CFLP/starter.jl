@@ -134,10 +134,10 @@ function model_starter_runs()
     #det_equiv_starter(0,5,10,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.CutSelection(), "C:/Users/cg4162/Documents/julia_logs/CFLP_5_10_det_equiv.log", 3600, 11111, 12345)
 
     #model_starter(1,100,20,:B, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CFLP_S_B.log", 14400, 11111, 12345)
-    model_starter(2,100,20,:SB, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CFLP_S_SB.log", 14400, 11111, 12345)      
+    #model_starter(2,5,10,:SB, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CFLP_S_SB.log", 14400, 11111, 12345)      
     #model_starter(3,100,20,:B, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CFLP_S_B_Multi.log", 14400, 11111, 12345)
     #model_starter(4,100,20,:SB, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CFLP_S_SB_Multi.log", 14400, 11111, 12345)      
-    #model_starter(5,100,20,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CFLP_Single.log", 14400, 11111, 12345)
+    model_starter(5,5,10,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CFLP_S_Single.log", 14400, 11111, 12345)
     #model_starter(6,100,20,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CFLP_Multi.log", 14400, 11111, 12345)
   
     #model_starter(7,5,10,:uni_lag, DynamicSDDiP.L₁_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CFLP_5_10_L1_SB.log", 3600, 11111, 12345)
