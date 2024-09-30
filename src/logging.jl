@@ -108,6 +108,9 @@ function print_parameters(io, algo_params::DynamicSDDiP.AlgoParams, applied_solv
 
     # Printint the file name
     println(io, "||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||")
+    println(io, "MACHINE")
+    println(io, gethostname())
+    
     println(io, "PATH")
     println(io, "calling ")
     println(io, @__DIR__)

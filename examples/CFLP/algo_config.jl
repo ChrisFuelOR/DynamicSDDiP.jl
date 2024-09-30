@@ -48,6 +48,7 @@ function algo_config(
             normalization_regime = normalization_regime,
             dual_space_regime = dual_space_regime,
             copy_regime = copy_regime,
+            π0_divide = true,
         )
     elseif duality_regime_sym == :lag
         duality_regime = DynamicSDDiP.LagrangianDuality(
