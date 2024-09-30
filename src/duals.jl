@@ -514,8 +514,6 @@ function get_dual_solution(
         #println(round(primal_original_obj, digits=2), ", ", round(primal_unified_obj, digits=2), ", ", round(epi_state, digits=2), ", ", round(lag_obj, digits=2), ", ", lag_iterations, ", ", lag_status, ", ", round(dual_0_var, digits=5), ", ", round(normalization_coeff.ω₀, digits=2), ", ", sum(abs.(dual_vars/dual_0_var)))    
         #println(lag_iterations, ", ", lag_status, ", ", dual_0_var, ", ", sum(abs.(dual_vars)))
         #println(node_index, " ,", i, " ,", primal_unified_obj, " ,", lag_obj, " ,", lag_status, " ,", lag_iterations)
-        #Infiltrator.@infiltrate node_index == 100
-        #Infiltrator.@infiltrate node_index == 99
 
         subproblem.ext[:sddp_policy_graph].ext[:agg_lag_iterations] += results.iterations
 
@@ -576,9 +574,15 @@ function get_dual_solution(
         lag_obj = lag_obj + epi_state * dual_0_var
     end
 
-    store_dual_values!(node, dual_values, dual_vars, bin_state, cut_generation_regime.state_approximation_regime)
+    # For parameter π0_divide, the cut is added in standard form to the subproblem by first dividing by pi0
+    # Dividing by dual_0_var for very small values may cause numerical issues, but keeping this very small coefficient may as well.
+    if duality_regime.π0_divide
+        lag_obj = lag_obj / dual_0_var
+        dual_vars = dual_vars / dual_0_var
+        dual_0_var = 1.0
+    end
 
-    #println(dual_vars/dual_0_var)
+    store_dual_values!(node, dual_values, dual_vars, bin_state, cut_generation_regime.state_approximation_regime)
 
     return (
         dual_values=dual_values,

@@ -580,6 +580,7 @@ mutable struct UnifiedLagrangianDuality <: AbstractDualityRegime
     normalization_regime::AbstractNormalizationRegime
     dual_space_regime::AbstractDualSpaceRegime
     copy_regime::AbstractCopyRegime
+    π0_divide::Bool
     user_dual_objective_bound::Union{Nothing,Float64}
     user_dual_multiplier_bound::Union{Nothing,Float64}
 
@@ -595,13 +596,14 @@ mutable struct UnifiedLagrangianDuality <: AbstractDualityRegime
         normalization_regime = L₁_Deep(),
         dual_space_regime = NoDualSpaceRestriction(),
         copy_regime = ConvexHullCopy(),
+        π0_divide = false,
         user_dual_objective_bound = nothing,
         user_dual_multiplier_bound = nothing,
     )
         return new(atol, rtol, iteration_limit,
             dual_initialization_regime, dual_bound_regime,
             dual_solution_regime, dual_choice_regime, dual_status_regime,
-            normalization_regime, dual_space_regime, copy_regime,
+            normalization_regime, dual_space_regime, copy_regime, π0_divide,
             user_dual_objective_bound, user_dual_multiplier_bound)
     end
 end
