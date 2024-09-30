@@ -1271,12 +1271,12 @@ function solve_lagrangian_dual(
     ############################################################################
     lag_status = :none
 
-    L_star, π_star = LocalImprovementSearch.minimize(LocalImprovementSearch.BFGS(dual_solution_regime.iteration_limit), π_star, primal_obj) do x
-        # TODO: Should this be the primal_obj or the LP relaxation objective?
+    L_star, π_star = LocalImprovementSearch.minimize(LocalImprovementSearch.BFGS(dual_solution_regime.iteration_limit), π_k, primal_obj) do x
+        # Should this be the primal_obj or the LP relaxation objective?
+        # Note that the lower bound is not used at all, anyway.
 
         # Defines the function that is handed to the minimize method - based on evaluating the inner problem of the Lagrangian relaxation
-        L_k = _solve_Lagrangian_relaxation!(node, π_k, h_expr, h_k, h_k_subopt, L_k_subopt, x_in_value, cut_generation_regime.state_approximation_regime, true, false)
-        #println(node_index, ", ", L_k, ", ", ",", π_k, ",", primal_obj)
+        L_k = _solve_Lagrangian_relaxation!(node, x, h_expr, h_k, h_k_subopt, L_k_subopt, x_in_value, cut_generation_regime.state_approximation_regime, true, false)
 
         return L_k === nothing ? nothing : s * L_k, s * h_k
     end

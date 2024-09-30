@@ -175,9 +175,9 @@ function get_dual_solution(
         dual_obj = _getStrengtheningInformation(node, dual_vars, algo_params, cut_generation_regime, applied_solvers)
     end
 
-    if node_index == 2
-        println(node_index, ", ", dual_obj, ", ", dual_vars)
-    end
+    # if node_index == 2
+    #     println(node_index, ", ", dual_obj, ", ", dual_vars)
+    # end
 
     ############################################################################
     # SET DUAL VARIABLES AND STATES CORRECTLY FOR RETURN
@@ -302,9 +302,9 @@ function get_dual_solution(
         lag_iterations = results.iterations
         lag_status = results.lag_status
 
-        if node_index == 2
-            println(node_index, ", ", primal_obj, ", ", lag_obj, ", ", lag_iterations, ", ", lag_status, ", ", dual_vars)
-        end
+        #if node_index == 2
+        #println(node_index, ", ", primal_obj, ", ", lag_obj, ", ", lag_iterations, ", ", lag_status, ", ", dual_vars)
+        #end
         #Infiltrator.@infiltrate
 
         subproblem.ext[:sddp_policy_graph].ext[:agg_lag_iterations] += results.iterations
