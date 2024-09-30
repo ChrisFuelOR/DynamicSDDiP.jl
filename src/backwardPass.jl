@@ -59,16 +59,33 @@ function backward_pass(
         node.ext[:total_cuts] = 0
         node.ext[:active_cuts] = 0
 
+        # Add a flag if the incumbent has already been cut away by some cut_generation_regime
+        # We use a counter, as this allows more flexibility for the multi-cut case
+        node.ext[:cut_away_counter] = 0
+
         ########################################################################
         # ITERATE OVER CUT GENERATION REGIMES
         ########################################################################
         for cut_generation_regime in algo_params.cut_generation_regimes
 
-            # New cuts for cut_generation regime are only generated and added
-            # if we are in the right iterations
-            if (model.ext[:iteration] >= cut_generation_regime.iteration_to_start
-                && model.ext[:iteration] <= cut_generation_regime.iteration_to_stop)
+            proceed = true
 
+            # New cuts for cut_generation_regime are only generated and added if
+            # > we are in the right iterations
+            # > we do not use cut_away_approach_2
+            # > we use cut_away_approach_2, but the incumbent is not cut away yet
+            # (for sufficiently many noise realizations)
+            if model.ext[:iteration] < cut_generation_regime.iteration_to_start
+                proceed = false
+            elseif model.ext[:iteration] > cut_generation_regime.iteration_to_stop
+                proceed = false
+            elseif cut_generation_regime.cut_away_approach_2 && node.ext[:cut_away_counter] >= cut_generation_regime.cut_away_counter_limit
+                proceed = false
+            end
+
+            #Infiltrator.@infiltrate
+
+            if proceed
                 items = BackwardPassItems(T, SDDP.Noise)
 
                 # Determine required epi_states

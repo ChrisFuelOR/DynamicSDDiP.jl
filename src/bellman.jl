@@ -1513,9 +1513,19 @@ function check_for_cut_away(
         if (height-epi_state) / (abs(epi_state) + 1) > cut_generation_regime.cut_away_tol
             cut_away = true
         end
+
+        if (height-epi_state) / (abs(epi_state) + 1) > cut_generation_regime.cut_away_tol_2
+            node.ext[:cut_away_counter] += 1
+        else
+            Infiltrator.@infiltrate
+        end
     else
         if (epi_state-height) / (abs(epi_state) + 1) > cut_generation_regime.cut_away_tol
             cut_away = true
+        end
+
+        if (height-epi_state) / (abs(epi_state) + 1) > cut_generation_regime.cut_away_tol_2
+            node.ext[:cut_away_counter] += 1
         end
     end
     return cut_away

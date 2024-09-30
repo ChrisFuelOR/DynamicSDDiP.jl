@@ -677,30 +677,33 @@ mutable struct CutGenerationRegime
     duality_regime::AbstractDualityRegime
     iteration_to_start::Int64
     iteration_to_stop::Union{Int64,Float64} #TODO
-    gap_to_start::Float64       # not used so far
-    gap_to_stop::Float64        # not used so far
     cut_away_approach::Bool
     cut_away_tol::Float64
+    cut_away_approach_2::Bool
+    cut_away_tol_2::Float64
+    cut_away_counter_limit::Int
 
     function CutGenerationRegime(;
         state_approximation_regime = BinaryApproximation(),
         duality_regime = LagrangianDuality(),
         iteration_to_start = 1,
         iteration_to_stop = Inf,
-        gap_to_start = Inf,
-        gap_to_stop = 0.0,
         cut_away_approach = true,
         cut_away_tol = 1e-4,
+        cut_away_approach_2 = false,
+        cut_away_tol_2 = 1e-1,
+        cut_away_counter_limit = 1
     )
         return new(
             state_approximation_regime,
             duality_regime,
             iteration_to_start,
             iteration_to_stop,
-            gap_to_start,
-            gap_to_stop,
             cut_away_approach,
             cut_away_tol,
+            cut_away_approach_2,
+            cut_away_tol_2,
+            cut_away_counter_limit,
         )
     end
 end
@@ -709,10 +712,6 @@ end
 """
 iteration_to_start:     first iteration at which this regime is applied
 iteration_to_stop:      last iteration at which this regime is applied
-gap_to_start:           relative optimality gap at which this regime is first
-                        applied (tricky for stochastic case)
-gap_to_stop:            relative optimality gap at which this regime is last
-                        applied (tricky for stochastic case)
 cut_away_approach:      if true, cuts of this regime will only be added
                         to the respective subproblem if they lead to an
                         improvement (i.e. cut away the current incumbent)
@@ -720,6 +719,18 @@ cut_away_tol:           defines a tolerance which is applied in checking if
                         an incumbent is cut away (tolerance for cut violation)
                         if cut_away_approach is used. This allows to prevent
                         to add almost redundant cuts again and again.
+cut_away_approach_2:    if true, cuts of this regime will only be generated (!) 
+                        and potentially added if the incumbent has not been
+                        cut away already by the previous regime
+cut_away_tol_2:         defines a tolerance which is applied in checking if
+                        an incumbent is cut away (tolerance for cut violation)
+                        if cut_away_approach_2 is used. 
+cut_away_counter_limit: if cut_away_approach_2 is used, a limit has to be
+                        provided which determines whether an incumbent
+                        is considered cut_away. For the single-cut case this should
+                        be always 1, for the multi-cut case we can decided whether
+                        it is considered sufficient/necessary for 1, 2, ..., all 
+                        noise realizations that the epi_state is cut_away
 
 Note that using gap_to_start and gap_to_stop for stochastic problems may be
 misleading as the upper bounds, and thus the gaps, are stochastic.
