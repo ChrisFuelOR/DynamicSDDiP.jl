@@ -63,7 +63,7 @@ function model_starter(
         #JuMP.optimize!(det_equiv)
         #print(JuMP.objective_value(det_equiv))
 
-        #log_file_handle = open(algo_params_LB(21).log_file, "a")
+        #log_file_handle = open(algo_params_LB(41).log_file, "a")
         #DynamicSDDiP.print_helper(DynamicSDDiP.print_det_equiv, log_file_handle, problem_params, JuMP.objective_value(det_equiv))
         #close(log_file_handle)
 
@@ -121,7 +121,7 @@ function det_equiv_no_bin_starter(
         ############################################################################
         # LOGGING
         ############################################################################
-        log_file_handle = open(algo_params_LB(21).log_file, "a")
+        log_file_handle = open(algo_params_LB(41).log_file, "a")
         DynamicSDDiP.print_helper(DynamicSDDiP.print_det_equiv, log_file_handle, problem_params, JuMP.objective_value(det_equiv), JuMP.objective_bound(det_equiv))
         close(log_file_handle)
 
@@ -145,9 +145,7 @@ function model_starter_runs()
     """
 
     #det_equiv_no_bin_starter(0,16,20,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.CutSelection(), "C:/Users/cg4162/Documents/julia_logs/CLSP_O_16_20_det_equiv_LB(21).log", 7200, 11111, 12345)
-
     # Dummy run
-
     #model_starter(0,4,20,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.CutSelection(), "C:/Users/cg4162/Documents/julia_logs/clsp_binary_single_16_new_no_bin_LB(21).log", 600, 11111, 12345)
 
     #model_starter(2,16,20,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_RR_Large_O_16_20_Single.log", 10800, 11111, 12345)
