@@ -16,8 +16,9 @@ function algo_config(
     )
 
     # Stopping rules to be used
+    #stopping_rules = [SDDP.TimeLimit(time_limit), SDDP.IterationLimit(1000), SDDP.BoundStalling(20,1e-4)]
     stopping_rules = [SDDP.TimeLimit(time_limit), SDDP.BoundStalling(20,1e-4)]
-    #stopping_rules = [SDDP.TimeLimit(time_limit)]
+    #stopping_rules = [ SDDP.IterationLimit(20), SDDP.BoundStalling(20,1e-4)]
 
     # Duality / Cut computation configuration
     dual_initialization_regime = DynamicSDDiP.ZeroDuals()
@@ -26,12 +27,12 @@ function algo_config(
     dual_status_regime = DynamicSDDiP.Lax()
 
     dual_choice_regime = DynamicSDDiP.StandardChoice()
-    if isa(normalization_regime, DynamicSDDiP.L∞_Deep)
-        dual_choice_regime = DynamicSDDiP.MinimalNormChoice()
-    end
+    #if isa(normalization_regime, DynamicSDDiP.L∞_Deep)
+    #    dual_choice_regime = DynamicSDDiP.StandardChoice()
+    #end
 
-    #dual_space_regime = DynamicSDDiP.BendersSpanSpaceRestriction(20, :multi_cut)
-    dual_space_regime = DynamicSDDiP.NoDualSpaceRestriction()
+    dual_space_regime = DynamicSDDiP.BendersSpanSpaceRestriction(20, :multi_cut)
+    #dual_space_regime = DynamicSDDiP.NoDualSpaceRestriction()
     copy_regime = DynamicSDDiP.ConvexHullCopy()
 
     if duality_regime_sym == :uni_lag
@@ -67,7 +68,6 @@ function algo_config(
             user_dual_multiplier_bound = user_dual_multiplier_bound,
             user_dual_objective_bound = user_dual_objective_bound,
         )
-
     elseif duality_regime_sym == :lag
         duality_regime = DynamicSDDiP.LagrangianDuality(
             atol = 1e-4,
@@ -94,7 +94,7 @@ function algo_config(
         state_approximation_regime = state_approximation_regime,
         duality_regime = duality_regime,
         #cut_away_approach = false,
-        #iteration_to_start = 21,
+        iteration_to_start = 21,
         #iteration_to_stop = 21,
     )
 
@@ -103,8 +103,7 @@ function algo_config(
         duality_regime = DynamicSDDiP.StrengthenedDuality(),
     )
 
-    cut_generation_regimes = [cut_generation_regime_2]
-
+    cut_generation_regimes = [cut_generation_regime_1, cut_generation_regime_2]
 
     # Regularization configuration
     regularization_regime = DynamicSDDiP.NoRegularization()
@@ -118,6 +117,7 @@ function algo_config(
     # Simulation regime
     #simulation_regime = DynamicSDDiP.Simulation(sampling_scheme=DynamicSDDiP.OutOfSampleMonteCarlo(number_of_realizations=10,simulation_seed=232323),number_of_replications=1000)
     simulation_regime = DynamicSDDiP.Simulation(sampling_scheme=DynamicSDDiP.InSampleMonteCarlo(),number_of_replications=1000)
+    #simulation_regime = DynamicSDDiP.NoSimulation()
 
     # Suppress solver output
     silent = true
@@ -129,11 +129,8 @@ function algo_config(
     solver_approach = DynamicSDDiP.Direct_Solver()
 
     # Define solvers to be used
-    applied_solvers = DynamicSDDiP.AppliedSolvers(
-        solver_tol = 1e-4,
-    )
+    applied_solvers = DynamicSDDiP.AppliedSolvers()
 
-    #K_dict = Dict{Symbol, Int64}()
     K = 10
 
     # Definition of algo_params
@@ -145,7 +142,7 @@ function algo_config(
         cut_generation_regimes = cut_generation_regimes,
         simulation_regime = simulation_regime,
         late_binarization_regime = DynamicSDDiP.NoLateBinarization(),
-        #late_binarization_regime = DynamicSDDiP.LateBinarization(K, 31),
+        #late_binarization_regime = DynamicSDDiP.LateBinarization(K, 21),
         cut_type = cut_type,
         log_file = log_file,
         silent = silent,
@@ -154,7 +151,7 @@ function algo_config(
         numerical_focus = false,
         run_numerical_stability_report = false,
         seed = forward_seed,
-        run_description = "Run with different scenario tree and numerical focus"
+        run_description = ""
     )
 
     # Return algo_params and applied_solvers

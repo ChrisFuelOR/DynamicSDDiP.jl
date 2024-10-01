@@ -24,7 +24,7 @@ const MOI = MathOptInterface
 #const GURB_ENV = Gurobi.Env()
 
 const GURB_ENV = Ref{Gurobi.Env}()
-const ws = GAMS.GAMSWorkspace()
+#const ws = GAMS.GAMSWorkspace()
 
 function __init__()
     GURB_ENV[] = Gurobi.Env()
