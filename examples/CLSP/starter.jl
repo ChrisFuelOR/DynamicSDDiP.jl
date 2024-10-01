@@ -211,8 +211,6 @@ function model_starter_runs()
     #model_starter(15,16,20,:uni_lag, DynamicSDDiP.L∞_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_RR3_16_20_CL_Lsup.log", 28800, 11111, 12345)
     #model_starter(15,16,20,:uni_lag, DynamicSDDiP.L∞_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_RR_16_20_CL_Lsup_no_SB.log", 28800, 11111, 12345)
 
-
-
 end
 
 #model_starter_runs()
