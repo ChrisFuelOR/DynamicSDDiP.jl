@@ -48,7 +48,7 @@ function get_dual_solution(
     TimerOutputs.@timeit DynamicSDDiP_TIMER "LP_relaxation" begin
         dual_results = solve_LP_relaxation(node, subproblem, algo_params, cut_generation_regime, applied_solvers, DynamicSDDiP.LPDuals())
     end
-
+ 
     dual_vars = dual_results.dual_vars
     dual_obj = dual_results.dual_obj
 
@@ -95,10 +95,6 @@ function solve_LP_relaxation(
 
     TimerOutputs.@timeit DynamicSDDiP_TIMER "solver_call_LP_relax" begin
         JuMP.optimize!(subproblem)
-
-    #    if JuMP.termination_status(subproblem) != MOI.OPTIMAL
-    #        Infiltrator.@infiltrate
-    #    end
     end
 
     # Solve LP Relaxation
@@ -275,6 +271,7 @@ function get_dual_solution(
     ############################################################################
     # GET BOUNDS FOR LAGRANGIAN DUAL
     ############################################################################
+    # primal_obj = 1.3735 #augmented case #1.3735, 1.3
     bound_results = get_dual_bounds(node, node_index, algo_params, primal_obj, duality_regime.dual_bound_regime)
     Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
@@ -300,6 +297,8 @@ function get_dual_solution(
         lag_obj = results.lag_obj
         lag_iterations = results.iterations
         lag_status = results.lag_status
+
+        #println(primal_obj, ", ", lag_obj, ", ", lag_iterations, ", ", lag_status)
 
         subproblem.ext[:sddp_policy_graph].ext[:agg_lag_iterations] += results.iterations
 
@@ -474,6 +473,10 @@ function get_dual_solution(
         #primal_unified_obj = Inf ?
     end
 
+    if unbounded_flag
+        #println(normalization_coeff.ω, round(normalization_coeff.ω₀, digits=2), ", ", round(primal_original_obj, digits=2), ", ", normalization_coeff.ω₀ >= primal_original_obj, ", ", epi_state)
+    end
+
     if isnothing(primal_unified_obj)
         primal_unified_obj = Inf
     end
@@ -518,6 +521,8 @@ function get_dual_solution(
         lag_status = results.lag_status
         dual_0_var = results.dual_0_var
 
+        #println(primal_original_obj, ", ", primal_unified_obj, ", ", lag_obj, ", ", lag_iterations, ", ", lag_status, ", ", dual_0_var)    
+        #println(lag_iterations, ", ", lag_status, ", ", dual_0_var, ", ", sum(abs.(dual_vars)))
         #println(node_index, " ,", i, " ,", primal_unified_obj, " ,", lag_obj, " ,", lag_status, " ,", lag_iterations)
 
         subproblem.ext[:sddp_policy_graph].ext[:agg_lag_iterations] += results.iterations
@@ -534,7 +539,7 @@ function get_dual_solution(
         end
 
         #if node.subproblem.ext[:sddp_policy_graph].ext[:iteration] == 4
-        #    Infiltrator.@infiltrate
+        #   Infiltrator.@infiltrate
         #end
 
         ########################################################################
@@ -585,7 +590,7 @@ function get_dual_solution(
 
     store_dual_values!(node, dual_values, dual_vars, bin_state, cut_generation_regime.state_approximation_regime)
 
-    #Infiltrator.@infiltrate
+    #println(dual_vars/dual_0_var)
 
     return (
         dual_values=dual_values,
@@ -799,7 +804,7 @@ function initialize_duals(
     dual_vars_initial = zeros(number_of_states)
 
     # Create LP Relaxation
-    undo_relax = JuMP.relax_integrality(subproblem);
+    undo_relax = JuMP.relax_integrality(subproblem)
 
     # Define appropriate solver
     reset_solver!(subproblem, algo_params, applied_solvers, :LP_relax, algo_params.solver_approach)
@@ -843,7 +848,6 @@ function get_and_set_dual_values!(
     )
 
     for (i, name) in enumerate(keys(node.states))
-
         reference_to_constr = JuMP.FixRef(node.states[name].in)
         dual_vars_initial[i] = JuMP.dual(reference_to_constr)
     end

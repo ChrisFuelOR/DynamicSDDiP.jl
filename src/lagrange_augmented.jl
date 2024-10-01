@@ -58,6 +58,8 @@ function _solve_augmented_Lagrangian_relaxation!(
     omega = JuMP.@variable(model, [1:number_of_states])
 
     # Adapt objective function
+    #Infiltrator.@infiltrate
+    JuMP.set_objective_function(model, JuMP.@expression(model, old_obj - π_k' * h_expr ))
     JuMP.set_objective_function(model, JuMP.@expression(model, old_obj - π_k' * h_expr + rho * sum(omega[i] for i in 1:number_of_states)))
 
     # Add norm constraints

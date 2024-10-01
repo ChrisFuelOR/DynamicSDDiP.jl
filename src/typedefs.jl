@@ -15,9 +15,6 @@
 # If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
 ################################################################################
 
-import JuMP
-import Revise
-
 ################################################################################
 # BINARY STATE
 ################################################################################
@@ -125,7 +122,6 @@ mutable struct Subgradient <: AbstractDualSolutionRegime
         return new(beta_up, beta_down, gamma, wait, max_times_unchanged)
     end
 end
-
 
 
 ################################################################################
@@ -590,7 +586,7 @@ mutable struct CutGenerationRegime
     state_approximation_regime::AbstractStateApproximationRegime
     duality_regime::AbstractDualityRegime
     iteration_to_start::Int64
-    iteration_to_stop::Union{Int64,Float64}
+    iteration_to_stop::Union{Int64,Float64} #TODO
     gap_to_start::Float64       # not used so far
     gap_to_stop::Float64        # not used so far
     cut_away_approach::Bool

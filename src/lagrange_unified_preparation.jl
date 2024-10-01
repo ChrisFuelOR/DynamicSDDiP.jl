@@ -729,6 +729,8 @@ function get_normalization_coefficients(
     	ω₀ = ω₀ / norm_factor
 	end
 
+	# println(core_point, ", ", ω, ", ", ω₀)
+	
 	return (ω = ω, ω₀ = ω₀)
 
 end
@@ -1039,7 +1041,7 @@ function get_core_point(
 	# Get the optimal solution
     core_obj = JuMP.value(theta) / JuMP.value(scaling_var)
 	for (i, (name, state)) in enumerate(node.states)
-        core_point_x[i] = JuMP.value(slack_variables[i]) / JuMP.value(scaling_var)
+        core_point_x[i] = JuMP.value(state.in) / JuMP.value(scaling_var)
     end
 
 	############################################################################
@@ -1102,11 +1104,11 @@ function construct_feasibility_problem!(
 
 		# Add new constraint
 		if constraint_type == MOI.GreaterThan{Float64}
-			slack_con = JuMP.@constraint(subproblem, expr + slack_var >= rhs * scaling_var)
+			slack_con = JuMP.@constraint(subproblem, expr - slack_var >= rhs * scaling_var)
 		elseif constraint_type == MOI.LessThan{Float64}
 			slack_con = JuMP.@constraint(subproblem, expr + slack_var <= rhs * scaling_var)
 		elseif constraint_type == MOI.EqualTo{Float64}
-			slack_con = JuMP.@constraint(subproblem, expr + slack_var == rhs * scaling_var)
+			slack_con = JuMP.@constraint(subproblem, expr == rhs)
 		end
 		push!(relint_data[:relint_constraints], slack_con)
 
@@ -1507,7 +1509,8 @@ function construct_unified_primal_problem!(
         JuMP.unfix(state_comp.in)
         variable_info = node.ext[:state_info_storage][name].in
         follow_state_unfixing!(state_comp, variable_info, duality_regime.copy_regime)
-        number_of_states = i
+		#follow_state_unfixing!(state_comp, variable_info, DynamicSDDiP.ConvexHullCopy())
+		number_of_states = i
     end
     slack = primal_data[:slacks]
 
