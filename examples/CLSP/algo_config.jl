@@ -17,7 +17,9 @@ function algo_config(
 
     # Stopping rules to be used
     #stopping_rules = [SDDP.TimeLimit(time_limit), SDDP.IterationLimit(1000), SDDP.BoundStalling(20,1e-4)]
-    stopping_rules = [SDDP.TimeLimit(time_limit), SDDP.BoundStalling(20,1e-4)]
+    #stopping_rules = [SDDP.TimeLimit(time_limit), SDDP.BoundStalling(20,1e-4)]
+
+    stopping_rules = [SDDP.IterationLimit(50)]
     #stopping_rules = [ SDDP.IterationLimit(20), SDDP.BoundStalling(20,1e-4)]
 
     # Duality / Cut computation configuration
@@ -27,15 +29,33 @@ function algo_config(
     dual_status_regime = DynamicSDDiP.Lax()
 
     dual_choice_regime = DynamicSDDiP.StandardChoice()
-    if isa(normalization_regime, DynamicSDDiP.L∞_Deep)
-        dual_choice_regime = DynamicSDDiP.MinimalNormChoice()
-    end
+    #if isa(normalization_regime, DynamicSDDiP.L∞_Deep)
+#        dual_choice_regime = DynamicSDDiP.MinimalNormChoice()
+#    end
 
-    #dual_space_regime = DynamicSDDiP.BendersSpanSpaceRestriction(20, :multi_cut)
-    dual_space_regime = DynamicSDDiP.NoDualSpaceRestriction()
+
+    dual_space_regime = DynamicSDDiP.BendersSpanSpaceRestriction(20, :multi_cut)
+    #dual_space_regime = DynamicSDDiP.NoDualSpaceRestriction()
     copy_regime = DynamicSDDiP.ConvexHullCopy()
 
     if duality_regime_sym == :uni_lag
+        if isa(normalization_regime, DynamicSDDiP.Core_Epsilon)
+            user_dual_multiplier_bound = nothing
+            user_dual_objective_bound = 1e4
+        elseif isa(normalization_regime, DynamicSDDiP.Core_In_Out)
+            user_dual_multiplier_bound = nothing
+            user_dual_objective_bound = 1e4
+        elseif isa(normalization_regime, DynamicSDDiP.Core_Midpoint)
+            user_dual_multiplier_bound = 10.0
+            user_dual_objective_bound = nothing
+        elseif isa(normalization_regime, DynamicSDDiP.Core_Relint)
+            user_dual_multiplier_bound = 10.0
+            user_dual_objective_bound = nothing
+        else
+            user_dual_multiplier_bound = nothing
+            user_dual_objective_bound = nothing
+        end
+
         duality_regime = DynamicSDDiP.UnifiedLagrangianDuality(
             atol = 1e-4,
             rtol = 1e-4,
@@ -48,8 +68,10 @@ function algo_config(
             normalization_regime = normalization_regime,
             dual_space_regime = dual_space_regime,
             copy_regime = copy_regime,
-            user_dual_multiplier_bound = 10.0, # 10.0
-            #user_dual_objective_bound = 1e4,
+
+            user_dual_multiplier_bound = user_dual_multiplier_bound,
+            user_dual_objective_bound = user_dual_objective_bound,
+
         )
     elseif duality_regime_sym == :lag
         duality_regime = DynamicSDDiP.LagrangianDuality(
@@ -78,12 +100,14 @@ function algo_config(
         duality_regime = duality_regime,
         #cut_away_approach = false,
         #iteration_to_start = 21,
-        #iteration_to_stop = 21,
+        #iteration_to_stop = 30,
     )
 
     cut_generation_regime_1 = DynamicSDDiP.CutGenerationRegime(
-        state_approximation_regime = state_approximation_regime,
-        duality_regime = DynamicSDDiP.LinearDuality(),
+         state_approximation_regime = state_approximation_regime,
+         duality_regime = DynamicSDDiP.StrengthenedDuality(),
+    #     #iteration_to_start = 1,
+    #     #cut_away_approach = false,
     )
 
     cut_generation_regimes = [cut_generation_regime_2]
@@ -112,14 +136,10 @@ function algo_config(
     solver_approach = DynamicSDDiP.Direct_Solver()
 
     # Define solvers to be used
-    applied_solvers = DynamicSDDiP.AppliedSolvers(
-        LP = "Gurobi",
-        MILP = "Gurobi",
-        MIQCP = "Gurobi",
-        MINLP = "Gurobi",
-        NLP = "Gurobi",
-        Lagrange = "Gurobi",
-    )
+    applied_solvers = DynamicSDDiP.AppliedSolvers()
+
+    #K_dict = Dict{Symbol, Int64}()
+    K = 10
 
     # Definition of algo_params
     algo_params = DynamicSDDiP.AlgoParams(
@@ -129,6 +149,8 @@ function algo_config(
         cut_selection_regime = cut_selection_regime,
         cut_generation_regimes = cut_generation_regimes,
         simulation_regime = simulation_regime,
+        late_binarization_regime = DynamicSDDiP.NoLateBinarization(),
+        #late_binarization_regime = DynamicSDDiP.LateBinarization(K, 11),
         cut_type = cut_type,
         log_file = log_file,
         silent = silent,

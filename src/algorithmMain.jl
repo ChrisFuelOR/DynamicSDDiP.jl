@@ -136,10 +136,7 @@ function solve(
     # fortunately, node.bellman_function requires no specific type
     for (key, node) in model.nodes
         # Set solver
-        JuMP.set_optimizer(node.subproblem, JuMP.optimizer_with_attributes(
-            () -> Gurobi.Optimizer(GURB_ENV[]),"MIPGap"=>1e-4,"TimeLimit"=>300,"NumericFocus"=>algo_params.numerical_focus
-        ))
-        JuMP.set_silent(node.subproblem)
+        set_solver_initially!(node.subproblem, algo_params, applied_solvers, :main_subproblem, algo_params.solver_approach)
 
         if key != model.root_node
 
@@ -552,6 +549,17 @@ function iteration(
     end
 
     ############################################################################
+    # CHECK IF LATE BINARIZATION OF THE STATE SPACE SHOULD BE APPLIED
+    ############################################################################
+    if isa(algo_params.late_binarization_regime,DynamicSDDiP.LateBinarization)
+        if model.ext[:iteration] == algo_params.late_binarization_regime.iteration_to_start
+            apply_late_binarization_nodes!(model, algo_params)
+
+            #algo_params.cut_generation_regimes[1].duality_regime.iteration_limit = 50
+        end
+    end
+
+    ############################################################################
     # FORWARD PASS
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "forward_pass" begin
@@ -604,7 +612,11 @@ function iteration(
     end
     bound = first_stage_results.bound
 
-    #Infiltrator.@infiltrate
+    # if model.ext[:iteration] == 1
+    #      Infiltrator.@infiltrate
+    # end
+    #println(last(model.nodes[1].bellman_function.local_thetas[1].cuts).cut_constraint)
+    #println(last(model.nodes[1].bellman_function.global_theta.cuts).cut_constraint)
 
     ############################################################################
     # CHECK IF BEST KNOWN SOLUTION HAS BEEN IMPROVED

@@ -150,6 +150,10 @@ function print_parameters(io, algo_params::DynamicSDDiP.AlgoParams, applied_solv
     println(io, algo_params.cut_selection_regime)
 
     println(io, "||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||")
+    println(io, "LATE BINARIZATION")
+    println(io, algo_params.late_binarization_regime)
+
+    println(io, "||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||")
     println(io, "APPLIED SOLVERS (LP, MILP, MIQCP, MINLP, NLP, Lagrange)")
     println(io, applied_solvers)
     println(io, algo_params.solver_approach)
@@ -436,7 +440,18 @@ function print_simulation(io, algo_params::DynamicSDDiP.AlgoParams, μ::Float64,
     flush(io)
 end
 
-function print_det_equiv(io, problem_params::DynamicSDDiP.ProblemParams, value::Float64)
+function print_simulation_historical(io, algo_params::DynamicSDDiP.AlgoParams, upper_bound::Float64, lower_bound::Float64)
+
+    println(io)
+    println(io, "||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||")
+    println(io, "SIMULATION RESULTS")
+    println(io, "Deterministic (historical) samples")
+    println(io, "Lower bound: ", lower_bound)
+    println(io, "Upper bound: ", upper_bound)
+    flush(io)
+end
+
+function print_det_equiv(io, problem_params::DynamicSDDiP.ProblemParams, value::Float64, dual_bound::Float64)
 
     println(io)
     println(io)
@@ -470,7 +485,8 @@ function print_det_equiv(io, problem_params::DynamicSDDiP.ProblemParams, value::
     end
 
     println(io, "SOLVED DETERMINISTIC EQUIVALENT")
-    println(io, "Optimal value: ", value)
+    println(io, "Optimal value (UB): ", value)
+    println(io, "Dual value (LB): ", dual_bound)
 
     flush(io)
 end

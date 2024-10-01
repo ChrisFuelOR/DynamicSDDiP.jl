@@ -43,11 +43,6 @@ function _cut_selection_update(
 
     push!(V.cuts, cut)
 
-    ############################################################################
-    # DETERMINE NUMBER OF CUTS FOR LOGGING
-    ############################################################################
-    count_cuts(node, V)
-
     return
 end
 
@@ -77,11 +72,6 @@ function _cut_selection_update(
     push!(V.sampled_states, sampled_state_trial)
 
     push!(V.cuts, cut)
-
-    ############################################################################
-    # DETERMINE NUMBER OF CUTS FOR LOGGING
-    ############################################################################
-    count_cuts(node, V)
 
     return
 end
@@ -217,11 +207,6 @@ function _cut_selection_update(
     end
     empty!(V.cuts_to_be_deleted)
 
-    ############################################################################
-    # DETERMINE NUMBER OF CUTS FOR LOGGING
-    ############################################################################
-    count_cuts(node, V)
-
     return
 end
 
@@ -328,11 +313,6 @@ function _cut_selection_update(
     end
     empty!(V.cuts_to_be_deleted)
 
-    ############################################################################
-    # DETERMINE NUMBER OF CUTS FOR LOGGING
-    ############################################################################
-    count_cuts(node, V)
-
 end
 
 
@@ -382,7 +362,7 @@ function _eval_height(node::SDDP.Node, cut::DynamicSDDiP.NonlinearCut,
     # Create a new JuMP model to evaluate the height of a non-convex cut
     model = JuMP.Model()
     model.ext[:sddp_policy_graph] = node.subproblem.ext[:sddp_policy_graph]
-    set_solver!(model, algo_params, applied_solvers, :cut_selection, algo_params.solver_approach)
+    set_solver_initially!(model, algo_params, applied_solvers, :cut_selection, algo_params.solver_approach)
 
     # Storages for coefficients and binary states
     binary_state_storage = JuMP.VariableRef[]

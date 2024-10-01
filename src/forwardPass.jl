@@ -46,13 +46,13 @@ function forward_pass(model::SDDP.PolicyGraph{T}, options::DynamicSDDiP.Options,
         epi_states_stage = Float64[]
 
         # Reset cut counter
-        node.ext[:total_cuts] = 0
-        node.ext[:active_cuts] = 0
+        # node.ext[:total_cuts] = 0
+        #node.ext[:active_cuts] = 0
 
         ########################################################################
         # SET SOLVER
         ########################################################################
-        #DynamicSDDiP.set_solver!(node.subproblem, algo_params, applied_solvers, :forward_pass, algo_params.solver_approach)
+        reset_solver!(node.subproblem, algo_params, applied_solvers, :forward_pass, algo_params.solver_approach)
 
         ########################################################################
         # SUBPROBLEM SOLUTION
@@ -142,11 +142,23 @@ function solve_subproblem_forward(
         JuMP.optimize!(subproblem)
 
         if (JuMP.termination_status(subproblem) != MOI.OPTIMAL)
-            elude_numerical_issues!(subproblem, algo_params)
+            #elude_numerical_issues!(subproblem, algo_params)
         end
     end
 
     state = get_outgoing_state(node)
+
+    # Fixed values may have to be rounded if they are not exactly integer in order to avoid infeasibilities.
+    for (state_name, value) in state
+        if value != 0.0 && value != 1.0
+        end
+
+        if node.ext[:state_info_storage][state_name].out.binary || node.ext[:state_info_storage][state_name].out.integer
+            #Infiltrator.@infiltrate
+            state[state_name] = round(value)
+        end
+    end
+
     objective = JuMP.objective_value(subproblem)
     stage_objective = objective - JuMP.value(bellman_term(node.bellman_function))
 

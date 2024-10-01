@@ -175,12 +175,12 @@ function solve_subproblem_backward_primal(
     node.ext[:regularization_data] = Dict{Symbol,Any}()
     regularize_bw!(node, node_index, subproblem, cut_generation_regime, algo_params.regularization_regime, cut_generation_regime.state_approximation_regime)
 
-    # RESET SOLVER (as it may have been changed in between for some reason)
-    set_solver!(subproblem, algo_params, applied_solvers, :backward_pass, algo_params.solver_approach)
-
     ############################################################################
     # SOLVE PRIMAL PROBLEM
     ############################################################################
+    # RESET SOLVER (as it may have been changed in between for some reason)
+    reset_solver!(subproblem, algo_params, applied_solvers, :backward_pass, algo_params.solver_approach)
+
     # SOLVE PRIMAL PROBLEM (can be regularized or not)
     TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_primal" begin
         JuMP.optimize!(subproblem)
@@ -190,7 +190,7 @@ function solve_subproblem_backward_primal(
     primal_obj_scenario = JuMP.objective_value(subproblem)
     # Try recovering from numerical issues
     if (JuMP.termination_status(subproblem) != MOI.OPTIMAL)
-        elude_numerical_issues!(subproblem, algo_params)
+        #elude_numerical_issues!(subproblem, algo_params)
     end
 
     ############################################################################

@@ -15,9 +15,6 @@
 # If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
 ################################################################################
 
-import JuMP
-import Revise
-
 ################################################################################
 # BINARY STATE
 ################################################################################
@@ -82,18 +79,30 @@ LevelBundle means that a level bundle method with specified parameters is
 Subgradient means that a basic subgradient method (as in Bertsekas "Nonlinear
     Programming") is used to solve the dual problem.
 Default is Kelley.
+
+The parameter use_subopt_sol allows to speed-up the solution by adding additional
+cuts using suboptimal solutions from the Lagrangian dual inner problem.
 """
 
-mutable struct Kelley <: AbstractDualSolutionRegime end
+mutable struct Kelley <: AbstractDualSolutionRegime
+    use_subopt_sol::Bool
+    function Kelley(;
+        use_subopt_sol = false,
+        )
+        return new(use_subopt_sol)
+    end
+end
 
 mutable struct LevelBundle <: AbstractDualSolutionRegime
     level_factor::Float64
     switch_to_kelley::Bool
+    use_subopt_sol::Bool
     function LevelBundle(;
         level_factor = 0.5,
         switch_to_kelley = true,
+        use_subopt_sol = false,
         )
-        return new(level_factor, switch_to_kelley)
+        return new(level_factor, switch_to_kelley, use_subopt_sol)
     end
 end
 
@@ -113,7 +122,6 @@ mutable struct Subgradient <: AbstractDualSolutionRegime
         return new(beta_up, beta_down, gamma, wait, max_times_unchanged)
     end
 end
-
 
 
 ################################################################################
@@ -229,7 +237,30 @@ mutable struct BinaryApproximation <: AbstractStateApproximationRegime
     end
 end
 
+#TODO: Maybe change this to K instead of precision
+
 mutable struct NoStateApproximation <: AbstractStateApproximationRegime end
+
+################################################################################
+# LATE BINARIZATION
+################################################################################
+abstract type AbstractLateBinarizationRegime end
+
+"""
+LateBinarization means that after a predefined number of iterations a static
+    (not dynamic as above!) binarization of the state space is applied.
+NoLateBinarization means that this discretization is not used.
+Default is NoLateBinarization.
+"""
+
+mutable struct LateBinarization <: AbstractLateBinarizationRegime
+    #K_dict::Dict{Symbol, Int64} # number of binary variables
+    K::Int64 # number of binary variables (same for all continuous states)
+    iteration_to_start::Int64
+end
+
+mutable struct NoLateBinarization <: AbstractLateBinarizationRegime end
+
 
 ################################################################################
 # DUAL NORMALIZATION
@@ -245,41 +276,56 @@ mutable struct ChenLuedtke <: AbstractNormalizationRegime end
 
 mutable struct Core_Midpoint <: AbstractNormalizationRegime
     integer_relax::Bool
+    normalize_direction::Bool
     function Core_Midpoint(;
         integer_relax = false,
+        normalize_direction = true,
         )
-        return new(integer_relax)
+        return new(integer_relax, normalize_direction)
     end
 end
 
 mutable struct Core_In_Out <: AbstractNormalizationRegime
     integer_relax::Bool
+    normalize_direction::Bool
     function Core_In_Out(;
         integer_relax = false,
+        normalize_direction = true,
         )
-        return new(integer_relax)
+        return new(integer_relax, normalize_direction)
     end
 end
 
 mutable struct Core_Optimal <: AbstractNormalizationRegime
     integer_relax::Bool
+    normalize_direction::Bool
     function Core_Optimal(;
         integer_relax = false,
+        normalize_direction = true,
         )
-            return new(integer_relax)
+            return new(integer_relax, normalize_direction)
     end
 end
 
-mutable struct Core_Relint <: AbstractNormalizationRegime end
+mutable struct Core_Relint <: AbstractNormalizationRegime
+    normalize_direction::Bool
+    function Core_Relint(;
+        normalize_direction = true,
+        )
+            return new(normalize_direction)
+    end
+end
 
 mutable struct Core_Epsilon <: AbstractNormalizationRegime
     perturb::Float64
     integer_relax::Bool
+    normalize_direction::Bool
     function Core_Epsilon(;
         perturb = 1e-6,
         integer_relax = false,
+        normalize_direction = true,
     )
-            return new(perturb, integer_relax)
+            return new(perturb, integer_relax, normalize_direction)
     end
 end
 
@@ -344,6 +390,9 @@ The parameter integer_relax is required because if we fix the state variables
     satisfy integer constraints. To avoid infeasibility, we can consider the LP
     relaxation of the subproblem. If the original state variables are continuous,
     this is not required (see SLDP_Example_1).
+The parameter normalize_direction allows to normalize the coefficients of the
+    linear pseudonorm in order to prevent them from becoming too small or
+    too large.
 
 Default is L_1_Deep.
 """
@@ -537,10 +586,11 @@ mutable struct CutGenerationRegime
     state_approximation_regime::AbstractStateApproximationRegime
     duality_regime::AbstractDualityRegime
     iteration_to_start::Int64
-    iteration_to_stop::Union{Int64,Float64}
+    iteration_to_stop::Union{Int64,Float64} #TODO
     gap_to_start::Float64       # not used so far
     gap_to_stop::Float64        # not used so far
     cut_away_approach::Bool
+    cut_away_tol::Float64
 
     function CutGenerationRegime(;
         state_approximation_regime = BinaryApproximation(),
@@ -549,7 +599,8 @@ mutable struct CutGenerationRegime
         iteration_to_stop = Inf,
         gap_to_start = Inf,
         gap_to_stop = 0.0,
-        cut_away_approach = false,
+        cut_away_approach = true,
+        cut_away_tol = 1e-4,
     )
         return new(
             state_approximation_regime,
@@ -559,6 +610,7 @@ mutable struct CutGenerationRegime
             gap_to_start,
             gap_to_stop,
             cut_away_approach,
+            cut_away_tol,
         )
     end
 end
@@ -571,11 +623,13 @@ gap_to_start:           relative optimality gap at which this regime is first
                         applied (tricky for stochastic case)
 gap_to_stop:            relative optimality gap at which this regime is last
                         applied (tricky for stochastic case)
-cut_away_approach:      if true, a hierarchy of cuts is used, so that this
-                        regime is only used if the incumbent is not cut away
-                        by the previous cut already. This parameter should
-                        not be true for the first CutGenerationRegime in
-                        AlgoParams.
+cut_away_approach:      if true, cuts of this regime will only be added
+                        to the respective subproblem if they lead to an
+                        improvement (i.e. cut away the current incumbent)
+cut_away_tol:           defines a tolerance which is applied in checking if
+                        an incumbent is cut away (tolerance for cut violation)
+                        if cut_away_approach is used. This allows to prevent
+                        to add almost redundant cuts again and again.
 
 Note that using gap_to_start and gap_to_stop for stochastic problems may be
 misleading as the upper bounds, and thus the gaps, are stochastic.
@@ -661,6 +715,8 @@ mutable struct OutOfSampleMonteCarlo <: AbstractSamplingScheme
     end
 end
 
+mutable struct HistoricalSample <: AbstractSamplingScheme end
+
 # Simulation regimes
 abstract type AbstractSimulationRegime end
 
@@ -694,33 +750,87 @@ Default is NoSimulation.
 # DEFINING STRUCT FOR SOLVERS TO BE USED
 ################################################################################
 """
-For the Lagrangian subproblems a separate solver can be defined if for
-    the LP/MILP solver numerical issues occur.
+Allows to define different solvers for different phases of the algorithm.
+However, this leads to some computational overhead for re-setting the solver.
+Therefore, if always the same solver is used for a particular subproblem, then
+it should not be refined. In such case, we can set the general_solver variable
+to true. In that case, the solver for the subproblems (apart from some auxiliary
+problems) is only set once initially.
+Note that using general_solver = false only makes sense if different solvers
+are specified for the phases of the algorithm.
+Note that if general_solver = false, then the non-optional solvers have to be
+defined.
+
+solver_subproblem always has to be satisfied, therefore we have a default there.
+
+solver_subproblem:          forward and backward pass subproblems
+solver_Lagrange_relax:      Lagrangian dual inner problem
+                            (optional, otherwise solver_subproblem is used)
+solver_Lagrange_approx:     Lagrangian dual outer problem
+                            (should be defined if Kelley or LevelBundle method
+                            are used, as this is a different problem)
+solver_Lagrange_Bundle:     quadratic auxiliary problem in Bundle method
+                            (optional, otherwise solver_Lagrange_approx is used)
+solver_Lagrange_subgradient: projection problem in the subgradient method
+                            (should be defined if subgradient method
+                            is used, as this is a different problem)
+solver_cut_selection:       solver for cut selection auxiliary problem
+                            (should be defined if cut selection method is used,
+                            as this is a different problem)
+solver_LP_relax:            solver for LP relaxations of MILP subproblems
+                            (optional, otherwise solver_subproblem is used)
+solver_reg:                 solver for regularization of subproblems
+                            (optional, otherwise solver_subproblem is used)
+solver_norm:                solver for identifying core points or computing
+                            normalization coefficients
+                            (optional, otherwise solver_subproblem is used)
+
+Note that we can also specify the tolerance for solving subproblems. This is the
+same for all problems, though.
+Moreover, (for now only for Gurobi) we can specify a time limit in seconds.
 """
 
 struct AppliedSolvers
-    LP :: Any
-    MILP :: Any
-    MIQCP :: Any
-    MINLP :: Any
-    NLP :: Any
-    Lagrange :: Any
+    general_solver :: Bool
+    solver_subproblem :: Any
+    solver_Lagrange_relax :: Any
+    solver_Lagrange_approx :: Any
+    solver_Lagrange_Bundle :: Any
+    solver_Lagrange_subgradient :: Any
+    solver_cut_selection :: Any
+    solver_LP_relax :: Any
+    solver_reg :: Any
+    solver_norm :: Any
+    solver_tol :: Float64
+    solver_time :: Int64
 
     function AppliedSolvers(;
-        LP = "Gurobi",
-        MILP = "Gurobi",
-        MIQCP = "Gurobi",
-        MINLP = "SCIP",
-        NLP = "SCIP",
-        Lagrange = "Gurobi",
+        general_solver = true,
+        solver_subproblem = "Gurobi",
+        solver_Lagrange_relax = "Gurobi",
+        solver_Lagrange_approx = "Gurobi",
+        solver_Lagrange_Bundle = "Gurobi",
+        solver_Lagrange_subgradient = "Gurobi",
+        solver_cut_selection = "Gurobi",
+        solver_LP_relax = "Gurobi",
+        solver_reg = "Gurobi",
+        solver_norm = "Gurobi",
+        solver_tol = 1e-4,
+        solver_time = 300,
         )
         return new(
-            LP,
-            MILP,
-            MIQCP,
-            MINLP,
-            NLP,
-            Lagrange
+            general_solver,
+            solver_subproblem,
+            solver_Lagrange_relax,
+            solver_Lagrange_approx,
+            solver_Lagrange_Bundle,
+            solver_Lagrange_subgradient,
+            solver_cut_selection,
+            solver_LP_relax,
+            solver_reg,
+            solver_norm,
+            solver_tol,
+            solver_time,
             )
     end
 end
@@ -747,6 +857,7 @@ mutable struct AlgoParams
     cut_selection_regime::AbstractCutSelectionRegime
     cut_generation_regimes::Vector{CutGenerationRegime}
     simulation_regime::AbstractSimulationRegime
+    late_binarization_regime::AbstractLateBinarizationRegime
     ############################################################################
     risk_measure::SDDP.AbstractRiskMeasure
     forward_pass::SDDP.AbstractForwardPass
@@ -775,6 +886,7 @@ mutable struct AlgoParams
         cut_selection_regime = CutSelection(),
         cut_generation_regimes = [CutGenerationRegime()],
         simulation_regime = NoSimulation(),
+        late_binarization_regime = NoLateBinarization(),
         risk_measure = SDDP.Expectation(),
         forward_pass = SDDP.DefaultForwardPass(),
         sampling_scheme = SDDP.InSampleMonteCarlo(),
@@ -801,6 +913,7 @@ mutable struct AlgoParams
             cut_selection_regime,
             cut_generation_regimes,
             simulation_regime,
+            late_binarization_regime,
             risk_measure,
             forward_pass,
             sampling_scheme,

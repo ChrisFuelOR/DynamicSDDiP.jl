@@ -11,10 +11,17 @@ function _solve_unified_Lagrangian_relaxation!(
     h_k::Vector{Float64},
     w_expr::JuMP.GenericAffExpr{Float64,JuMP.VariableRef},
     w_k::Float64,
+    h_k_subopt::Vector{Vector{Float64}},
+    w_k_subopt::Vector{Float64},
+    L_k_subopt::Vector{Float64},
+    x_in_value::Vector{Float64},
     algo_params::DynamicSDDiP.AlgoParams,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
+    state_approximation_regime::Union{DynamicSDDiP.BinaryApproximation,DynamicSDDiP.NoStateApproximation},
     update_subgradients::Bool = true,
+    use_subopt_sol::Bool = false,
 )
+
     model = node.subproblem
 
     # Set the objective of the Lagrangian relaxation
@@ -29,14 +36,37 @@ function _solve_unified_Lagrangian_relaxation!(
 
     # Try recovering from numerical issues
     if (JuMP.termination_status(model) != MOI.OPTIMAL)
-        elude_numerical_issues!(model, algo_params)
+        #elude_numerical_issues!(model, algo_params)
     end
 
     # Update the correct values
-    L_k = JuMP.objective_value(model)
+    #L_k = JuMP.objective_value(model)
+    L_k = JuMP.objective_bound(model)
+
     if update_subgradients
         h_k .= JuMP.value.(h_expr)
         w_k = JuMP.value(w_expr)
+    end
+
+    # Also store suboptimal solutions if intended
+    if use_subopt_sol
+        # Get the number of solutions for the model
+        number_of_solutions = MOI.get(model, MOI.ResultCount())
+
+        # Iterate over the solutions (apart from the first one which is already used above)
+        if number_of_solutions > 1
+            for i = 2:number_of_solutions
+                # Return the corresponding suboptimal solution and add it to h_k_subopt and L_k_subopt
+                subopt_sol = get_subopt_solution_unified(node, i, x_in_value, w_expr, state_approximation_regime)
+
+                push!(L_k_subopt, subopt_sol.L_k)
+
+                if update_subgradients
+                    push!(h_k_subopt, subopt_sol.h_k)
+                    push!(w_k_subopt, subopt_sol.w_k)
+                end
+            end
+        end
     end
 
     # Reset old objective
@@ -55,10 +85,11 @@ function solve_unified_lagrangian_dual(
     i::Int64,
     epi_state::Float64,
     normalization_coeff::Union{Nothing,NamedTuple{(:ω, :ω₀),Tuple{Vector{Float64},Float64}}},
-    primal_obj::Float64,
+    primal_unified_obj::Float64,
     π_k::Vector{Float64},
     π0_k::Float64,
     bound_results::NamedTuple{(:obj_bound, :dual_bound),Tuple{Float64,Float64}},
+    dual_multiplier_bound::Float64,
     algo_params::DynamicSDDiP.AlgoParams,
     cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
@@ -95,6 +126,11 @@ function solve_unified_lagrangian_dual(
     w_expr = JuMP.AffExpr()
     # The current value of the epi slack
     w_k = 0.0
+    #---------------------------------------------------------------------------
+    # Vectors to store suboptimal solutions if needed
+    h_k_subopt = Vector{Vector{Float64}}()
+    w_k_subopt = Vector{Float64}()
+    L_k_subopt = Vector{Float64}()
 
     # Set tolerances
     #---------------------------------------------------------------------------
@@ -104,7 +140,7 @@ function solve_unified_lagrangian_dual(
 
     # Set solver for inner problem
     #---------------------------------------------------------------------------
-    set_solver!(node.subproblem, algo_params, applied_solvers, :lagrange_relax, algo_params.solver_approach)
+    reset_solver!(node.subproblem, algo_params, applied_solvers, :lagrange_relax, algo_params.solver_approach)
 
     ############################################################################
     # RELAXING THE COPY CONSTRAINTS
@@ -132,18 +168,7 @@ function solve_unified_lagrangian_dual(
         # Approximation of Lagrangian dual by cutting planes
         # Optimizer is re-set anyway
         approx_model = JuMP.Model()
-        JuMP.set_optimizer(approx_model, JuMP.optimizer_with_attributes(
-            () -> Gurobi.Optimizer(GURB_ENV[]),"MIPGap"=>1e-4,"TimeLimit"=>300,"NumericFocus"=>algo_params.numerical_focus
-        ))
-        JuMP.set_silent(approx_model)
-
-        approx_model.ext[:sddp_policy_graph] = node.subproblem.ext[:sddp_policy_graph]
-
-        if isa(cut_generation_regime.duality_regime.normalization_regime, DynamicSDDiP.L₂_Deep)
-            set_solver!(approx_model, algo_params, applied_solvers, :l₂, algo_params.solver_approach)
-        else
-            set_solver!(approx_model, algo_params, applied_solvers, :kelley, algo_params.solver_approach)
-        end
+        set_solver_initially!(approx_model, algo_params, applied_solvers, :kelley, algo_params.solver_approach)
 
         # Create the objective
         # Note that it is always formulated as a maximization problem, but that
@@ -163,15 +188,14 @@ function solve_unified_lagrangian_dual(
         ########################################################################
         # We cannot use the primal_obj as an obj_bound in the unified framework,
         # so we use an arbitrarily chosen upper bound or bound the dual multipliers.
-        if !isnothing(cut_generation_regime.duality_regime.user_dual_objective_bound)
-            set_objective_bound!(approx_model, s, cut_generation_regime.duality_regime.user_dual_objective_bound)
+        if !isinf(primal_unified_obj)
+            set_objective_bound!(approx_model, s, primal_unified_obj)
         end
 
-        if !isnothing(cut_generation_regime.duality_regime.user_dual_multiplier_bound)
-            bound = cut_generation_regime.duality_regime.user_dual_multiplier_bound
-            JuMP.@constraint(approx_model, π⁺[1:number_of_states] .<= bound)
-            JuMP.@constraint(approx_model, π⁻[1:number_of_states] .<= bound)
-            JuMP.set_upper_bound(π₀, bound)
+        if !isinf(dual_multiplier_bound)
+            JuMP.@constraint(approx_model, π⁺[1:number_of_states] .<= dual_multiplier_bound)
+            JuMP.@constraint(approx_model, π⁻[1:number_of_states] .<= dual_multiplier_bound)
+            JuMP.set_upper_bound(π₀, dual_multiplier_bound)
         end
 
         # Algorithm-specific bounds, e.g. due to regularization
@@ -210,7 +234,8 @@ function solve_unified_lagrangian_dual(
         ########################################################################
         # Evaluate the inner problem and determine a subgradient
         TimerOutputs.@timeit DynamicSDDiP_TIMER "inner_sol" begin
-            relax_results = _solve_unified_Lagrangian_relaxation!(node, π_k, π0_k, h_expr, h_k, w_expr, w_k, algo_params, applied_solvers, true)
+            relax_results = _solve_unified_Lagrangian_relaxation!(node, π_k, π0_k, h_expr, h_k, w_expr, w_k, h_k_subopt, w_k_subopt,
+            L_k_subopt, x_in_value, algo_params, applied_solvers, cut_generation_regime.state_approximation_regime, true, dual_solution_regime.use_subopt_sol)
         end
         L_k = relax_results.L_k
         w_k = relax_results.w_k
@@ -231,6 +256,22 @@ function solve_unified_lagrangian_dual(
         ########################################################################
         TimerOutputs.@timeit DynamicSDDiP_TIMER "add_cut" begin
             JuMP.@constraint(approx_model, t <= s * (L_k + h_k' * (π .- π_k) + w_k * (π₀ - π0_k)))
+
+            # Also add cuts using suboptimal solutions to accelerate convergence
+            # if intended
+            if dual_solution_regime.use_subopt_sol
+                # Iterate over them
+                for i in 1:length(h_k_subopt)
+                    JuMP.@constraint(approx_model, t <= s * (L_k_subopt[i] + h_k_subopt[i]' * (π .- π_k) + w_k_subopt[i] * (π₀ - π0_k)))
+                end
+            end
+
+        end
+
+        # In first iteration, only use multipliers to get subgradient and cut, but not for bounds check
+        if iter == 1
+            L_k = -Inf
+            L_star = s * L_k
         end
 
         ########################################################################
@@ -253,6 +294,11 @@ function solve_unified_lagrangian_dual(
         π_k .= JuMP.value.(π)
         π0_k = JuMP.value.(π₀)
 
+        # if node_index == 3 && i == 1 && node.subproblem.ext[:sddp_policy_graph].ext[:iteration] >= 2
+        #     Infiltrator.@infiltrate
+        #     println(node_index, ", ", iter, ", ", L_star, ", ", t_k)
+        # end
+
         # Sometimes the solver (e.g. Gurobi) provides a float point approximation
         # of zero, which is slightly negative, e.g. 1.144917E-16, even though
         # π0_k >= 0 is enforced as a constraint.
@@ -262,7 +308,12 @@ function solve_unified_lagrangian_dual(
             π0_k = 0.0
         end
 
+        h_k_subopt = Vector{Vector{Float64}}()
+        w_k_subopt = Vector{Float64}()
+        L_k_subopt = Vector{Float64}()
+
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
+        #println(L_star, ", ", t_k, ", ", iter, ", ", π0_k, ", ", π_k)
 
         ########################################################################
         if L_star > t_k + atol/10.0
@@ -307,6 +358,8 @@ function solve_unified_lagrangian_dual(
         end
     end
 
+    #println(node_index, ",", lag_status, ", ", L_star, ", ", t_k, ", ", iter, ", ", π0_k, ", ", π_k)
+
     ############################################################################
     # APPLY MINIMAL NORM CHOICE APPROACH IF INTENDED
     ############################################################################
@@ -315,7 +368,7 @@ function solve_unified_lagrangian_dual(
     # so finding the minimal norm optimal solution does not make sense.
         TimerOutputs.@timeit DynamicSDDiP_TIMER "minimal_norm" begin
             mn_results = minimal_norm_choice_unified!(node, node_index, approx_model, π_k, π_star, π0_k, π0_star, t_k, h_expr, h_k, w_expr, w_k, s, L_star,
-            iteration_limit, atol, rtol, cut_generation_regime.duality_regime.dual_choice_regime, iter, lag_status, algo_params, applied_solvers)
+            iteration_limit, atol, rtol, cut_generation_regime.duality_regime.dual_choice_regime, iter, lag_status, algo_params, applied_solvers, cut_generation_regime)
 
             iter = mn_results.iter
             lag_status = mn_results.lag_status
@@ -334,24 +387,14 @@ function solve_unified_lagrangian_dual(
     ############################################################################
     # RESET SOLVER
     ############################################################################
-    set_solver!(node.subproblem, algo_params, applied_solvers, :forward_pass, algo_params.solver_approach)
+    reset_solver!(node.subproblem, algo_params, applied_solvers, :forward_pass, algo_params.solver_approach)
 
     ############################################################################
-    # LOGGING
+    # RETURN
     ############################################################################
-    # print_helper(print_lag_iteration, lag_log_file_handle, iter, t_k, L_star, L_k)
-    #if node.subproblem.ext[:sddp_policy_graph].ext[:iteration] == 11
-    #    Infiltrator.@infiltrate
-    #end
-    # if all(π_star .== 0) && isapprox(π0_star, 0.0, atol=1e-8)
-    #     println(node_index, ", ", node.subproblem.ext[:sddp_policy_graph].ext[:iteration], ", ", lag_status, ", ", epi_state,  ", ",primal_obj, ", ", L_star, ", ", t_k, ", ", π_star, ", ", π0_star)
-    # end
-
     # Set dual_vars (here π_k) to the optimal solution
     π_k .= -π_star
     π0_k = π0_star
-
-    #println(L_star)
 
     return (lag_obj = s * L_star, iterations = iter, lag_status = lag_status, dual_0_var = π0_k)
 
@@ -367,10 +410,11 @@ function solve_unified_lagrangian_dual(
     i::Int64,
     epi_state::Float64,
     normalization_coeff::Union{Nothing,NamedTuple{(:ω, :ω₀),Tuple{Vector{Float64},Float64}}},
-    primal_obj::Float64,
+    primal_unified_obj::Float64,
     π_k::Vector{Float64},
     π0_k::Float64,
     bound_results::NamedTuple{(:obj_bound, :dual_bound),Tuple{Float64,Float64}},
+    dual_multiplier_bound::Float64,
     algo_params::DynamicSDDiP.AlgoParams,
     cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
@@ -407,6 +451,11 @@ function solve_unified_lagrangian_dual(
     w_expr = JuMP.AffExpr()
     # The current value of the epi slack
     w_k = 0.0
+    #---------------------------------------------------------------------------
+    # Vectors to store suboptimal solutions if needed
+    h_k_subopt = Vector{Vector{Float64}}()
+    w_k_subopt = Vector{Float64}()
+    L_k_subopt = Vector{Float64}()
 
     # Set tolerances
     #---------------------------------------------------------------------------
@@ -416,7 +465,7 @@ function solve_unified_lagrangian_dual(
 
     # Set solver for inner problem
     #---------------------------------------------------------------------------
-    set_solver!(node.subproblem, algo_params, applied_solvers, :lagrange_relax, algo_params.solver_approach)
+    reset_solver!(node.subproblem, algo_params, applied_solvers, :lagrange_relax, algo_params.solver_approach)
 
     # Set bundle_parameters
     #---------------------------------------------------------------------------
@@ -442,17 +491,7 @@ function solve_unified_lagrangian_dual(
         # Approximation of Lagrangian dual by cutting planes
         # Optimizer is re-set anyway
         approx_model = JuMP.Model()
-
-        # if isa(cut_generation_regime.duality_regime.normalization_regime, DynamicSDDiP.L₂_Deep)
-        #     set_solver!(approx_model, algo_params, applied_solvers, :l₂, algo_params.solver_approach)
-        # else
-        #     set_solver!(approx_model, algo_params, applied_solvers, :kelley, algo_params.solver_approach)
-        # end
-        JuMP.set_optimizer(approx_model, JuMP.optimizer_with_attributes(
-            () -> Gurobi.Optimizer(GURB_ENV[]),"MIPGap"=>1e-4,"TimeLimit"=>300,"NumericFocus"=>algo_params.numerical_focus
-        ))
-        JuMP.set_silent(approx_model)
-
+        set_solver_initially!(approx_model, algo_params, applied_solvers, :kelley, algo_params.solver_approach)
         approx_model.ext[:sddp_policy_graph] = node.subproblem.ext[:sddp_policy_graph]
 
         # Create the objective
@@ -473,15 +512,14 @@ function solve_unified_lagrangian_dual(
         ########################################################################
         # We cannot use the primal_obj as an obj_bound in the unified framework,
         # so we use an arbitrarily chosen upper bound or bound the dual multipliers.
-        if !isnothing(cut_generation_regime.duality_regime.user_dual_objective_bound)
-            set_objective_bound!(approx_model, s, cut_generation_regime.duality_regime.user_dual_objective_bound)
+        if !isinf(primal_unified_obj)
+            set_objective_bound!(approx_model, s, primal_unified_obj)
         end
 
-        if !isnothing(cut_generation_regime.duality_regime.user_dual_multiplier_bound)
-            bound = cut_generation_regime.duality_regime.user_dual_multiplier_bound
-            JuMP.@constraint(approx_model, π⁺[1:number_of_states] .<= bound)
-            JuMP.@constraint(approx_model, π⁻[1:number_of_states] .<= bound)
-            JuMP.set_upper_bound(π₀, bound)
+        if !isinf(dual_multiplier_bound)
+            JuMP.@constraint(approx_model, π⁺[1:number_of_states] .<= dual_multiplier_bound)
+            JuMP.@constraint(approx_model, π⁻[1:number_of_states] .<= dual_multiplier_bound)
+            JuMP.set_upper_bound(π₀, dual_multiplier_bound)
         end
 
         # Algorithm-specific bounds, e.g. due to regularization
@@ -521,7 +559,8 @@ function solve_unified_lagrangian_dual(
         ########################################################################
         # Evaluate the inner problem and determine a subgradient
         TimerOutputs.@timeit DynamicSDDiP_TIMER "inner_sol" begin
-            relax_results = _solve_unified_Lagrangian_relaxation!(node, π_k, π0_k, h_expr, h_k, w_expr, w_k, algo_params, applied_solvers, true)
+            relax_results = _solve_unified_Lagrangian_relaxation!(node, π_k, π0_k, h_expr, h_k, w_expr, w_k, h_k_subopt, w_k_subopt,
+            L_k_subopt, x_in_value, algo_params, applied_solvers, cut_generation_regime.state_approximation_regime, true, dual_solution_regime.use_subopt_sol)
         end
         L_k = relax_results.L_k
         w_k = relax_results.w_k
@@ -543,17 +582,22 @@ function solve_unified_lagrangian_dual(
         ########################################################################
         TimerOutputs.@timeit DynamicSDDiP_TIMER "add_cut" begin
             JuMP.@constraint(approx_model, t <= s * (L_k + h_k' * (π .- π_k) + w_k * (π₀ - π0_k)))
+
+            # Also add cuts using suboptimal solutions to accelerate convergence
+            # if intended
+            if dual_solution_regime.use_subopt_sol
+                # Iterate over them
+                for i in 1:length(h_k_subopt)
+                    JuMP.@constraint(approx_model, t <= s * (L_k_subopt[i] + h_k_subopt[i]' * (π .- π_k) + w_k_subopt[i] * (π₀ - π0_k)))
+                end
+            end
         end
 
         ########################################################################
         # RESET OBJECTIVE FOR APPROX_MODEL AFTER NONLINEAR MODEL
         ########################################################################
         JuMP.@objective(approx_model, Max, t)
-        # if isa(cut_generation_regime.duality_regime.normalization_regime, DynamicSDDiP.L₂_Deep)
-        #     set_solver!(approx_model, algo_params, applied_solvers, :l₂, algo_params.solver_approach)
-        # else
-        #     set_solver!(approx_model, algo_params, applied_solvers, :kelley, algo_params.solver_approach)
-        # end
+        reset_solver!(approx_model, algo_params, applied_solvers, :kelley, algo_params.solver_approach)
 
         ########################################################################
         # SOLVE APPROXIMATION MODEL
@@ -645,13 +689,11 @@ function solve_unified_lagrangian_dual(
         ########################################################################
         # Objective function of approx model has to be adapted to new center
         JuMP.@objective(approx_model, Min, sum((π_k[i] - π[i])^2 for i in 1:number_of_states) + (π0_k - π₀)^2)
-        #set_solver!(approx_model, algo_params, applied_solvers, :level_bundle, algo_params.solver_approach)
+        reset_solver!(approx_model, algo_params, applied_solvers, :level_bundle, algo_params.solver_approach)
 
         TimerOutputs.@timeit DynamicSDDiP_TIMER "bundle_sol" begin
             JuMP.optimize!(approx_model)
         end
-
-        #Infiltrator.@infiltrate
 
         """ This is removed, as sometimes the QCP is solved to optimality, but
         Gurobi is not able to get an optimality certificate
@@ -677,7 +719,16 @@ function solve_unified_lagrangian_dual(
             π0_k = JuMP.value.(π₀)
         end
 
-        #@assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL || JuMP.termination_status(approx_model) == JuMP.MOI.LOCALLY_SOLVED
+        # In first iteration, only use multipliers to get subgradient and cut, but not for bounds check
+        if iter == 1
+            L_k = -Inf
+            L_star = s * L_k
+        end
+
+        # if node_index == 3 && i == 1 && node.subproblem.ext[:sddp_policy_graph].ext[:iteration] >= 2
+        #     Infiltrator.@infiltrate
+        #     println(node_index, ", ", iter, ", ", L_star, ", ", t_k)
+        # end
 
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
 
@@ -693,8 +744,11 @@ function solve_unified_lagrangian_dual(
             π0_k = 0.0
         end
 
+        h_k_subopt = Vector{Vector{Float64}}()
+        w_k_subopt = Vector{Float64}()
+        L_k_subopt = Vector{Float64}()
+
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
-        #println(L_k, ", ", L_star, ", ", t_k)
 
         ########################################################################
         if L_star > t_k + atol/10.0
@@ -702,8 +756,6 @@ function solve_unified_lagrangian_dual(
             break
         end
     end
-
-    #println()
 
     ############################################################################
     # CONVERGENCE ANALYSIS
@@ -748,7 +800,7 @@ function solve_unified_lagrangian_dual(
         # so finding the minimal norm optimal solution does not make sense.
         TimerOutputs.@timeit DynamicSDDiP_TIMER "minimal_norm" begin
             mn_results = minimal_norm_choice_unified!(node, node_index, approx_model, π_k, π_star, π0_k, π0_star, t_k, h_expr, h_k, w_expr, w_k, s, L_star,
-            iteration_limit, atol, rtol, cut_generation_regime.duality_regime.dual_choice_regime, iter, lag_status, algo_params, applied_solvers)
+            iteration_limit, atol, rtol, cut_generation_regime.duality_regime.dual_choice_regime, iter, lag_status, algo_params, applied_solvers, cut_generation_regime)
 
             iter = mn_results.iter
             lag_status = mn_results.lag_status
@@ -767,13 +819,11 @@ function solve_unified_lagrangian_dual(
     ############################################################################
     # RESET SOLVER
     ############################################################################
-    set_solver!(node.subproblem, algo_params, applied_solvers, :forward_pass, algo_params.solver_approach)
+    reset_solver!(node.subproblem, algo_params, applied_solvers, :forward_pass, algo_params.solver_approach)
 
     ############################################################################
-    # LOGGING
+    # RETURN
     ############################################################################
-    # print_helper(print_lag_iteration, lag_log_file_handle, iter, t_k, L_star, L_k)
-
     # Set dual_vars (here π_k) to the optimal solution
     π_k .= -π_star
     π0_k = π0_star
@@ -813,6 +863,7 @@ function minimal_norm_choice_unified!(
     lag_status::Symbol,
     algo_params::DynamicSDDiP.AlgoParams,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     )
 
     π⁺ = approx_model[:π⁺]
@@ -846,7 +897,8 @@ function minimal_norm_choice_unified!(
 
         π_k .= JuMP.value.(π)
 
-        relax_results = _solve_unified_Lagrangian_relaxation!(node, π_k, π0_k, h_expr, h_k, w_expr, w_k, algo_params, applied_solvers, true)
+        relax_results = _solve_unified_Lagrangian_relaxation!(node, π_k, π0_k, h_expr, h_k, w_expr, w_k, Vector{Vector{Float64}}(), Vector{Float64}(),
+        Vector{Float64}(), zeros(length(π_k)), algo_params, applied_solvers, cut_generation_regime.state_approximation_regime, true, false)
 
         L_k = relax_results.L_k
         w_k = relax_results.w_k
@@ -891,6 +943,7 @@ function minimal_norm_choice_unified!(
     lag_status::Symbol,
     algo_params::DynamicSDDiP.AlgoParams,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     )
 
     return (iter=iter, lag_status=lag_status)
@@ -906,10 +959,11 @@ function solve_unified_lagrangian_dual(
     i::Int64,
     epi_state::Float64,
     normalization_coeff::Union{Nothing,NamedTuple{(:ω, :ω₀),Tuple{Vector{Float64},Float64}}},
-    primal_obj::Float64,
+    primal_unified_obj::Float64,
     π_k::Vector{Float64},
     π0_k::Float64,
     bound_results::NamedTuple{(:obj_bound, :dual_bound),Tuple{Float64,Float64}},
+    dual_multiplier_bound::Float64,
     algo_params::DynamicSDDiP.AlgoParams,
     cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
@@ -969,7 +1023,7 @@ function solve_unified_lagrangian_dual(
 
     # Set solver for inner problem
     #---------------------------------------------------------------------------
-    set_solver!(node.subproblem, algo_params, applied_solvers, :lagrange_relax, algo_params.solver_approach)
+    reset_solver!(node.subproblem, algo_params, applied_solvers, :lagrange_relax, algo_params.solver_approach)
 
     ############################################################################
     # RELAXING THE COPY CONSTRAINTS
@@ -1004,12 +1058,7 @@ function solve_unified_lagrangian_dual(
         # Optimizer is re-set anyway
         proj_model = JuMP.Model()
         proj_model.ext[:sddp_policy_graph] = node.subproblem.ext[:sddp_policy_graph]
-
-        if isa(cut_generation_regime.duality_regime.normalization_regime, DynamicSDDiP.L₂_Deep)
-            set_solver!(proj_model, algo_params, applied_solvers, :l₂, algo_params.solver_approach)
-        else
-            set_solver!(proj_model, algo_params, applied_solvers, :kelley, algo_params.solver_approach)
-        end
+        set_solver_initially!(proj_model, algo_params, applied_solvers, :subgradient, algo_params.solver_approach)
 
         # Create the dual variables
         # Note that the real dual multipliers are split up into two non-negative
@@ -1021,11 +1070,14 @@ function solve_unified_lagrangian_dual(
 
         # User-specific bounds
         ########################################################################
-        if !isnothing(cut_generation_regime.duality_regime.user_dual_multiplier_bound)
-            bound = cut_generation_regime.duality_regime.user_dual_multiplier_bound
-            JuMP.@constraint(proj_model, π⁺[1:number_of_states] .<= bound)
-            JuMP.@constraint(proj_model, π⁻[1:number_of_states] .<= bound)
-            JuMP.set_upper_bound(π₀, bound)
+        if !isinf(primal_unified_obj)
+            set_objective_bound!(approx_model, s, primal_unified_obj)
+        end
+
+        if !isinf(dual_multiplier_bound)
+            JuMP.@constraint(approx_model, π⁺[1:number_of_states] .<= dual_multiplier_bound)
+            JuMP.@constraint(approx_model, π⁻[1:number_of_states] .<= dual_multiplier_bound)
+            JuMP.set_upper_bound(π₀, dual_multiplier_bound)
         end
 
         # Algorithm-specific bounds, e.g. due to regularization
@@ -1044,12 +1096,6 @@ function solve_unified_lagrangian_dual(
         # Add normalization constraint depending on abstract normalization regime
         add_normalization_constraint!(node, proj_model, number_of_states, normalization_coeff, cut_generation_regime.duality_regime.normalization_regime)
 
-        # Set solver
-        ########################################################################
-        JuMP.set_optimizer(proj_model, JuMP.optimizer_with_attributes(
-            () -> Gurobi.Optimizer(GURB_ENV[]),"MIPGap"=>1e-4,"TimeLimit"=>300,"NumericFocus"=>algo_params.numerical_focus
-        ))
-        JuMP.set_silent(proj_model)
     end
 
     ############################################################################
@@ -1233,15 +1279,93 @@ function solve_unified_lagrangian_dual(
     ############################################################################
     # RESET SOLVER
     ############################################################################
-    set_solver!(node.subproblem, algo_params, applied_solvers, :forward_pass, algo_params.solver_approach)
+    reset_solver!(node.subproblem, algo_params, applied_solvers, :forward_pass, algo_params.solver_approach)
 
+    ############################################################################
+    # RETURN
+    ############################################################################
     # Set dual_vars (here π_k) to the optimal solution
     π_k .= -π_star
     π0_k = π0_star
 
-    #Infiltrator.@infiltrate
-    #println(L_star)
-
     return (lag_obj = s * L_star, iterations = iter, lag_status = lag_status, dual_0_var = π0_k)
+
+end
+
+
+function get_subopt_solution_unified(
+    node::SDDP.Node,
+    sol_number::Int64,
+    x_in_value::Vector{Float64},
+    w_expr::JuMP.GenericAffExpr{Float64,JuMP.VariableRef},
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation,
+    )
+
+    number_of_states = get_number_of_states(node, state_approximation_regime)
+    h_k = zeros(number_of_states)
+
+    # Iterate over states and store the corresponding optimal solution
+    for (i, (name, state_comp)) in enumerate(node.states)
+        h_k[i] = MOI.get(node.subproblem, MOI.VariablePrimal(sol_number),state_comp.in) - x_in_value[i]
+    end
+
+    # Store the optimal objective value
+    L_k = MOI.get(node.subproblem, MOI.ObjectiveValue(sol_number))
+
+    # Compute w_k
+    ############################################################################
+    # Constant in w_expr
+    w_k = JuMP.moi_function(w_expr).constant
+
+    # Get coefficients and variable values for the terms in w_expr and add
+    # them to the constant
+    # NOTE: This only works for linear expression w_expr
+    for term in JuMP.moi_function(w_expr).terms
+        moi_variable_index = term.variable_index
+        jump_variable = JuMP.jump_function(node.subproblem,MOI.SingleVariable(moi_variable_index))
+        value = MOI.get(node.subproblem, MOI.VariablePrimal(sol_number),jump_variable)
+        w_k += value * term.coefficient
+    end
+
+    return (L_k = L_k, w_k = w_k, h_k = h_k)
+
+end
+
+
+function get_subopt_solution_unified(
+    node::SDDP.Node,
+    sol_number::Int64,
+    x_in_value::Vector{Float64},
+    w_expr::JuMP.GenericAffExpr{Float64,JuMP.VariableRef},
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation,
+    )
+
+    number_of_states = get_number_of_states(node, state_approximation_regime)
+    h_k = zeros(number_of_states)
+
+    # Iterate over states and store the corresponding optimal solution
+    for (i, (name, state)) in enumerate(node.ext[:backward_data][:bin_states])
+        h_k[i] = MOI.get(node.subproblem, MOI.VariablePrimal(sol_number),state) - x_in_value[i]
+    end
+
+    # Store the optimal objective value
+    L_k = MOI.get(node.subproblem, MOI.ObjectiveValue(sol_number))
+
+    # Compute w_k
+    ############################################################################
+    # Constant in w_expr
+    w_k = JuMP.moi_function(w_expr).constant
+
+    # Get coefficients and variable values for the terms in w_expr and add
+    # them to the constant
+    # NOTE: This only works for linear expression w_expr
+    for term in JuMP.moi_function(w_expr).terms
+        moi_variable_index = term.variable_index
+        jump_variable = JuMP.jump_function(node.subproblem,MOI.SingleVariable(moi_variable_index))
+        value = MOI.get(node.subproblem, MOI.VariablePrimal(sol_number),jump_variable)
+        w_k += value * term.coefficient
+    end
+
+    return (L_k = L_k, w_k = w_k, h_k = h_k)
 
 end

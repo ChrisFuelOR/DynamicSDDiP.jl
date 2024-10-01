@@ -41,6 +41,7 @@ function set_objective(subproblem::JuMP.Model)
 end
 
 function parameterize(node::SDDP.Node, noise)
+
     node.parameterize(noise)
     # set objective function and Bellman function for MILP
     set_objective(node.subproblem)
