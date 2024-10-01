@@ -28,6 +28,7 @@ function algo_config(
     dual_status_regime = DynamicSDDiP.Lax()
 
     dual_choice_regime = DynamicSDDiP.StandardChoice()
+
     if isa(normalization_regime, DynamicSDDiP.L∞_Deep)
         dual_choice_regime = DynamicSDDiP.MinimalNormChoice()
     end
