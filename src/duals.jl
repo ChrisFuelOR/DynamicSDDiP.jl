@@ -385,6 +385,10 @@ function get_dual_solution(
     # Initialize π₀ as 1 (0 is not suitable for relatively complete recourse)
     dual_0_var = 1.0
 
+    # if isa(normalization_regime, DynamicSDDiP.Core_Midpoint) || isa(normalization_regime, DynamicSDDiP.Core_In_Out) || isa(normalization_regime, DynamicSDDiP.Core_Epsilon) || isa(normalization_regime, DynamicSDDiP.Core_Optimal) || isa(normalization_regime, DynamicSDDiP.Core_Relint)
+    #     dual_0_var = 1.0 #/ normalization_coeff.ω₀
+    # end
+
     ############################################################################
     # GET TRUE PRIMAL OBJECTIVE VALUE
     ############################################################################
@@ -474,6 +478,7 @@ function get_dual_solution(
         end
 
     else
+
         # Prepare bounds for Lagrangian dual
         primal_unified_obj = unbounded_result.primal_unified_obj
         dual_multiplier_bound = Inf

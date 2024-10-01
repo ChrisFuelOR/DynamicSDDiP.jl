@@ -17,8 +17,9 @@ function algo_config(
 
     # Stopping rules to be used
     #stopping_rules = [SDDP.TimeLimit(time_limit), SDDP.IterationLimit(1000), SDDP.BoundStalling(20,1e-4)]
-    stopping_rules = [SDDP.TimeLimit(time_limit), SDDP.BoundStalling(20,1e-4)]
-    #stopping_rules = [SDDP.IterationLimit(10)]
+    #stopping_rules = [SDDP.TimeLimit(time_limit), SDDP.BoundStalling(20,1e-4)]
+    stopping_rules = [SDDP.IterationLimit(50)]
+
     #stopping_rules = [ SDDP.IterationLimit(20), SDDP.BoundStalling(20,1e-4)]
 
     # Duality / Cut computation configuration
@@ -32,9 +33,10 @@ function algo_config(
 #        dual_choice_regime = DynamicSDDiP.MinimalNormChoice()
 #    end
 
-    #dual_space_regime = DynamicSDDiP.BendersSpanSpaceRestriction(20, :multi_cut)
-    dual_space_regime = DynamicSDDiP.NoDualSpaceRestriction()
-    copy_regime = DynamicSDDiP.StateSpaceCopy()
+
+    dual_space_regime = DynamicSDDiP.BendersSpanSpaceRestriction(20, :multi_cut)
+    #dual_space_regime = DynamicSDDiP.NoDualSpaceRestriction()
+    copy_regime = DynamicSDDiP.ConvexHullCopy()
 
     if duality_regime_sym == :uni_lag
         duality_regime = DynamicSDDiP.UnifiedLagrangianDuality(
@@ -126,8 +128,8 @@ function algo_config(
         cut_selection_regime = cut_selection_regime,
         cut_generation_regimes = cut_generation_regimes,
         simulation_regime = simulation_regime,
-        late_binarization_regime = DynamicSDDiP.NoLateBinarization(),
-        #late_binarization_regime = DynamicSDDiP.LateBinarization(K, 11),
+        #late_binarization_regime = DynamicSDDiP.NoLateBinarization(),
+        late_binarization_regime = DynamicSDDiP.LateBinarization(K, 41),
         cut_type = cut_type,
         log_file = log_file,
         silent = silent,

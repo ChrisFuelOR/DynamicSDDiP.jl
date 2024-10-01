@@ -342,4 +342,3 @@ function add_normalization_constraint!(
 
 	return
 end
-
