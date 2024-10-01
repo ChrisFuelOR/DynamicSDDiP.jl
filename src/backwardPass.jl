@@ -55,9 +55,6 @@ function backward_pass(
             continue
         end
 
-        # Boolean variable to check if current incumbent was cut away already.
-        cut_away = false
-
         # Reset cut counter
         node.ext[:total_cuts] = 0
         node.ext[:active_cuts] = 0
@@ -67,11 +64,9 @@ function backward_pass(
         ########################################################################
         for cut_generation_regime in algo_params.cut_generation_regimes
 
-            # New cuts for cut_generation regime are only added if we do not
-            # use the cut_away_approach at all or if we use it, as long as
-            # the current incumbent hasn't been cut away already.
-            if (((cut_generation_regime.cut_away_approach && !cut_away) || !cut_generation_regime.cut_away_approach)
-                && model.ext[:iteration] >= cut_generation_regime.iteration_to_start
+            # New cuts for cut_generation regime are only generated and added
+            # if we are in the right iterations
+            if (model.ext[:iteration] >= cut_generation_regime.iteration_to_start
                 && model.ext[:iteration] <= cut_generation_regime.iteration_to_stop)
 
                 items = BackwardPassItems(T, SDDP.Noise)
@@ -124,7 +119,7 @@ function backward_pass(
                 Maybe this should be changed later.
                 """
                 TimerOutputs.@timeit DynamicSDDiP_TIMER "update_bellman" begin
-                    cut_away = refine_bellman_function(
+                    refine_bellman_function(
                         model,
                         node,
                         node_index,
@@ -140,7 +135,6 @@ function backward_pass(
                         items.probability,
                         items.objectives,
                         items.add_cut_flags,
-                        cut_away,
                         algo_params,
                         cut_generation_regime,
                         applied_solvers

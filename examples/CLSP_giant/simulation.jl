@@ -45,6 +45,7 @@ function simulate(
     end
 
     μ, ci = SDDP.confidence_interval(objectives)
+
     # get last lower bound again
     lower_bound, _ = DynamicSDDiP.calculate_bound(model)
 
@@ -106,7 +107,6 @@ function simulate(
     # GET A SAMPLE PATH USING THE EXISTING DISTRIBUTIONS
     ############################################################################
     historical_sample = get_historical_sample(problem_params, get_recombining_scenario_tree(algo_params, problem_params))
-    Infiltrator.@infiltrate
 
     # SIMULATE THE MODEL
     ############################################################################
@@ -129,7 +129,6 @@ function simulate(
 
     return
 end
-
 
 function log_simulation_results(
     algo_params::DynamicSDDiP.AlgoParams,

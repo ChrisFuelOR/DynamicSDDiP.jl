@@ -95,7 +95,9 @@ function simulate(
     model::SDDP.PolicyGraph,
     algo_params::DynamicSDDiP.AlgoParams,
     problem_params::DynamicSDDiP.ProblemParams,
-    sampling_scheme::DynamicSDDiP.HistoricalSample
+    number_of_servers::Int,
+    number_of_clients::Int,
+    sampling_scheme::DynamicSDDiP.HistoricalSample,
     )
 
     number_of_realizations = problem_params.number_of_realizations
@@ -105,8 +107,7 @@ function simulate(
     ############################################################################
     # GET A SAMPLE PATH USING THE EXISTING DISTRIBUTIONS
     ############################################################################
-    historical_sample = get_historical_sample(problem_params, get_recombining_scenario_tree(algo_params, problem_params))
-    Infiltrator.@infiltrate
+    historical_sample = get_historical_sample(algo_params, problem_params, number_of_servers, number_of_clients)
 
     # SIMULATE THE MODEL
     ############################################################################
