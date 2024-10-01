@@ -16,9 +16,8 @@ function algo_config(
     )
 
     # Stopping rules to be used
-    stopping_rules = [SDDP.TimeLimit(time_limit), SDDP.IterationLimit(2), SDDP.BoundStalling(20,1e-4)]
-    #stopping_rules = [SDDP.TimeLimit(time_limit), SDDP.BoundStalling(20,1e-4)]
-    #stopping_rules = [SDDP.IterationLimit(10)]
+    stopping_rules = [SDDP.TimeLimit(time_limit), SDDP.BoundStalling(20,1e-4)]
+    #stopping_rules = [SDDP.IterationLimit(1)]
     #stopping_rules = [ SDDP.IterationLimit(20), SDDP.BoundStalling(20,1e-4)]
 
     # Duality / Cut computation configuration
@@ -37,27 +36,10 @@ function algo_config(
     copy_regime = DynamicSDDiP.StateSpaceCopy()
 
     if duality_regime_sym == :uni_lag
-        if isa(normalization_regime, DynamicSDDiP.Core_Epsilon)
-            user_dual_multiplier_bound = nothing
-            user_dual_objective_bound = 1e4
-        elseif isa(normalization_regime, DynamicSDDiP.Core_In_Out)
-            user_dual_multiplier_bound = nothing
-            user_dual_objective_bound = 1e4
-        elseif isa(normalization_regime, DynamicSDDiP.Core_Midpoint)
-            user_dual_multiplier_bound = 10.0
-            user_dual_objective_bound = nothing
-        elseif isa(normalization_regime, DynamicSDDiP.Core_Relint)
-            user_dual_multiplier_bound = 10.0
-            user_dual_objective_bound = nothing
-        else
-            user_dual_multiplier_bound = nothing
-            user_dual_objective_bound = nothing
-        end
-
         duality_regime = DynamicSDDiP.UnifiedLagrangianDuality(
             atol = 1e-2,
             rtol = 1e-2,
-            iteration_limit = 1000,
+            iteration_limit = 100,
             dual_initialization_regime = dual_initialization_regime,
             dual_bound_regime = dual_bound_regime,
             dual_solution_regime = dual_solution_regime,
@@ -66,14 +48,12 @@ function algo_config(
             normalization_regime = normalization_regime,
             dual_space_regime = dual_space_regime,
             copy_regime = copy_regime,
-            user_dual_multiplier_bound = user_dual_multiplier_bound,
-            user_dual_objective_bound = user_dual_objective_bound,
         )
     elseif duality_regime_sym == :lag
         duality_regime = DynamicSDDiP.LagrangianDuality(
             atol = 1e-2,
             rtol = 1e-2,
-            iteration_limit = 1000,
+            iteration_limit = 100,
             dual_initialization_regime = dual_initialization_regime,
             dual_bound_regime = dual_bound_regime,
             dual_solution_regime = dual_solution_regime,

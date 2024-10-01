@@ -197,23 +197,6 @@ function add_normalization_constraint!(
     approx_model::JuMP.Model,
     number_of_states_per_noise::Int, number_of_noise::Int,
 	normalization_coeff::Union{Nothing,NamedTuple{(:ω, :ω₀),Tuple{Vector{Float64},Float64}}},
-    normalization_regime::DynamicSDDiP.Fischetti
-)
-
-    π⁺ = approx_model[:π⁺]
-    π⁻ = approx_model[:π⁻]
-    π₀ = approx_model[:π₀]
-
-    JuMP.@constraint(approx_model, -π₀ - sum(π⁺[j,i] - π⁻[j,i] for j in 1:number_of_noise for i in 1:number_of_states_per_noise) <= 1)
-
-    return
-end
-
-function add_normalization_constraint!(
-    node::SDDP.Node,
-    approx_model::JuMP.Model,
-    number_of_states_per_noise::Int, number_of_noise::Int,
-	normalization_coeff::Union{Nothing,NamedTuple{(:ω, :ω₀),Tuple{Vector{Float64},Float64}}},
     normalization_regime::DynamicSDDiP.ChenLuedtke
 )
 
@@ -236,7 +219,7 @@ function add_normalization_constraint!(
     approx_model::JuMP.Model,
     number_of_states_per_noise::Int, number_of_noise::Int,
 	normalization_coeff::Union{Nothing,NamedTuple{(:ω, :ω₀),Tuple{Vector{Float64},Float64}}},
-    normalization_regime::Union{DynamicSDDiP.Core_Midpoint,DynamicSDDiP.Core_Epsilon,DynamicSDDiP.Core_In_Out,DynamicSDDiP.Core_Optimal,DynamicSDDiP.Core_Relint},
+    normalization_regime::Union{DynamicSDDiP.Core_Midpoint,DynamicSDDiP.Core_Epsilon,DynamicSDDiP.Core_In_Out,DynamicSDDiP.Core_Relint},
 )
 
 	π = approx_model[:π]
@@ -282,7 +265,7 @@ function get_normalization_coefficients_agg(
 	algo_params::DynamicSDDiP.AlgoParams,
 	backward_sampling_scheme::SDDP.AbstractBackwardSamplingScheme,
     state_approximation_regime::Union{DynamicSDDiP.BinaryApproximation,DynamicSDDiP.NoStateApproximation},
-	normalization_regime::Union{DynamicSDDiP.Core_Midpoint,DynamicSDDiP.Core_Epsilon,DynamicSDDiP.Core_In_Out,DynamicSDDiP.Core_Optimal, DynamicSDDiP.Core_Relint},
+	normalization_regime::Union{DynamicSDDiP.Core_Midpoint,DynamicSDDiP.Core_Epsilon,DynamicSDDiP.Core_In_Out, DynamicSDDiP.Core_Relint},
 	copy_regime::DynamicSDDiP.AbstractCopyRegime,
     )
 

@@ -171,7 +171,7 @@ function model_set_up(
     ############################################################################
     # GET FINITE SCENARIO TREE FOR MODEL
     ############################################################################
-    scenario_tree = get_scenario_data(number_of_stages, 16, number_of_realizations, :medium)
+    scenario_tree = get_scenario_data(100, 16, 20, :medium)
 
     ############################################################################
     # DEFINE MODEL

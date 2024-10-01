@@ -617,6 +617,7 @@ function iteration(
     # end
     #println(last(model.nodes[1].bellman_function.local_thetas[1].cuts).cut_constraint)
     #println(last(model.nodes[1].bellman_function.global_theta.cuts).cut_constraint)
+    #Infiltrator.@infiltrate
 
     ############################################################################
     # CHECK IF BEST KNOWN SOLUTION HAS BEEN IMPROVED
