@@ -418,7 +418,7 @@ end
 
 """
 Compute a core point based on the used StateApproximationRegime and the
-NormalizationRegime Core_Epsilon.
+NormalizationRegime Core_In_Out.
 """
 function get_core_point(
     node::SDDP.Node,
