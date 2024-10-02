@@ -728,7 +728,8 @@ function solve_unified_lagrangian_dual(
         #     Infiltrator.@infiltrate
         #     println(node_index, ", ", iter, ", ", L_star, ", ", t_k)
         # end
-        # println( iter, ", ", L_star, ", ", t_k, ", ", π0_k)
+        #println( iter, ", ", L_star, ", ", t_k, ", ", π_k_dummy, ", ", π0_k_dummy, ", ", π_k, ", ", π0_k)
+        #println()
 
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
         #Infiltrator.@infiltrate
@@ -792,6 +793,11 @@ function solve_unified_lagrangian_dual(
             lag_status = :feas_issues
         end
     end
+
+    # model = SDDP.get_policy_graph(node.subproblem) 
+    # if model.ext[:iteration] == 2
+    #     Infiltrator.@infiltrate
+    # end
 
     ############################################################################
     # APPLY MINIMAL NORM CHOICE APPROACH IF INTENDED
@@ -876,13 +882,32 @@ function minimal_norm_choice_unified!(
     # We actually would have to solve with the objective (π⁺ + π⁻)/π₀
     # To avoid a nonlinear problem, we fix the scaling factor π₀ to its optimal
     # value from the previous solution method.
-    #JuMP.fix(π₀, π0_k, force=true)
-    JuMP.fix(π₀, π0_star, force=true)
-    #π0_k = π0_star
 
+    # Importantly, π0_k is computed using a quadratic version of approx_model (with bounds on t) 
+    # for the LevelBundle method, whereas t_k is computed in the standard linear approx_model
+    # (from Kelley's method). Therefore, for fixing π0 to π0_k may be infeasible for BoundStalling
+    # t using t_k. A similar observation can be made for π0_star.
+    # Therefore, we should compute the value that we use for fixing here in advance.
+    # We also replaced t_k as a boudn by L_star to prevent infeasibilities.
+
+    # Reset objective to Kelley's case
+    JuMP.@objective(approx_model, Max, t)
+    JuMP.optimize!(approx_model)
+    try
+        @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
+    catch err
+        Infiltrator.@infiltrate
+        return (iter=it, lag_status=:mn_issue)
+    end
+    π0_fix = JuMP.value.(π₀)
+
+    #JuMP.fix(π₀, π0_k, force=true)
+    #JuMP.fix(π₀, π0_star, force=true)
+    JuMP.fix(π₀, π0_fix, force=true)
+    
     # Reset objective
     JuMP.@objective(approx_model, Min, sum(π⁺) + sum(π⁻))
-    JuMP.set_lower_bound(t, t_k)
+    JuMP.set_lower_bound(t, L_star)
 
     # The worst-case scenario in this for-loop is that we run through the
     # iterations without finding a new dual solution. However if that happens
@@ -893,6 +918,7 @@ function minimal_norm_choice_unified!(
         try
             @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
         catch err
+            Infiltrator.@infiltrate
             return (iter=it, lag_status=:mn_issue)
         end
 
