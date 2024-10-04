@@ -691,7 +691,7 @@ mutable struct CutGenerationRegime
         cut_away_approach = true,
         cut_away_tol = 1e-4,
         cut_away_approach_2 = false,
-        cut_away_tol_2 = 1e-1,
+        cut_away_tol_2 = 1e-2,
         cut_away_counter_limit = 1
     )
         return new(

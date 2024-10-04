@@ -48,7 +48,7 @@ function algo_config(
             normalization_regime = normalization_regime,
             dual_space_regime = dual_space_regime,
             copy_regime = copy_regime,
-            π0_divide = true,
+            π0_divide = false,
         )
     elseif duality_regime_sym == :lag
         duality_regime = DynamicSDDiP.LagrangianDuality(
@@ -76,6 +76,7 @@ function algo_config(
         state_approximation_regime = state_approximation_regime,
         duality_regime = duality_regime,
         #cut_away_approach = false,
+        cut_away_approach_2 = true,
         iteration_to_start = 1,
         #iteration_to_stop = 30,
     )
@@ -87,7 +88,7 @@ function algo_config(
          #cut_away_approach = false,
     )
 
-    cut_generation_regimes = [cut_generation_regime_2]
+    cut_generation_regimes = [cut_generation_regime_1, cut_generation_regime_2]
 
     # Regularization configuration
     regularization_regime = DynamicSDDiP.NoRegularization()
