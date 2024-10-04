@@ -269,6 +269,7 @@ function solve_unified_lagrangian_dual(
         end
 
         # In first iteration, only use multipliers to get subgradient and cut, but not for bounds check
+        # The reason is that the initialization for π_k and π₀_k (e.g. (0,1)) may not satisfy the constraint ω^\top π_k + ω₀ π₀_k \leq 1, so the bound may be invalid    
         if iter == 1
             L_k = -Inf
             L_star = s * L_k
@@ -719,6 +720,7 @@ function solve_unified_lagrangian_dual(
         end
 
         # In first iteration, only use multipliers to get subgradient and cut, but not for bounds check
+        # The reason is that the initialization for π_k and π₀_k (e.g. (0,1)) may not satisfy the constraint ω^\top π_k + ω₀ π₀_k \leq 1, so the bound may be invalid    
         if iter == 1
             L_k = -Inf
             L_star = s * L_k
