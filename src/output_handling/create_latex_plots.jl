@@ -26,7 +26,7 @@ function create_latex_plots()
 	input_folder_path = "C:/Users/cg4102/Documents/julia_logs/Restructuring/Final paper/CFLP_scaled/"
     #input_folder_path = "C:/Users/cg4102/Documents/julia_logs/Restructuring/Final paper/CLSP"
     #input_folder_path = "C:/Users/cg4102/Documents/julia_logs/Restructuring/Final paper/CLSP_Large"
-    file_path_latex = "C:/Users/cg4102/Documents/julia_plots/Paper 2024/CFLP/CFLP_S_SB_lb_time.tex"
+    file_path_latex = "C:/Users/cg4102/Documents/julia_plots/Paper 2024/CFLP/CFLP_S_SB_lb_time2.tex"
 	plottype = :lb_time
 
     # Create header of LaTeX file
@@ -97,10 +97,10 @@ function create_latex_plots()
 		PlotConfig(input_folder_path * "CFLP_S_Conv_50_N_SB.log", plottype, "violet", 1.0, "pentagon", "solid", "solid", 2, "1pt", raw"Conv(50)", nothing),
 		PlotConfig(input_folder_path * "CFLP_S_Conv_75_N_SB.log", plottype, "violet", 1.0, "pentagon", "dashed", "solid", 2, "1pt", raw"Conv(75)", nothing),
 		PlotConfig(input_folder_path * "CFLP_S_Conv_90_N_SB.log", plottype, "violet", 1.0, "pentagon", "dotted", "solid", 2, "1pt", raw"Conv(90)", nothing),
-		PlotConfig(input_folder_path * "CFLP_S_B.log", plottype, "olive", 1.0, "oplus", "dotted", "solid", 20, "1pt", raw"B", 100),
-		PlotConfig(input_folder_path * "CFLP_S_SB.log", plottype, "red", 1.0, "otimes", "dotted", "solid", 20, "1pt", raw"SB", 100),
-		PlotConfig(input_folder_path * "CFLP_S_B_Multi.log", plottype, "olive", 1.0, "oplus", "solid", "solid", 20, "1pt", raw"BMulti", 100),
-		PlotConfig(input_folder_path * "CFLP_S_SB_Multi.log", plottype, "red", 1.0, "otimes", "solid", "solid", 20, "1pt", raw"SBMulti", 100),
+		PlotConfig(input_folder_path * "CFLP_S_B.log", plottype, "olive", 1.0, "oplus", "dotted", "solid", 20, "1pt", raw"B", nothing),
+		PlotConfig(input_folder_path * "CFLP_S_SB.log", plottype, "red", 1.0, "otimes", "dotted", "solid", 20, "1pt", raw"SB", nothing),
+		PlotConfig(input_folder_path * "CFLP_S_B_Multi.log", plottype, "olive", 1.0, "oplus", "solid", "solid", 20, "1pt", raw"BMulti", nothing),
+		PlotConfig(input_folder_path * "CFLP_S_SB_Multi.log", plottype, "red", 1.0, "otimes", "solid", "solid", 20, "1pt", raw"SBMulti", nothing),
 
 
 	)
