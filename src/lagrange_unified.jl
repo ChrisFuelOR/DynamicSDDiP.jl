@@ -898,7 +898,7 @@ function minimal_norm_choice_unified!(
     try
         @assert JuMP.termination_status(approx_model) == JuMP.MOI.OPTIMAL
     catch err
-        Infiltrator.@infiltrate
+        #Infiltrator.@infiltrate
         return (iter=it, lag_status=:mn_issue)
     end
     π0_fix = JuMP.value.(π₀)
