@@ -148,15 +148,20 @@ function model_starter_runs()
 
     #model_starter(1,16,20,:uni_lag, DynamicSDDiP.Core_Conv(lambda=0.5,copy_regime=DynamicSDDiP.ConvexHullCopy()), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_RR_Large_O_16_20_Conv_50_CL.log", 10800, 11111, 12345)
     #model_starter(1,16,20,:uni_lag, DynamicSDDiP.Core_Conv(lambda=0.75,copy_regime=DynamicSDDiP.ConvexHullCopy()), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_RR_Large_O_16_20_Conv_75_CL.log", 10800, 11111, 12345)
-    model_starter(1,16,20,:uni_lag, DynamicSDDiP.Core_Conv(lambda=0.9,copy_regime=DynamicSDDiP.ConvexHullCopy()), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_RR_Large_O_16_20_Conv_90_CL_v2.log", 10800, 11111, 12345)
+    #model_starter(1,16,20,:uni_lag, DynamicSDDiP.Core_Conv(lambda=0.9,copy_regime=DynamicSDDiP.ConvexHullCopy()), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_RR_Large_O_16_20_Conv_90_CL_v2.log", 10800, 11111, 12345)
     #model_starter(1,16,20,:uni_lag, DynamicSDDiP.Core_Conv(lambda=0.99,copy_regime=DynamicSDDiP.ConvexHullCopy()), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_RR_Large_O_16_20_Conv_99_CL.log", 10800, 11111, 12345)
     
     #model_starter(14,16,20,:uni_lag, DynamicSDDiP.L₁_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.CutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_SSC_Large_O_16_20_CL2_L1.log", 10800, 11111, 12345)
     #model_starter(15,16,20,:uni_lag, DynamicSDDiP.ChenLuedtke(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.CutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_SSC_Large_O_16_20_CL2_Span.log", 10800, 11111, 12345)
     #model_starter(15,16,20,:uni_lag, DynamicSDDiP.Core_Midpoint(integer_relax=false,normalize_direction=false), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.CutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_RR2_Large_O_16_20_CL2_Mid.log", 10800, 11111, 12345)
     #model_starter(15,16,20,:uni_lag, DynamicSDDiP.Core_Epsilon(perturb=1e-2,integer_relax=false,normalize_direction=false), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.CutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_RR2_Large_O_16_20_CL2_Eps.log", 10800, 11111, 12345)
-    model_starter(15,16,20,:uni_lag, DynamicSDDiP.Core_Relint(normalize_direction=false), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.CutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_RR2N_Large_O_16_20_CL_Relint.log", 10800, 11111, 12345)
+    #model_starter(15,16,20,:uni_lag, DynamicSDDiP.Core_Relint(normalize_direction=false), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.CutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_RR2N_Large_O_16_20_CL_Relint.log", 10800, 11111, 12345)
     #model_starter(15,16,20,:uni_lag, DynamicSDDiP.L∞_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.CutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_RR2_Large_O_16_20_CL2_Lsup.log", 10800, 11111, 12345)
+
+    model_starter(14,16,20,:uni_lag, DynamicSDDiP.Core_Epsilon(copy_regime=DynamicSDDiP.ConvexHullCopy(),perturb=1e-2,integer_regime=DynamicSDDiP.NoIntegerRelax(),normalize_direction=false,unbounded_regime=DynamicSDDiP.Unbounded_Opt_SB()), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_Large_O_RR2_16_20_Eps_sbopt.log", 10800, 11111, 12345)
+    model_starter(14,16,20,:uni_lag, DynamicSDDiP.Core_Relint(copy_regime=DynamicSDDiP.ConvexHullCopy(),normalize_direction=false,unbounded_regime=DynamicSDDiP.Unbounded_Opt_SB()), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_Large_O_RR2_16_20_Relint_sbopt.log", 10800, 11111, 12345)
+    #model_starter(14,6,20,:uni_lag, DynamicSDDiP.Core_In_Out(integer_relax=false,normalize_direction=false), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_RR3_4_20_InOut.log", 10800, 11111, 12345)
+    model_starter(14,16,20,:uni_lag, DynamicSDDiP.Core_Midpoint(copy_regime=DynamicSDDiP.ConvexHullCopy(),integer_regime=DynamicSDDiP.NoIntegerRelax(),normalize_direction=false,unbounded_regime=DynamicSDDiP.Unbounded_Opt_SB()), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_Large_O_RR2_16_20_Mid_sbopt.log", 10800, 11111, 12345)
 
 end
 
