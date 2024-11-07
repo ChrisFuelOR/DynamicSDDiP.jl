@@ -168,7 +168,7 @@ function model_starter_runs()
 
     #model_starter(14,4,20,:uni_lag, DynamicSDDiP.L∞_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_RR_4_20_Lsup_MNC2_SB.log", 10800, 11111, 12345)
     #model_starter(14,6,20,:uni_lag, DynamicSDDiP.L∞_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_RR_6_20_Lsup_MNC2_SB.log", 14400, 11111, 12345)
-    model_starter(14,10,20,:uni_lag, DynamicSDDiP.L∞_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_RR_10_20_Lsup_MNC2_CL.log", 18000, 11111, 12345)
+    #model_starter(14,10,20,:uni_lag, DynamicSDDiP.L∞_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_RR_10_20_Lsup_MNC2_CL.log", 18000, 11111, 12345)
     model_starter(14,16,20,:uni_lag, DynamicSDDiP.L∞_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_RR_16_20_Lsup_MNC2_CL.log", 28800, 11111, 12345)
 
     #model_starter(13,4,20,:B, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_RR_4_20_B_Multi.log", 10800, 11111, 12345)
