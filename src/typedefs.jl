@@ -482,7 +482,7 @@ The parameter normalize_direction allows to normalize the coefficients of the
     linear pseudonorm in order to prevent them from becoming too small or
     too large.
 The parameter copy_regime defines which constraints are imposed for the copy of the 
-    core point state when evaluating it in the objective function.
+    core point state when solving primal core point problems.
 The parameter integer_regime defines whether integer requirements are relaxed when
     evaluating the core point state in the objective function.
     Background: If we fix the state variables to the core point state and if the 
