@@ -23,14 +23,14 @@ function create_latex_plots()
 	# TO BE ADAPTED FOR EACH NEW PLOT
 	############################################################################
 
-	input_folder_path = "C:/Users/cg4102/Documents/julia_logs/Restructuring/Final paper/CFLP_scaled/"
+	input_folder_path = "C:/Users/cg4102/Documents/julia_logs/Restructuring/Final paper (IJOC)/CLSP/16_20/"
     #input_folder_path = "C:/Users/cg4102/Documents/julia_logs/Restructuring/Final paper/CLSP"
     #input_folder_path = "C:/Users/cg4102/Documents/julia_logs/Restructuring/Final paper/CLSP_Large"
-    file_path_latex = "C:/Users/cg4102/Documents/julia_plots/Paper 2024/CFLP/CFLP_S_SB_lb_time2.tex"
-	plottype = :lb_time
+    file_path_latex = "C:/Users/cg4102/Documents/julia_plots/Lag-Paper IJOC 2024/CLSP/Test.tex"
+	plottype = :lag_it
 
     # Create header of LaTeX file
-	create_latex_header(file_path_latex, [0.0, 300.0, 50000.0, 80000.0], plottype)
+	create_latex_header(file_path_latex, [0.0, 200.0, 0.0, 25000.0], plottype)
 
     # Create an array of struct instances which define the plots to be created
 	plots_to_create = (
@@ -63,20 +63,26 @@ function create_latex_plots()
 		
 			
 		# ###################################################################### CLSP - 16 - 20 - 10 #############################################################################################################################
-		# PlotConfig(input_folder_path * "CLSP_RR_Large_O_16_20_Single.log", plottype, "black", 1.0, "none", "dashed", raw"Single", nothing),
-		# PlotConfig(input_folder_path * "CLSP_RR_Large_O_16_20_Multi.log", plottype, "black", 1.0, "none", "solid", raw"Multi", nothing),
-		# PlotConfig(input_folder_path * "CLSP_RR_Large_O_16_20_L1.log", plottype, "blue", 1.0, "none", "solid", raw"L1", nothing),
-		# PlotConfig(input_folder_path * "CLSP_RR_Large_O_16_20_L1sup.log", plottype, "green!70!black", 1.0, "none", "solid", raw"L1sup", nothing),
-		# PlotConfig(input_folder_path * "CLSP_RR_Large_O_16_20_Lsup.log", plottype, "green", 1.0, "none", "solid", raw"LsupMNC", nothing),
-		# PlotConfig(input_folder_path * "CLSP_RR2_Large_O_16_20_Mid.log", plottype, "violet", 1.0, "none", "solid", raw"Mid", nothing),
-		# PlotConfig(input_folder_path * "CLSP_RR2_Large_O_16_20_Eps.log", plottype, "magenta", 1.0, "none", "solid", raw"Eps", nothing),
-		# PlotConfig(input_folder_path * "CLSP_RR2N_Large_O_16_20_Relint.log", plottype, "cyan", 1.0, "none", "solid", raw"Relint", nothing),
-		# PlotConfig(input_folder_path * "CLSP_RR_Large_O_16_20_Conv_90.log", plottype, "teal", 1.0, "none", "solid", raw"Conv", nothing),
-		# PlotConfig(input_folder_path * "CLSP_RR_Large_O_16_20_B.log", plottype, "olive", 1.0, "none", "dashed", raw"B", nothing),
-		# PlotConfig(input_folder_path * "CLSP_RR_Large_O_16_20_SB.log", plottype, "red", 1.0, "none", "dashed", raw"SB", nothing),
-		# PlotConfig(input_folder_path * "CLSP_RR_Large_O_16_20_B_Multi.log", plottype, "olive", 1.0, "none", "dashed", raw"BMulti", nothing),
-		#PlotConfig(input_folder_path * "CLSP_RR_Large_O_16_20_SB_Multi.log", plottype, "red", 1.0, "none", "solid", raw"SBMulti", nothing),
+		# PlotConfig(input_folder_path * "CLSP_Large_O_16_20_Single_SB_ws03.log", plottype, "black", 1.0, "o", "dotted", "solid", 2, "1pt", raw"Single", nothing),
+		# PlotConfig(input_folder_path * "CLSP_Large_O_16_20_Multi_SB_ws03.log", plottype, "black", 1.0, "o", "solid", "solid", 2, "1pt", raw"Multi", nothing),
+		# PlotConfig(input_folder_path * "CLSP_Large_O_16_20_L1_SB_ws03.log", plottype, "blue", 1.0, "asterisk", "solid", "solid", 2, "1pt", raw"L1", nothing),
+		# PlotConfig(input_folder_path * "CLSP_Large_O_16_20_L1sup_SB_ws03.log", plottype, "green!70!black", 1.0, "Mercedes star", "solid", "solid", 2, "1pt", raw"L1sup", nothing),
+		# PlotConfig(input_folder_path * "CLSP_Large_O_16_20_Lsup_SB_ws03.log", plottype, "green", 1.0, "10-pointed star", "solid", "solid", 2, "1pt", raw"Lsup", nothing),
+		# PlotConfig(input_folder_path * "CLSP_Large_O_RR2_16_20_Mid_sbopt_SB.log", plottype, "yellow!50!brown", 1.0, "square", "solid", "solid", 2, "1pt", raw"Mid", nothing),
+		# PlotConfig(input_folder_path * "CLSP_Large_O_RR2_16_20_Eps_sbopt_SB.log", plottype, "magenta", 1.0, "triangle", "solid", "solid", 2, "1pt", raw"Eps", nothing),
+		# PlotConfig(input_folder_path * "CLSP_Large_O_RR2_16_20_Relint_sbopt_SB.log", plottype, "cyan", 1.0, "diamond", "solid", "solid", 2, "1pt", raw"Relint", nothing),
+		# PlotConfig(input_folder_path * "CLSP_RR_Large_O_16_20_Conv_90_SB_ws03.log", plottype, "violet", 1.0, "pentagon", "solid", "solid", 2, "1pt", raw"Conv(90)", nothing),
+		# PlotConfig(input_folder_path * "CLSP_Large_O_16_20_B_ws03 (2).log", plottype, "olive", 1.0, "oplus", "dotted", "solid", 20, "1pt", raw"B", nothing),
+		# PlotConfig(input_folder_path * "CLSP_Large_O_16_20_SB_ws03 (2).log", plottype, "red", 1.0, "otimes", "dotted", "solid", 20, "1pt", raw"SB", nothing),
+		# PlotConfig(input_folder_path * "CLSP_Large_O_16_20_B_multi_ws03 (2).log", plottype, "olive", 1.0, "oplus", "solid", "solid", 20, "1pt", raw"BMulti", nothing),
+		# PlotConfig(input_folder_path * "CLSP_Large_O_16_20_SB_multi_ws03 (2).log", plottype, "red", 1.0, "otimes", "solid", "solid", 20, "1pt", raw"SBMulti", nothing),
 		
+		PlotConfig(input_folder_path * "CLSP_RR_16_20_Lsup_MNC2.log", plottype, "black", 1.0, "o", "dotted", "solid", 2, "1pt", raw"Lsup", nothing),
+		PlotConfig(input_folder_path * "CLSP_RR2_16_20_Eps_sbopt_v2.log", plottype, "black", 1.0, "o", "dotted", "solid", 2, "1pt", raw"Eps", nothing),
+		PlotConfig(input_folder_path * "CLSP_RR2_16_20_Mid_sbopt_v2.log", plottype, "black", 1.0, "o", "dotted", "solid", 2, "1pt", raw"Mid", nothing),
+		PlotConfig(input_folder_path * "CLSP_RR2_16_20_Relint_sbopt_v2.log", plottype, "black", 1.0, "o", "dotted", "solid", 2, "1pt", raw"Relint", nothing),
+		
+
 		#PlotConfig(input_folder_path * "CLSP_RR_Large_O_16_20_CL_L1.log", plottype, "blue", 1.0, "none", "solid", raw"L1", nothing),
 		#PlotConfig(input_folder_path * "CLSP_RR2_Large_O_16_20_CL_Lsup.log", plottype, "green", 1.0, "none", "solid", raw"LsupMNC", nothing),
 		#PlotConfig(input_folder_path * "CLSP_RR_Large_O_16_20_CL_Span.log", plottype, "yellow", 1.0, "none", "solid", raw"Span", nothing),
@@ -86,21 +92,21 @@ function create_latex_plots()
 		#PlotConfig(input_folder_path * "CLSP_RR_Large_O_16_20_Conv_90_CL.log", plottype, "cyan", 1.0, "none", "solid", raw"Relint", nothing),
 
 		# ###################################################################### CFLP #############################################################################################################################
-		PlotConfig(input_folder_path * "CFLP_S_Single_SB.log", plottype, "black", 1.0, "o", "dotted", "solid", 2, "1pt", raw"Single", nothing),
-		PlotConfig(input_folder_path * "CFLP_S_Multi_SB.log", plottype, "black", 1.0, "o", "solid", "solid", 2, "1pt", raw"Multi", nothing),
-		PlotConfig(input_folder_path * "CFLP_S_L1_SB.log", plottype, "blue", 1.0, "asterisk", "solid", "solid", 2, "1pt", raw"L1", nothing),
-		PlotConfig(input_folder_path * "CFLP_S_L1sup_SB.log", plottype, "green!70!black", 1.0, "mercedes star", "solid", "solid", 2, "1pt", raw"L1sup", nothing),
-		PlotConfig(input_folder_path * "CFLP_S_Lsup_SB.log", plottype, "green", 1.0, "10-pointed star", "solid", "solid", 2, "1pt", raw"Lsup", nothing),
-		PlotConfig(input_folder_path * "CFLP_S_Mid_N_sbopt_SB.log", plottype, "yellow!50!brown", 1.0, "square", "solid", "solid", 2, "1pt", raw"Mid", nothing),
-		PlotConfig(input_folder_path * "CFLP_S_Eps_N_sbopt_SB.log", plottype, "magenta", 1.0, "triangle", "solid", "solid", 2, "1pt", raw"Eps", nothing),
-		PlotConfig(input_folder_path * "CFLP_S_Relint_N_sbopt_SB.log", plottype, "cyan", 1.0, "diamond", "solid", "solid", 2, "1pt", raw"Relint", nothing),
-		PlotConfig(input_folder_path * "CFLP_S_Conv_50_N_SB.log", plottype, "violet", 1.0, "pentagon", "solid", "solid", 2, "1pt", raw"Conv(50)", nothing),
-		PlotConfig(input_folder_path * "CFLP_S_Conv_75_N_SB.log", plottype, "violet", 1.0, "pentagon", "dashed", "solid", 2, "1pt", raw"Conv(75)", nothing),
-		PlotConfig(input_folder_path * "CFLP_S_Conv_90_N_SB.log", plottype, "violet", 1.0, "pentagon", "dotted", "solid", 2, "1pt", raw"Conv(90)", nothing),
-		PlotConfig(input_folder_path * "CFLP_S_B.log", plottype, "olive", 1.0, "oplus", "dotted", "solid", 20, "1pt", raw"B", nothing),
-		PlotConfig(input_folder_path * "CFLP_S_SB.log", plottype, "red", 1.0, "otimes", "dotted", "solid", 20, "1pt", raw"SB", nothing),
-		PlotConfig(input_folder_path * "CFLP_S_B_Multi.log", plottype, "olive", 1.0, "oplus", "solid", "solid", 20, "1pt", raw"BMulti", nothing),
-		PlotConfig(input_folder_path * "CFLP_S_SB_Multi.log", plottype, "red", 1.0, "otimes", "solid", "solid", 20, "1pt", raw"SBMulti", nothing),
+		# PlotConfig(input_folder_path * "CFLP_S_Single_SB.log", plottype, "black", 1.0, "o", "dotted", "solid", 2, "1pt", raw"Single", nothing),
+		# PlotConfig(input_folder_path * "CFLP_S_Multi_SB.log", plottype, "black", 1.0, "o", "solid", "solid", 2, "1pt", raw"Multi", nothing),
+		# PlotConfig(input_folder_path * "CFLP_S_L1_SB.log", plottype, "blue", 1.0, "asterisk", "solid", "solid", 2, "1pt", raw"L1", nothing),
+		# PlotConfig(input_folder_path * "CFLP_S_L1sup_SB.log", plottype, "green!70!black", 1.0, "mercedes star", "solid", "solid", 2, "1pt", raw"L1sup", nothing),
+		# PlotConfig(input_folder_path * "CFLP_S_Lsup_SB.log", plottype, "green", 1.0, "10-pointed star", "solid", "solid", 2, "1pt", raw"Lsup", nothing),
+		# PlotConfig(input_folder_path * "CFLP_S_Mid_N_sbopt_SB.log", plottype, "yellow!50!brown", 1.0, "square", "solid", "solid", 2, "1pt", raw"Mid", nothing),
+		# PlotConfig(input_folder_path * "CFLP_S_Eps_N_sbopt_SB.log", plottype, "magenta", 1.0, "triangle", "solid", "solid", 2, "1pt", raw"Eps", nothing),
+		# PlotConfig(input_folder_path * "CFLP_S_Relint_N_sbopt_SB.log", plottype, "cyan", 1.0, "diamond", "solid", "solid", 2, "1pt", raw"Relint", nothing),
+		# PlotConfig(input_folder_path * "CFLP_S_Conv_50_N_SB.log", plottype, "violet", 1.0, "pentagon", "solid", "solid", 2, "1pt", raw"Conv(50)", nothing),
+		# PlotConfig(input_folder_path * "CFLP_S_Conv_75_N_SB.log", plottype, "violet", 1.0, "pentagon", "dashed", "solid", 2, "1pt", raw"Conv(75)", nothing),
+		# PlotConfig(input_folder_path * "CFLP_S_Conv_90_N_SB.log", plottype, "violet", 1.0, "pentagon", "dotted", "solid", 2, "1pt", raw"Conv(90)", nothing),
+		# PlotConfig(input_folder_path * "CFLP_S_B.log", plottype, "olive", 1.0, "oplus", "dotted", "solid", 20, "1pt", raw"B", nothing),
+		# PlotConfig(input_folder_path * "CFLP_S_SB.log", plottype, "red", 1.0, "otimes", "dotted", "solid", 20, "1pt", raw"SB", nothing),
+		# PlotConfig(input_folder_path * "CFLP_S_B_Multi.log", plottype, "olive", 1.0, "oplus", "solid", "solid", 20, "1pt", raw"BMulti", nothing),
+		# PlotConfig(input_folder_path * "CFLP_S_SB_Multi.log", plottype, "red", 1.0, "otimes", "solid", "solid", 20, "1pt", raw"SBMulti", nothing),
 
 
 	)
@@ -279,12 +285,19 @@ function create_latex_footer(file_path_latex::String)
 	println(io, "]")
 	println(io, "at(current bounding box.south){")
 	
-	println(io, raw"\ref{Single} & \texttt{SB + L} (single) & \ref{L1} & \texttt{SB +} $\ell_1$-deep & \ref{Mid} & \texttt{SB + LN-Mid} \\ ")
-	println(io, raw"\ref{Multi} & \texttt{SB + L} (multi) & \ref{Lsup} & \texttt{SB +} $\ell_\infty$-deep & \ref{Eps} & \texttt{SB + LN-Eps} \\ ")
-	println(io, raw"\ref{B} & \texttt{B} (single) & \ref{L1sup} & \texttt{SB +} $\ell_{1 \infty}$-deep & \ref{Relint} & \texttt{SB + LN-Relint} \\ ")
-	println(io, raw"\ref{BMulti} & \texttt{B} (multi) & & & \ref{Conv(50)} & \texttt{SB + LN-Conv(50)} \\ ")
-	println(io, raw"\ref{SB} & \texttt{SB} (single) & & & \ref{Conv(75)} & \texttt{SB + LN-Conv(75)} \\ ")
-	println(io, raw"\ref{SBMulti} & \texttt{SB} (multi) & & & \ref{Conv(90)} & \texttt{SB + LN-Conv(90)} \\ ")
+	# println(io, raw"\ref{Single} & \texttt{SB + L} (single) & \ref{L1} & \texttt{SB +} $\ell_1$-deep & \ref{Mid} & \texttt{SB + LN-Mid} \\ ")
+	# println(io, raw"\ref{Multi} & \texttt{SB + L} (multi) & \ref{Lsup} & \texttt{SB +} $\ell_\infty$-deep & \ref{Eps} & \texttt{SB + LN-Eps} \\ ")
+	# println(io, raw"\ref{B} & \texttt{B} (single) & \ref{L1sup} & \texttt{SB +} $\ell_{1 \infty}$-deep & \ref{Relint} & \texttt{SB + LN-Relint} \\ ")
+	# println(io, raw"\ref{BMulti} & \texttt{B} (multi) & & & \ref{Conv(50)} & \texttt{SB + LN-Conv(50)} \\ ")
+	# println(io, raw"\ref{SB} & \texttt{SB} (single) & & & \ref{Conv(75)} & \texttt{SB + LN-Conv(75)} \\ ")
+	# println(io, raw"\ref{SBMulti} & \texttt{SB} (multi) & & & \ref{Conv(90)} & \texttt{SB + LN-Conv(90)} \\ ")
+
+	println(io, raw"\ref{Single} & \texttt{L} (single) & \ref{L1} & $\ell_1$-deep & \ref{Mid} & \texttt{LN-Mid} \\ ")
+	println(io, raw"\ref{Multi} & \texttt{L} (multi) & \ref{Lsup} & $\ell_\infty$-deep & \ref{Eps} & \texttt{LN-Eps} \\ ")
+	println(io, raw"\ref{B} & \texttt{B} (single) & \ref{L1sup} & $\ell_{1 \infty}$-deep & \ref{Relint} & \texttt{LN-Relint} \\ ")
+	println(io, raw"\ref{BMulti} & \texttt{B} (multi) & & & \ref{Conv(90)} & \texttt{LN-Conv(90)} \\ ")
+	println(io, raw"\ref{SB} & \texttt{SB} (single) & & & & \\ ")
+	println(io, raw"\ref{SBMulti} & \texttt{SB} (multi) & & & & \\ ")
 	
 	# println(io, raw"\ref{Single} & \texttt{L} (single) & \ref{L1} & $\ell_1$-deep & \ref{Mid} & \texttt{LN-Mid} \\ ")
 	# println(io, raw"\ref{Multi} & \texttt{L} (multi) & \ref{Lsup} & $\ell_\infty$-deep & \ref{Eps} & \texttt{LN-Eps} \\ ")
