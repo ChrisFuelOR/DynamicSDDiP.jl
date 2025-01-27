@@ -680,6 +680,7 @@ function solve_primal_projection_problem(
     # CHECK TERMINATION STATUS TO GET BOUNDS FOR LAGRANGIAN DUAL
     if JuMP.termination_status(node.subproblem) == MOI.OPTIMAL
         primal_unified_obj = JuMP.objective_value(node.subproblem)
+        Infiltrator.@infiltrate
     else
         # Infeasibility is an indicator for unboundedness of the Lagrangian dual
         # We do not differentiate termination statuses here, because we need artificial bounds anyway

@@ -26,7 +26,7 @@ function algo_config(
     
     # Duality / Cut computation configuration
     dual_initialization_regime = DynamicSDDiP.ZeroDuals()
-    dual_solution_regime = DynamicSDDiP.Kelley()
+    dual_solution_regime = DynamicSDDiP.LevelBundle()
     dual_bound_regime = DynamicSDDiP.ValueBound()
     dual_status_regime = DynamicSDDiP.Lax() #Rigorous
     dual_choice_regime = DynamicSDDiP.MinimalNormChoice()
@@ -284,8 +284,9 @@ model_starter(6/5, true, 5.0, DynamicSDDiP.L₁(), DynamicSDDiP.L₁(), DynamicS
 model_starter(6/5, true, 10.0, DynamicSDDiP.L₁(), DynamicSDDiP.L₁(), DynamicSDDiP.StateSpaceCopy(), DynamicSDDiP.ConvexHullCopy(), false, 0, true)          [v18*]
 
 # All ALD runs with only ValueBound.
-# Second batch of tests with backward regularization (sigma = rho used in augmented Lagrangian dual), but with using the primal_obj bound from the unregularized case.
+# Second batch of tests with backward regularization (sigma = rho used in augmented Lagrangian dual), but with using the primal_obj bound from the unregularized case.  
 # Note that for the augmented Lagrangian dual, we always use the L₁-norm.
 """
 
-model_starter(1.249, true, 20.0, DynamicSDDiP.L₁(), DynamicSDDiP.L₁(), DynamicSDDiP.StateSpaceCopy(), DynamicSDDiP.ConvexHullCopy(), false, 0, true)
+model_starter(1.249, true, 5.0, DynamicSDDiP.L₁(), DynamicSDDiP.L₁(), DynamicSDDiP.StateSpaceCopy(), DynamicSDDiP.ConvexHullCopy(), true, 8, false)   # ReLU comparison
+

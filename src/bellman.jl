@@ -1438,6 +1438,10 @@ function _add_cut_constraints_to_models(
         JuMP.@constraint(model, expr <= cut.intercept)
     end
 
+    if node.index == 3
+        println(expr, ", ", cut.intercept)
+    end
+
     return
 
 end
