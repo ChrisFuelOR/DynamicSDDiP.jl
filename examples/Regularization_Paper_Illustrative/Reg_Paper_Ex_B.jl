@@ -8,7 +8,7 @@ using JuMP
 using SDDP
 using DynamicSDDiP
 using Revise
-using Gurobi
+#using Gurobi
 using GAMS
 #using SCIP
 using Infiltrator
@@ -23,39 +23,57 @@ function model_config()
     dual_initialization_regime = DynamicSDDiP.ZeroDuals()
     dual_solution_regime = DynamicSDDiP.Kelley()
     dual_bound_regime = DynamicSDDiP.BothBounds()
-    dual_status_regime = DynamicSDDiP.Rigorous()
-    dual_choice_regime = DynamicSDDiP.MagnantiWongChoice()
+    dual_status_regime = DynamicSDDiP.Lax()
+    dual_choice_regime = DynamicSDDiP.StandardChoice()
+    copy_regime = DynamicSDDiP.StateSpaceCopy()
+
     duality_regime = DynamicSDDiP.LagrangianDuality(
-        atol = 1e-8,
-        rtol = 1e-8,
-        iteration_limit = 1000,
-        dual_initialization_regime = dual_initialization_regime,
-        dual_bound_regime = dual_bound_regime,
-        dual_solution_regime = dual_solution_regime,
-        dual_choice_regime = dual_choice_regime,
-        dual_status_regime = dual_status_regime,
-    )
+         atol = 1e-4,
+         rtol = 1e-4,
+         iteration_limit = 1000,
+         dual_initialization_regime = dual_initialization_regime,
+         dual_bound_regime = dual_bound_regime,
+         dual_solution_regime = dual_solution_regime,
+         dual_choice_regime = dual_choice_regime,
+         dual_status_regime = dual_status_regime,
+         copy_regime = copy_regime,
+     )
 
     # State approximation and cut projection configuration
-    cut_projection_regime = DynamicSDDiP.BigM()
-    binary_precision = Dict{Symbol, Float64}()
+    #cut_projection_regime = DynamicSDDiP.BigM()
+    #binary_precision = Dict{Symbol, Float64}()
 
-    state_approximation_regime = DynamicSDDiP.BinaryApproximation(
-                                    binary_precision = binary_precision,
-                                    cut_projection_regime = cut_projection_regime)
+    # State approximation and cut projection configuration
+    state_approximation_regime = DynamicSDDiP.NoStateApproximation()
+
+    # Cut generation regimes
+    cut_generation_regime = DynamicSDDiP.CutGenerationRegime(
+        state_approximation_regime = state_approximation_regime,
+        duality_regime = duality_regime,
+    )
+
+    cut_generation_regimes = [cut_generation_regime]
 
     # Regularization configuration
-    regularization_regime = DynamicSDDiP.Regularization(sigma = [0.0, 1.0], sigma_factor = 5.0)
-    # regularization_regime = DynamicSDDiP.NoRegularization()
+    #regularization_regime = DynamicSDDiP.NoRegularization()
+    regularization_regime = DynamicSDDiP.Regularization(sigma=[0.0,2.0], sigma_factor=5.0)
+
+    # Cut aggregation regime
+    cut_aggregation_regime = DynamicSDDiP.SingleCutRegime()
+
+    cut_type = SDDP.SINGLE_CUT
+    if isa(cut_aggregation_regime,DynamicSDDiP.MultiCutRegime)
+        cut_type = SDDP.MULTI_CUT
+    end
 
     # Cut selection configuration
     cut_selection_regime = DynamicSDDiP.NoCutSelection()
 
     # File for logging
-    log_file = "C:/Users/cg4102/Documents/julia_logs/newExample_2.log"
+    log_file = "C:/Users/cg4102/Documents/julia_logs/Reg_Paper_Ex_B.log"
 
     # Suppress solver output
-    silent = true
+    silent = false
 
     # Infiltration for debugging
     infiltrate_state = :none
@@ -63,10 +81,11 @@ function model_config()
     # Definition of algo_params
     algo_params = DynamicSDDiP.AlgoParams(
         stopping_rules = stopping_rules,
-        state_approximation_regime = state_approximation_regime,
         regularization_regime = regularization_regime,
-        duality_regime = duality_regime,
+        cut_aggregation_regime = cut_aggregation_regime,
         cut_selection_regime = cut_selection_regime,
+        cut_generation_regimes = cut_generation_regimes,
+        cut_type = cut_type,
         log_file = log_file,
         silent = silent,
         infiltrate_state = infiltrate_state,
@@ -101,20 +120,6 @@ function model_starter(
     model = model_definition()
 
     ############################################################################
-    # DEFINE BINARY APPROXIMATION IF INTENDED
-    ############################################################################
-    # for (name, state_comp) in model.nodes[1].ext[:lin_states]
-    #     ub = JuMP.upper_bound(state_comp.out)
-    #
-    #     string_name = string(name)
-    #     if occursin("gen", string_name)
-    #         binaryPrecision[name] = binaryPrecisionFactor * ub
-    #     else
-    #         binaryPrecision[name] = 1
-    #     end
-    # end
-
-    ############################################################################
     # SOLVE MODEL
     ############################################################################
     DynamicSDDiP.solve(model, algo_params, applied_solvers)
@@ -136,18 +141,17 @@ function model_definition()
         # DEFINE STAGE-t MODEL
         ########################################################################
         # State variables
-        JuMP.@variable(subproblem, 0.0 <= x <= 1.0, SDDP.State, initial_value = 0)
+        JuMP.@variable(subproblem, 0.0 <= x <= 1.0, SDDP.State, Bin, initial_value = 0)
 
         if t == 1
 
             # Constraints
             x = subproblem[:x]
-            JuMP.@variable(subproblem, v)
-            JuMP.@constraint(subproblem, v >= 0.7 - 6/5*x.out)
-            JuMP.@constraint(subproblem, v >= -1.1 + 2.4*x.out)
+            JuMP.@constraint(subproblem, x.out >= x.in)
+            #JuMP.@constraint(subproblem, x.out <= 0.5)
 
             # Stage objective
-            SDDP.@stageobjective(subproblem, v)
+            SDDP.@stageobjective(subproblem, -x.out)
 
         else
             # Local variables

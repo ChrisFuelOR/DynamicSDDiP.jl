@@ -40,7 +40,7 @@ function forward_sigma_test(
 
         # SET SOLVER
         ########################################################################
-        DynamicSDDiP.set_solver!(node.subproblem, algo_params, applied_solvers, :forward_pass)
+        reset_solver!(node.subproblem, algo_params, applied_solvers, :forward_pass, algo_params.solver_approach)
 
         # SOLVE REGULARIZED PROBLEM
         ############################################################################
@@ -58,6 +58,7 @@ function forward_sigma_test(
                 incoming_state_value, # only values, no State struct!
                 noise,
                 scenario_path[1:depth],
+                Float64[],
                 algo_params,
                 algo_params.regularization_regime,
             )
@@ -74,6 +75,7 @@ function forward_sigma_test(
                 incoming_state_value, # only values, no State struct!
                 noise,
                 scenario_path[1:depth],
+                Float64[],
                 algo_params,
                 DynamicSDDiP.NoRegularization(),
             )

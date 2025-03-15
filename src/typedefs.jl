@@ -15,8 +15,22 @@
 # If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
 ################################################################################
 
-import JuMP
-import Revise
+################################################################################
+# BINARY STATE
+################################################################################
+"""
+Struct to store information on the [0,1] (or binary) variables created
+in the backward pass in case of BinaryApproximation.
+
+value:  the value of the original state (which has been unfixed)
+x_name: the name of the original state, the BinaryState is associated with
+k:      the number of components of the [0,1] variable
+"""
+struct BinaryState
+    value::Float64
+    x_name::Symbol
+    k::Int64
+end
 
 ################################################################################
 # STOPPING RULES
@@ -46,17 +60,11 @@ abstract type AbstractDualInitializationRegime end
 ZeroDuals means that the dual multipliers are initialized as zero.
 LPDuals means that the LP relaxation is solved and the corresponding optimal
     dual multipliers are used as an initial solution.
-CPLEXFixed can only be chosen if CPLEX is used to solve the subproblems.
-    In contrast to Gurobi, CPLEX provides marginal values even when the primal
-    MILP is solved. These dual values are determined by solving an LP after fixing
-    the integer variables to their optimal values. They are hard to interpret,
-    but still may be used for initialization.
 Default is ZeroDuals.
 """
 
 mutable struct ZeroDuals <: AbstractDualInitializationRegime end
 mutable struct LPDuals <: AbstractDualInitializationRegime end
-#mutable struct CPLEXFixed <: AbstractDualInitializationRegime end
 
 ################################################################################
 # SOLUTION METHOD FOR LAGRANGIAN DUAL
@@ -68,37 +76,53 @@ Kelley means that a classical cutting-plane method is used to solve the dual
     problem.
 LevelBundle means that a level bundle method with specified parameters is
     used to solve the dual problem.
+Subgradient means that a basic subgradient method (as in Bertsekas "Nonlinear
+    Programming") is used to solve the dual problem.
 Default is Kelley.
+
+The parameter use_subopt_sol allows to speed-up the solution by adding additional
+cuts using suboptimal solutions from the Lagrangian dual inner problem.
 """
 
 mutable struct Kelley <: AbstractDualSolutionRegime
-    # atol::Float64
-    # rtol::Float64
-    # iteration_limit::Int
-    # function Kelley(;
-    #     atol = 1e-8,
-    #     rtol = 1e-8,
-    #     iteration_limit = 1000,
-    #     )
-    #     return new(atol, rtol, iteration_limit)
-    # end
+    use_subopt_sol::Bool
+    function Kelley(;
+        use_subopt_sol = false,
+        )
+        return new(use_subopt_sol)
+    end
 end
 
 mutable struct LevelBundle <: AbstractDualSolutionRegime
-    # atol::Float64
-    # rtol::Float64
-    # iteration_limit::Int
     level_factor::Float64
+    switch_to_kelley::Bool
+    use_subopt_sol::Bool
     function LevelBundle(;
-        # atol = 1e-8,
-        # rtol = 1e-8,
-        # iteration_limit = 1000,
         level_factor = 0.5,
+        switch_to_kelley = true,
+        use_subopt_sol = false,
         )
-        #return new(atol, rtol, iteration_limit, level_factor)
-        return new(level_factor)
+        return new(level_factor, switch_to_kelley, use_subopt_sol)
     end
 end
+
+mutable struct Subgradient <: AbstractDualSolutionRegime
+    beta_up::Float64
+    beta_down::Float64
+    gamma::Float64
+    wait::Int
+    max_times_unchanged::Int
+    function Subgradient(;
+        beta_up = 1.5,
+        beta_down = 0.95,
+        gamma = 2,
+        wait = 10,
+        max_times_unchanged = 10,
+        )
+        return new(beta_up, beta_down, gamma, wait, max_times_unchanged)
+    end
+end
+
 
 ################################################################################
 # BOUNDS IN LAGRANGIAL DUAL
@@ -107,9 +131,8 @@ abstract type AbstractDualBoundRegime end
 
 """
 ValueBound means that the optimal value of the Lagrangian dual is bounded from
-    the beginning using the optimal value of the primal problem (as in the
-    SDDP package). However, the dual multipliers are not bounded.
-    This may result in infinitely steep cuts.
+    the start using the optimal value of the primal problem (as in SDDP.jl).
+    However, the dual multipliers are not bounded.
 NormBound means that the dual multipliers in the Lagrangian dual are bounded
     in their norm. This makes most sense when using a regularization and choosing
     a dual bound related to the regularization parameter sigma.
@@ -148,15 +171,15 @@ mutable struct Lax <: AbstractDualStatusRegime end
 abstract type AbstractDualChoiceRegime end
 
 """
-Standard choice means that the Lagrangian multipliers are used as determined
+StandardChoice means that the Lagrangian multipliers are used as determined
     by the cutting-plane or level bundle method.
-MagnantiWongChoice means that it is attempted to determine pareto-optimal
-    dual multipliers (as in the newer SDDP package version).
-Default is MagnantiWongChoice.
+MinimalNormChoice means that a second step is added to minimize the norm
+    among all dual optimal solutions.
+Default is MinimalNormChoice.
 """
 
 mutable struct StandardChoice <: AbstractDualChoiceRegime end
-mutable struct MagnantiWongChoice <: AbstractDualChoiceRegime end
+mutable struct MinimalNormChoice <: AbstractDualChoiceRegime end
 
 ################################################################################
 # CUT PROJECTION APPROACH
@@ -214,37 +237,297 @@ mutable struct BinaryApproximation <: AbstractStateApproximationRegime
     end
 end
 
+#TODO: Maybe change this to K instead of precision
+
 mutable struct NoStateApproximation <: AbstractStateApproximationRegime end
 
 ################################################################################
-# REGULARIZATION
+# LATE BINARIZATION
 ################################################################################
-abstract type AbstractRegularizationRegime end
+abstract type AbstractLateBinarizationRegime end
 
-mutable struct Regularization <: AbstractRegularizationRegime
-    sigma :: Vector{Float64}
-    sigma_factor :: Float64
-    function Regularization(;
-        sigma = Float64[],
-        sigma_factor = 5.0
-    )
-        return new(sigma, sigma_factor)
+"""
+LateBinarization means that after a predefined number of iterations a static
+    (not dynamic as above!) binarization of the state space is applied.
+NoLateBinarization means that this discretization is not used.
+Default is NoLateBinarization.
+"""
+
+mutable struct LateBinarization <: AbstractLateBinarizationRegime
+    #K_dict::Dict{Symbol, Int64} # number of binary variables
+    K::Int64 # number of binary variables (same for all continuous states)
+    iteration_to_start::Int64
+end
+
+mutable struct NoLateBinarization <: AbstractLateBinarizationRegime end
+
+################################################################################
+# COPY RESTRICTION
+################################################################################
+abstract type AbstractCopyRegime end
+
+mutable struct StateSpaceCopy <: AbstractCopyRegime end
+mutable struct ConvexHullCopy <: AbstractCopyRegime end
+mutable struct NoBoundsCopy <: AbstractCopyRegime end
+
+"""
+StateSpaceCopy means that the copy variable has to satisfy the state space
+    bounds and integer requirements. This is the classical approach in SDDP.jl.
+ConvexHullCopy means that the copy variables has to be in the convex hull of
+    the state space (e.g. [0,1] for binary state variables as in SDDiP).
+    Since we cannot compute the convex hull for complicated state spaces,
+    we assume that the state space is just box-constrained and maybe requires
+    integer or binary states. Hence, using this regime the bounds are kept
+    as they are, but the integer requirements are relaxed.
+NoBoundsCopy means that the copy variables do not have to satisfy any state
+    space constraints at all. To avoid unboundedness and infeasibility of the
+    dual problem, we set the lower bound of the states to zero and
+    the upper bound of the states to 1e9.
+    This is equivalent to the approach of relaxing the linking constraint
+    without introducing a copy constraint at all.
+"""
+
+################################################################################
+# DUAL NORMALIZATION
+################################################################################
+abstract type AbstractNormalizationRegime end
+
+mutable struct L₁_Deep <: AbstractNormalizationRegime end
+mutable struct L₂_Deep <: AbstractNormalizationRegime end
+mutable struct L∞_Deep <: AbstractNormalizationRegime end
+mutable struct L₁∞_Deep <: AbstractNormalizationRegime end
+mutable struct ChenLuedtke <: AbstractNormalizationRegime end
+
+################################################################################
+abstract type AbstractIntegerRegime end
+
+mutable struct IntegerRelax <: AbstractIntegerRegime end
+mutable struct NoIntegerRelax <: AbstractIntegerRegime end
+################################################################################
+abstract type AbstractUnboundedRegime end
+
+mutable struct Unbounded_Opt_SB <: AbstractUnboundedRegime 
+    strict_proxy::Bool
+    function Unbounded_Opt_SB(;
+        strict = true,
+        )
+        return new(strict)
     end
 end
 
-mutable struct NoRegularization <: AbstractRegularizationRegime end
+mutable struct Unbounded_Opt_Bound <: AbstractUnboundedRegime
+    strict_proxy::Bool
+    user_dual_multiplier_bound::Float64
+    user_dual_objective_bound::Float64
+    function Unbounded_Opt_Bound(;
+        strict = true,
+        user_dual_multiplier_bound = 10.0,
+        user_dual_objective_bound = Inf,
+        )
+        return new(strict, user_dual_multiplier_bound, user_dual_objective_bound)
+    end
+end
+
+################################################################################
+abstract type AbstractImprovementRegime end
+mutable struct NoImprovement <: AbstractImprovementRegime end
+mutable struct EpiState <: AbstractImprovementRegime end
+mutable struct PrimalObj <: AbstractImprovementRegime end
+################################################################################
+
+mutable struct Core_Midpoint <: AbstractNormalizationRegime
+    copy_regime::AbstractCopyRegime
+    integer_regime::AbstractIntegerRegime
+    unbounded_regime::AbstractUnboundedRegime
+    improvement_regime::AbstractImprovementRegime
+    normalize_direction::Bool
+    function Core_Midpoint(;
+        copy_regime = StateSpaceCopy(),
+        integer_regime = NoIntegerRelax(),
+        unbounded_regime = Unbounded_Opt_Bound(),
+        improvement_regime = NoImprovement(),
+        normalize_direction = false,
+        )
+        return new(copy_regime, integer_regime, unbounded_regime, improvement_regime, normalize_direction)
+    end
+end
+
+mutable struct Core_In_Out <: AbstractNormalizationRegime
+    copy_regime::AbstractCopyRegime
+    integer_regime::AbstractIntegerRegime
+    unbounded_regime::AbstractUnboundedRegime
+    improvement_regime::AbstractImprovementRegime
+    normalize_direction::Bool
+    function Core_In_Out(;
+        copy_regime = StateSpaceCopy(),
+        integer_regime = NoIntegerRelax(),
+        unbounded_regime = Unbounded_Opt_Bound(),
+        improvement_regime = NoImprovement(),
+        normalize_direction = false,
+        )
+        return new(copy_regime, integer_regime, unbounded_regime, improvement_regime, normalize_direction)
+    end
+end
+
+mutable struct Core_Relint <: AbstractNormalizationRegime
+    copy_regime::AbstractCopyRegime
+    integer_regime::AbstractIntegerRegime
+    unbounded_regime::AbstractUnboundedRegime
+    improvement_regime::AbstractImprovementRegime
+    normalize_direction::Bool
+    function Core_Relint(;
+        copy_regime = StateSpaceCopy(),
+        integer_regime = NoIntegerRelax(),
+        unbounded_regime = Unbounded_Opt_Bound(),
+        improvement_regime = NoImprovement(),
+        normalize_direction = false,
+        )
+        return new(copy_regime, integer_regime, unbounded_regime, improvement_regime, normalize_direction)
+    end
+end
+
+mutable struct Core_Epsilon <: AbstractNormalizationRegime
+    perturb::Float64
+    copy_regime::AbstractCopyRegime
+    integer_regime::AbstractIntegerRegime
+    unbounded_regime::AbstractUnboundedRegime
+    improvement_regime::AbstractImprovementRegime
+    normalize_direction::Bool
+    function Core_Epsilon(;
+        perturb = 1e-6,
+        copy_regime = StateSpaceCopy(),
+        integer_regime = NoIntegerRelax(),
+        unbounded_regime = Unbounded_Opt_Bound(),
+        improvement_regime = NoImprovement(),
+        normalize_direction = false,
+    )
+            return new(perturb, copy_regime, integer_regime, unbounded_regime, improvement_regime, normalize_direction)
+    end
+end
+
+mutable struct Core_Conv <: AbstractNormalizationRegime
+    lambda::Float64 #large values are closer to the trial state
+    copy_regime::AbstractCopyRegime
+    integer_regime::AbstractIntegerRegime
+    unbounded_regime::AbstractUnboundedRegime
+    improvement_regime::AbstractImprovementRegime
+    normalize_direction::Bool
+    function Core_Conv(;
+        lambda = 0.5,
+        copy_regime = StateSpaceCopy(),
+        integer_regime = NoIntegerRelax(),
+        unbounded_regime = Unbounded_Opt_Bound(),
+        improvement_regime = NoImprovement(),
+        normalize_direction = false,
+    )
+            return new(lambda, copy_regime, integer_regime, unbounded_regime, improvement_regime, normalize_direction)
+    end
+end
+
 
 """
-Regularization means that in the forward pass some regularized value functions
-    are considered. It also implies that a sigma test is conducted once the
-    stopping criterion is satisfied. Furthermore, it can be exploited in combination
-    with bounding the dual variables.
-NoRegularization means that no regularization is used. This may be detrimental
-    w.r.t. convergence. Note that it also makes it difficult to bound the
-    dual multipliers and the bigM parameters appropriately.
-    For bigM so far 1e4 is used. For dual multipliers no bound is applied
-    even if BothBounds is chosen.
-Default is Regularization.
+This AbstractType allows to use different normalization in the Lagrangian dual
+problem if the unified Lagrangian framework is used.
+
+In the first group of normalization approaches, a norm of the dual multipliers
+is bounded.
+
+L_1_Deep means that a normalization is used such that deepest cuts w.r.t. to
+    the 1-norm are generated. This is equivalent to one normalization used
+    by Chen & Luedtke and related to the normalization by Fischetti et al.
+    if copy constraints are used.
+L_2_Deep means that a normalization is used such that deepest cuts w.r.t.
+    the 2-norm are generated.
+L_Inf_Deep means that a normalization is used such that deepest cuts w.r.t.
+    the supremum norm are generated.
+L_1_Inf_Deep means that a normalization is used such that deepest cuts w.r.t.
+    a linear combination of the 1-norm and sup-norm are generated. This can be
+    interpreted as a linear approximation of the 2-norm.
+ChenLuedtke means that the second normalization approach by Chen & Luedtke
+    is used. Here, the dual multipliers have to be restricted to the span
+    of Benders multipliers.
+
+In the second group of normalization approaches, a linear function of the dual
+multipliers (a linear pseudonorm) is bounded. In all but the first approach
+(Fischetti), the coefficients of the linear pseudonorm are determined as the
+direction between a core point in the epigraph and the current incumbent
+(see Brandenberg & Stursberg for some theory behind this approach).
+These approaches are also similar to the traditional strategy by Magnanti
+and Wong to compute Pareto-optimal cuts. The approaches differ in the 
+heuristics used to obtain a core point candidate.
+
+Core_Midpoint means that the normalization is based on a core point which is
+    the midpoint of the state space. This requires that all state variables
+    are bounded from below and above.
+Core_In_Out means that the normalization is based on a  core point which is
+    a convex combination of the previous core point and the current incumbent
+    (similar to the in-out-strategy for cutting-plane methods and the
+    core point updates by Papadakos).
+Core_Epsilon means that the normalization is based on a core point which is a
+    a slight perturbation of the current incumbent. This ideas is similar to the
+    approach by Sherali & Lunday to compute Pareto-optimal cuts.
+Core_Relint means that the normalization is based on a core point which is
+    determined by solving a special feasibility problem, which guarantees
+    that the point lies in the relative interior of the epigraph of the
+    closed convex envelope of the value function. This approach is based on
+    a similar strategy by Conforti & Wolsey.
+Core_Conv means that a convex combination between (trial_state, primal_original_obj)
+    and a second point is computed to identify a core point.
+    The second point is determined as the lower or upper bound of the state 
+    (those bounds are required, otherwise the algorithm stops with an error),
+    depending on the position of the first points. For the binary case, this 
+    implies that 0 and 1 are swapped for all components of the trial state.
+
+The parameter normalize_direction allows to normalize the coefficients of the
+    linear pseudonorm in order to prevent them from becoming too small or
+    too large.
+The parameter copy_regime defines which constraints are imposed for the copy of the 
+    core point state when solving primal core point problems.
+The parameter integer_regime defines whether integer requirements are relaxed when
+    evaluating the core point state in the objective function.
+    Background: If we fix the state variables to the core point state and if the 
+    problem contains integer original state or local variables, then these integer
+    requirements may not be satisfiable, resulting in an infeasible problem to compute the
+    y-coordinate of the core point. For instance, the sum of binary state variables 
+    may be fixed to non-integer values for the core point computation, but their sum
+    still has to satisfy integer constraints. To avoid infeasibility, we can consider the LP
+    relaxation of the subproblem. If the original state variables are continuous,
+    this is not required.
+The parameter unbounded_regime defines which approach is used if the detected core 
+    point candidate is not inside of the epigraph (or at least has potential
+    for this to be the case). Depending on the choice of parameter
+    "strict", the conditions under which this is applied vary.   
+    We can use 
+    > Unbounded_Opt_None:   
+    nothing is done; there is the risk of the dual problem to be unbounded, resulting in an error
+    > Unbounded_Opt_SB:     
+    no linear normalization cut is computed, but due to the risk of unboundedness, a standard
+    SB cut is computed instead
+    > Unbounded_opt_Bound:
+    the dual problem is bounded to prevent boundedness. 
+The parameter improvement_regime defines whether the y-coordinate of the candidate core 
+    point is improved using the existing epi_state or primal_original_obj if possible.
+
+Default is L_1_Deep.
+"""
+
+################################################################################
+# DUAL SPACE RESTRICTION
+################################################################################
+abstract type AbstractDualSpaceRegime end
+
+mutable struct NoDualSpaceRestriction <: AbstractDualSpaceRegime end
+mutable struct BendersSpanSpaceRestriction <: AbstractDualSpaceRegime
+    K::Int64
+    cut_type::Symbol #:Benders or :Lagrange
+end
+
+"""
+NoDualSpaceRestriction means that no additional restriction is imposed
+    on the dual space, so exact separation is possible.
+BendersSpanSpaceRestriction means that only dual multipliers are considered
+    which are in the span of the last K Benders multipliers (see Chen & Luedtke).
+Default is NoDualSpaceRestriction.
 """
 
 ################################################################################
@@ -261,6 +544,8 @@ mutable struct LagrangianDuality <: AbstractDualityRegime
     dual_solution_regime::AbstractDualSolutionRegime
     dual_choice_regime::AbstractDualChoiceRegime
     dual_status_regime::AbstractDualStatusRegime
+    copy_regime::AbstractCopyRegime
+    augmented::Bool
     function LagrangianDuality(;
         atol = 1e-8,
         rtol = 1e-8,
@@ -268,17 +553,59 @@ mutable struct LagrangianDuality <: AbstractDualityRegime
         dual_initialization_regime = ZeroDuals(),
         dual_bound_regime = BothBounds(),
         dual_solution_regime = Kelley(),
-        dual_choice_regime = MagnantiWongChoice(),
+        dual_choice_regime = MinimalNormChoice(),
         dual_status_regime = Rigorous(),
+        copy_regime = ConvexHullCopy(),
+        augmented = false,
     )
         return new(atol, rtol, iteration_limit,
             dual_initialization_regime, dual_bound_regime,
-            dual_solution_regime, dual_choice_regime, dual_status_regime)
+            dual_solution_regime, dual_choice_regime, dual_status_regime,
+            copy_regime, augmented)
     end
 end
 
 mutable struct LinearDuality <: AbstractDualityRegime end
 mutable struct StrengthenedDuality <: AbstractDualityRegime end
+
+mutable struct UnifiedLagrangianDuality <: AbstractDualityRegime
+    atol::Float64
+    rtol::Float64
+    iteration_limit::Int
+    dual_initialization_regime::AbstractDualInitializationRegime
+    dual_bound_regime::AbstractDualBoundRegime
+    dual_solution_regime::AbstractDualSolutionRegime
+    dual_choice_regime::AbstractDualChoiceRegime
+    dual_status_regime::AbstractDualStatusRegime
+    normalization_regime::AbstractNormalizationRegime
+    dual_space_regime::AbstractDualSpaceRegime
+    copy_regime::AbstractCopyRegime
+    user_dual_objective_bound::Union{Nothing,Float64}
+    user_dual_multiplier_bound::Union{Nothing,Float64}
+
+    function UnifiedLagrangianDuality(;
+        atol = 1e-8,
+        rtol = 1e-8,
+        iteration_limit = 1000,
+        dual_initialization_regime = ZeroDuals(),
+        dual_bound_regime = BothBounds(),
+        dual_solution_regime = Kelley(),
+        dual_choice_regime = MinimalNormChoice(),
+        dual_status_regime = Rigorous(),
+        normalization_regime = L₁_Deep(),
+        dual_space_regime = NoDualSpaceRestriction(),
+        copy_regime = ConvexHullCopy(),
+        user_dual_objective_bound = nothing,
+        user_dual_multiplier_bound = nothing,
+    )
+        return new(atol, rtol, iteration_limit,
+            dual_initialization_regime, dual_bound_regime,
+            dual_solution_regime, dual_choice_regime, dual_status_regime,
+            normalization_regime, dual_space_regime, copy_regime,
+            user_dual_objective_bound, user_dual_multiplier_bound)
+    end
+end
+
 
 """
 LagrangianDuality means that the Lagrangian dual is (approximately) solved to obtain
@@ -288,7 +615,22 @@ LinearDuality means that the LP relaxation is solved to obtain a cut.
 StrengthenedDuality means that the Lagrangian relaxation is solved using the optimal
     dual multiplier of the LP relaxation to obtain a strengthened Benders cuts.
 Default is LagrangianDuality.
+
+The new addition UnifiedLagrangianDuality allows to determine cuts using the
+unified framework originally proposed by Fischetti et al. (2010) and also used
+by Chen & Luedtke (2021) for Lagrangian cuts in 2-stage stochastic programming.
+This regime supports different choices for cut selection, e.g. deepest cuts,
+facet-defining/Pareto-optimal cuts or the standard normalization by Fischetti
+et al. It can be used in a multi-cut or a single-cut setting.
 """
+
+################################################################################
+# CUT AGGREGATION REGIME
+################################################################################
+abstract type AbstractCutAggregationRegime end
+
+mutable struct SingleCutRegime <: AbstractCutAggregationRegime end
+mutable struct MultiCutRegime <: AbstractCutAggregationRegime end
 
 ################################################################################
 # CUT SELECTION
@@ -314,6 +656,279 @@ NoCutSelection means that no such procedure is used, so all cuts are used
 """
 
 ################################################################################
+# DEFINING STRUCT FOR DEFINITION OF CUT GENERATION REGIMES
+################################################################################
+"""
+Instead of directly defining a duality_regime and a state_approximation_regime
+in AlgoParams, we now allow to define so-called cut_generation_regimes first.
+Each cut_generation_regime from type CutGenerationRegime contains a specific
+duality_regime and a specific state_approximation_regime.
+AlgoParams then contains a Vector of CutGenerationRegime.
+This allows for generating different types of cuts in each iteration
+(e.g. Lagrangian cuts and (strengthened) Benders cuts) instead of just one
+of them. The additional parameters of cut_generation_regime allow to restrict
+the corresponding regime to a subset of iterations.
+"""
+
+mutable struct CutGenerationRegime
+    state_approximation_regime::AbstractStateApproximationRegime
+    duality_regime::AbstractDualityRegime
+    iteration_to_start::Int64
+    iteration_to_stop::Union{Int64,Float64} #TODO
+    gap_to_start::Float64       # not used so far
+    gap_to_stop::Float64        # not used so far
+    cut_away_approach::Bool
+    cut_away_tol::Float64
+
+    function CutGenerationRegime(;
+        state_approximation_regime = BinaryApproximation(),
+        duality_regime = LagrangianDuality(),
+        iteration_to_start = 1,
+        iteration_to_stop = Inf,
+        gap_to_start = Inf,
+        gap_to_stop = 0.0,
+        cut_away_approach = true,
+        cut_away_tol = 1e-4,
+    )
+        return new(
+            state_approximation_regime,
+            duality_regime,
+            iteration_to_start,
+            iteration_to_stop,
+            gap_to_start,
+            gap_to_stop,
+            cut_away_approach,
+            cut_away_tol,
+        )
+    end
+end
+
+
+"""
+iteration_to_start:     first iteration at which this regime is applied
+iteration_to_stop:      last iteration at which this regime is applied
+gap_to_start:           relative optimality gap at which this regime is first
+                        applied (tricky for stochastic case)
+gap_to_stop:            relative optimality gap at which this regime is last
+                        applied (tricky for stochastic case)
+cut_away_approach:      if true, cuts of this regime will only be added
+                        to the respective subproblem if they lead to an
+                        improvement (i.e. cut away the current incumbent)
+cut_away_tol:           defines a tolerance which is applied in checking if
+                        an incumbent is cut away (tolerance for cut violation)
+                        if cut_away_approach is used. This allows to prevent
+                        to add almost redundant cuts again and again.
+
+Note that using gap_to_start and gap_to_stop for stochastic problems may be
+misleading as the upper bounds, and thus the gaps, are stochastic.
+"""
+
+################################################################################
+# REGULARIZATION
+################################################################################
+abstract type AbstractNorm end
+
+mutable struct L₁ <: AbstractNorm end
+mutable struct L∞ <: AbstractNorm end
+
+abstract type AbstractRegularizationRegime end
+
+mutable struct Regularization <: AbstractRegularizationRegime
+    sigma :: Vector{Float64}
+    sigma_factor :: Float64
+    norm :: AbstractNorm
+    norm_lifted :: AbstractNorm
+    copy_regime :: AbstractCopyRegime
+
+    function Regularization(;
+        sigma = Float64[],
+        sigma_factor = 5.0,
+        norm = L₁(),
+        norm_lifted = L₁(),
+        copy_regime = ConvexHullCopy(),
+    )
+        return new(sigma, sigma_factor, norm, norm_lifted, copy_regime)
+    end
+end
+
+mutable struct NoRegularization <: AbstractRegularizationRegime end
+
+"""
+Regularization means that in the forward pass some regularized value functions
+    are considered. It also implies that a sigma test is conducted once the
+    stopping criterion is satisfied. Furthermore, it can be exploited in combination
+    with bounding the dual variables.
+NoRegularization means that no regularization is used. This may be detrimental
+    w.r.t. convergence. Note that it also makes it difficult to bound the
+    dual multipliers and the bigM parameters appropriately.
+    For bigM so far 1e4 is used. For dual multipliers no bound is applied
+    even if BothBounds is chosen.
+Default is Regularization.
+
+Note that if a regularization is used, it is used in the forward and backward
+    pass (in the latter to compute primal_obj and bound the dual variables).
+
+sigma is the regularization parameter.
+sigma_factor is a factor with which the regularization parameter is increased
+    if required.
+norm is the norm that is used as regularization function.
+norm_lifted is the norm that is used as regularization function (in a weighted
+    form) in the backward pass to bound the dual multipliers if a
+    BinaryApproximation of the states is used in the cut generation
+    process.
+copy_regime defines the constraints that the copy variable z of the state x has
+    to satisfy in the forward pass (or backward pass if no state approximation
+    is used). For the backward pass with BinaryApproximation, this is separately
+    defined by the duality_regime.
+"""
+#TODO: Maybe define the copy_regime one time in a completeley separate way.
+
+################################################################################
+# SIMULATION
+################################################################################
+# Sampling schemes (similar to the ones in SDDP.jl)
+abstract type AbstractSamplingScheme end
+
+mutable struct InSampleMonteCarlo <: AbstractSamplingScheme end
+
+mutable struct OutOfSampleMonteCarlo <: AbstractSamplingScheme
+    number_of_realizations :: Int
+    simulation_seed :: Int
+
+    function OutOfSampleMonteCarlo(;
+        number_of_realizations = 10,
+        simulation_seed = 121212,
+    )
+        return new(simulation_seed)
+    end
+end
+
+mutable struct HistoricalSample <: AbstractSamplingScheme end
+
+# Simulation regimes
+abstract type AbstractSimulationRegime end
+
+mutable struct Simulation <: AbstractSimulationRegime
+    sampling_scheme :: DynamicSDDiP.AbstractSamplingScheme
+    number_of_replications :: Int
+
+    function Simulation(;
+        sampling_scheme = DynamicSDDiP.InSampleMonteCarlo,
+        number_of_replications = 1000,
+    )
+        return new(sampling_scheme, number_of_replications)
+    end
+end
+
+mutable struct NoSimulation <: AbstractSimulationRegime end
+
+"""
+Simulation means that after training the model we perform a simulation with
+    number_of_replications. This can be either an in-sample simulation
+    (SDDP.InSampleMonteCarlo) or an out-of-sample simulation
+    (SDDP.OutOfSampleMonteCarlo). In the latter case, we have to provide a
+    method to generate new scenario trees. Different sampling schemes from
+    SDDP.jl such as HistoricalSampling or PSRSampling are not supported yet.
+NoSimulation means that we do not perform a simulation after training the model,
+    either because we do not want to or because we solve a determinist model.
+Default is NoSimulation.
+"""
+
+################################################################################
+# DEFINING STRUCT FOR SOLVERS TO BE USED
+################################################################################
+"""
+Allows to define different solvers for different phases of the algorithm.
+However, this leads to some computational overhead for re-setting the solver.
+Therefore, if always the same solver is used for a particular subproblem, then
+it should not be refined. In such case, we can set the general_solver variable
+to true. In that case, the solver for the subproblems (apart from some auxiliary
+problems) is only set once initially.
+Note that using general_solver = false only makes sense if different solvers
+are specified for the phases of the algorithm.
+Note that if general_solver = false, then the non-optional solvers have to be
+defined.
+
+solver_subproblem always has to be satisfied, therefore we have a default there.
+
+solver_subproblem:          forward and backward pass subproblems
+solver_Lagrange_relax:      Lagrangian dual inner problem
+                            (optional, otherwise solver_subproblem is used)
+solver_Lagrange_approx:     Lagrangian dual outer problem
+                            (should be defined if Kelley or LevelBundle method
+                            are used, as this is a different problem)
+solver_Lagrange_Bundle:     quadratic auxiliary problem in Bundle method
+                            (optional, otherwise solver_Lagrange_approx is used)
+solver_Lagrange_subgradient: projection problem in the subgradient method
+                            (should be defined if subgradient method
+                            is used, as this is a different problem)
+solver_cut_selection:       solver for cut selection auxiliary problem
+                            (should be defined if cut selection method is used,
+                            as this is a different problem)
+solver_LP_relax:            solver for LP relaxations of MILP subproblems
+                            (optional, otherwise solver_subproblem is used)
+solver_reg:                 solver for regularization of subproblems
+                            (optional, otherwise solver_subproblem is used)
+solver_norm:                solver for identifying core points or computing
+                            normalization coefficients
+                            (optional, otherwise solver_subproblem is used)
+
+Note that we can also specify the tolerance for solving subproblems. This is the
+same for all problems, though.
+Moreover, (for now only for Gurobi) we can specify a time limit in seconds.
+"""
+
+struct AppliedSolvers
+    general_solver :: Bool
+    solver_subproblem :: Any
+    solver_Lagrange_relax :: Any
+    solver_Lagrange_approx :: Any
+    solver_Lagrange_Bundle :: Any
+    solver_Lagrange_subgradient :: Any
+    solver_cut_selection :: Any
+    solver_LP_relax :: Any
+    solver_reg :: Any
+    solver_norm :: Any
+    solver_tol :: Float64
+    solver_time :: Int64
+
+    function AppliedSolvers(;
+        general_solver = true,
+        solver_subproblem = "Gurobi",
+        solver_Lagrange_relax = "Gurobi",
+        solver_Lagrange_approx = "Gurobi",
+        solver_Lagrange_Bundle = "Gurobi",
+        solver_Lagrange_subgradient = "Gurobi",
+        solver_cut_selection = "Gurobi",
+        solver_LP_relax = "Gurobi",
+        solver_reg = "Gurobi",
+        solver_norm = "Gurobi",
+        solver_tol = 1e-4,
+        solver_time = 300,
+        )
+        return new(
+            general_solver,
+            solver_subproblem,
+            solver_Lagrange_relax,
+            solver_Lagrange_approx,
+            solver_Lagrange_Bundle,
+            solver_Lagrange_subgradient,
+            solver_cut_selection,
+            solver_LP_relax,
+            solver_reg,
+            solver_norm,
+            solver_tol,
+            solver_time,
+            )
+    end
+end
+
+abstract type AbstractSolverApproach end
+
+mutable struct GAMS_Solver <: AbstractSolverApproach end
+mutable struct Direct_Solver <: AbstractSolverApproach end
+
+################################################################################
 # DEFINING STRUCT FOR CONFIGURATION OF ALGORITHM PARAMETERS
 ################################################################################
 """
@@ -325,10 +940,12 @@ choices the DynamicSDDiP algorithm will not work.
 
 mutable struct AlgoParams
     stopping_rules::Vector{SDDP.AbstractStoppingRule}
-    state_approximation_regime::AbstractStateApproximationRegime
     regularization_regime::AbstractRegularizationRegime
-    duality_regime::AbstractDualityRegime
+    cut_aggregation_regime::AbstractCutAggregationRegime
     cut_selection_regime::AbstractCutSelectionRegime
+    cut_generation_regimes::Vector{CutGenerationRegime}
+    simulation_regime::AbstractSimulationRegime
+    late_binarization_regime::AbstractLateBinarizationRegime
     ############################################################################
     risk_measure::SDDP.AbstractRiskMeasure
     forward_pass::SDDP.AbstractForwardPass
@@ -346,13 +963,18 @@ mutable struct AlgoParams
     numerical_focus::Bool
     silent::Bool
     infiltrate_state::Symbol
+    seed::Union{Nothing,Int}
+    run_description::String
+    solver_approach::Union{DynamicSDDiP.GAMS_Solver,DynamicSDDiP.Direct_Solver}
 
     function AlgoParams(;
         stopping_rules = [DeterministicStopping()],
-        state_approximation_regime = BinaryApproximation(),
         regularization_regime = Regularization(),
-        duality_regime = LagrangianDuality(),
+        cut_aggregation_regime = SingleCutRegime(),
         cut_selection_regime = CutSelection(),
+        cut_generation_regimes = [CutGenerationRegime()],
+        simulation_regime = NoSimulation(),
+        late_binarization_regime = NoLateBinarization(),
         risk_measure = SDDP.Expectation(),
         forward_pass = SDDP.DefaultForwardPass(),
         sampling_scheme = SDDP.InSampleMonteCarlo(),
@@ -368,13 +990,18 @@ mutable struct AlgoParams
         numerical_focus = false,
         silent = true,
         infiltrate_state = :none,
+        seed = nothing,
+        run_description = "",
+        solver_approach = DynamicSDDiP.GAMS_Solver(),
     )
         return new(
             stopping_rules,
-            state_approximation_regime,
             regularization_regime,
-            duality_regime,
+            cut_aggregation_regime,
             cut_selection_regime,
+            cut_generation_regimes,
+            simulation_regime,
+            late_binarization_regime,
             risk_measure,
             forward_pass,
             sampling_scheme,
@@ -390,42 +1017,36 @@ mutable struct AlgoParams
             numerical_focus,
             silent,
             infiltrate_state,
+            seed,
+            run_description,
+            solver_approach
         )
     end
 end
 
 ################################################################################
-# DEFINING STRUCT FOR SOLVERS TO BE USED
+# DEFINING STRUCT FOR CONFIGURATION OF TEST PROBLEM PARAMETERS
 ################################################################################
 """
-For the Lagrangian subproblems a separate solver can be defined if for
-    the LP/MILP solver numerical issues occur.
+Stores some parameters of the test problem that is solved.
+This is mainly used for logging purposes.
 """
 
-struct AppliedSolvers
-    LP :: Any
-    MILP :: Any
-    MIQCP :: Any
-    MINLP :: Any
-    NLP :: Any
-    Lagrange :: Any
+struct ProblemParams
+    number_of_stages::Int
+    number_of_realizations::Int
+    tree_seed::Union{Nothing,Int}
 
-    function AppliedSolvers(;
-        LP = "Gurobi",
-        MILP = "Gurobi",
-        MIQCP = "Gurobi",
-        MINLP = "SCIP",
-        NLP = "SCIP",
-        Lagrange = "Gurobi",
-        )
+    function ProblemParams(
+        number_of_stages,
+        number_of_realizations;
+        tree_seed = nothing,
+    )
         return new(
-            LP,
-            MILP,
-            MIQCP,
-            MINLP,
-            NLP,
-            Lagrange
-            )
+            number_of_stages,
+            number_of_realizations,
+            tree_seed
+        )
     end
 end
 
@@ -438,6 +1059,7 @@ abstract type Cut end
 mutable struct NonlinearCut <: Cut
     intercept::Float64
     coefficients::Dict{Symbol,Float64}
+    scaling_coeff::Float64
     ############################################################################
     trial_state::Dict{Symbol,Float64}
     anchor_state::Dict{Symbol,Float64}
@@ -455,6 +1077,9 @@ mutable struct NonlinearCut <: Cut
     non_dominated_count::Int
     ############################################################################
     iteration::Int64
+    ############################################################################
+    aggregation_regime::DynamicSDDiP.AbstractCutAggregationRegime
+    duality_regime::DynamicSDDiP.AbstractDualityRegime
 end
 
 """
@@ -486,12 +1111,13 @@ will always be the same and only one cut_constraint has to be stored.
 mutable struct LinearCut <: Cut
     intercept::Float64
     coefficients::Dict{Symbol,Float64}
+    scaling_coeff::Float64
     ############################################################################
     trial_state::Dict{Symbol,Float64} # same as anchor state
     ############################################################################
-    sigma::Float64
+    sigma::Union{Nothing,Float64}
     ############################################################################
-    cut_constraint::JuMP.ConstraintRef
+    cut_constraint::Union{Nothing,JuMP.ConstraintRef}
     ############################################################################
     # obj_y::Union{Nothing,NTuple{N,Float64} where {N}}
     # belief_y::Union{Nothing,Dict{T,Float64} where {T}}
@@ -499,6 +1125,9 @@ mutable struct LinearCut <: Cut
     non_dominated_count::Int
     ############################################################################
     iteration::Int64
+    ############################################################################
+    aggregation_regime::DynamicSDDiP.AbstractCutAggregationRegime
+    duality_regime::DynamicSDDiP.AbstractDualityRegime
 end
 
 ################################################################################
@@ -523,7 +1152,6 @@ mutable struct IterationResult{T,S}
     scenario_path :: Vector{Tuple{T,S}}
     has_converged :: Bool
     status :: Symbol #NOTE
-    nonlinear_cuts :: Dict{T, Vector{Any}} #NOTE
 end
 
 ################################################################################
@@ -538,6 +1166,7 @@ struct BackwardPassItems{T,U}
     "Given a (node, noise) tuple, index the element in the array."
     cached_solutions::Dict{Tuple{T,Any},Int}
     duals::Vector{Dict{Symbol,Float64}}
+    dual_0_var::Vector{Float64}
     supports::Vector{U}
     nodes::Vector{T}
     probability::Vector{Float64}
@@ -545,12 +1174,13 @@ struct BackwardPassItems{T,U}
     belief::Vector{Float64}
     bin_state::Vector{Dict{Symbol,BinaryState}}
     lag_iterations::Vector{Int}
-    lag_status::Vector{Symbol}
+    add_cut_flags::Vector{Bool}
 
     function BackwardPassItems(T, U)
         return new{T,U}(
             Dict{Tuple{T,Any},Int}(),
             Dict{Symbol,Float64}[],
+            Float64[],
             U[],
             T[],
             Float64[],
@@ -558,7 +1188,7 @@ struct BackwardPassItems{T,U}
             Float64[],
             Dict{Symbol,Float64}[],
             Int[],
-            Symbol[]
+            Bool[]
         )
     end
 end

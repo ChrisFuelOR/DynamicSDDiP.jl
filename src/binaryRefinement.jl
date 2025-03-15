@@ -5,6 +5,71 @@
 ################################################################################
 
 """
+Process for binary refinements.
+"""
+function binary_refinement(
+    model::SDDP.PolicyGraph{T},
+    previous_solution::Union{Vector{Dict{Symbol,Float64}},Nothing},
+    sampled_states::Vector{Dict{Symbol,Float64}},
+    algo_params::DynamicSDDiP.AlgoParams,
+    solution_check::Bool,
+    binary_refinement_status::Symbol,
+    bound_check::Bool,
+    ) where {T}
+
+    # (1) BINARY APPROXIMATION USED?
+    ############################################################################
+    # Check if at least one cut_generation_regime uses BinaryApproximation
+    refinement_check_required = false
+
+    for cut_generation_regime in algo_params.cut_generation_regimes
+        if isa(cut_generation_regime.state_approximation_regime, DynamicSDDiP.BinaryApproximation)
+            refinement_check_required = true
+        end
+    end
+
+    # (2) BINARY REFINEMENT REQUIRED?
+    ############################################################################
+    # Check if the binary precision has to be refined.
+    # This is the case if the forward pass solution and the lower bound did not change during
+    # the last iteration.
+    # This is independent of the individual cut_generation_regime.
+
+    if refinement_check_required
+        if !isnothing(previous_solution)
+                solution_check = DynamicSDDiP.binary_refinement_check(
+                    model,
+                    previous_solution,
+                    sampled_states,
+                    solution_check,
+                    DynamicSDDiP.BinaryApproximation()
+                )
+        end
+
+        # (3) BINARY REFINEMENT
+        ########################################################################
+        # This is done for all cut_generation_regimes with BinaryApproximation
+        # and for all stages.
+        if solution_check || bound_check
+            for cut_generation_regime in algo_params.cut_generation_regimes
+                if isa(cut_generation_regime.state_approximation_regime, DynamicSDDiP.BinaryApproximation)
+                    binary_refinement = DynamicSDDiP.binary_refinement_execution(
+                        model,
+                        cut_generation_regime.state_approximation_regime.binary_precision,
+                        binary_refinement_status,
+                    )
+                end
+            end
+        end
+    end
+
+    return binary_refinement_status
+
+    # TODO binary_refinement symbol should exist separately for all regimes
+end
+
+
+"""
 Check if an increase of the number of binary variables is required
 if binary approximation is used.
 """
@@ -12,12 +77,10 @@ function binary_refinement_check(
     model::SDDP.PolicyGraph{T},
     previous_solution::Union{Vector{Dict{Symbol,Float64}},Nothing},
     sampled_states::Vector{Dict{Symbol,Float64}},
-    refinement_check::Bool,
+    solution_check::Bool,
     #bound_check::Bool,
     state_approximation_regime::DynamicSDDiP.BinaryApproximation,
     ) where {T}
-
-    solution_check = true
 
     # Check if feasible solution has changed since last iteration
     # If not, then the cut was not tight enough, so binary approximation should be refined
@@ -31,14 +94,7 @@ function binary_refinement_check(
         end
     end
 
-    #if solution_check && bound_check
-    #    # Binary precision should be increased
-    #    refinement_check = true
-    #end
-
-    refinement_check = solution_check
-
-    return refinement_check
+    return solution_check
 end
 
 """
@@ -54,14 +110,14 @@ function binary_refinement_check(
     state_approximation_regime::DynamicSDDiP.NoStateApproximation,
     ) where {T}
 
-    return refinement_check
+    return false
 end
 
 """
 Executing a binary refinement: Increasing the number of binary variables to
 approximate the states
 """
-function binary_refinement(
+function binary_refinement_execution(
     model::SDDP.PolicyGraph{T},
     binary_precision::Dict{Symbol, Float64},
     binary_refinement::Symbol,
@@ -91,6 +147,13 @@ function binary_refinement(
 
         else
             push!(all_refined, 2)
+        end
+    end
+
+    # Re-set the list of stored Benders coefficients for all nodes
+    for (key, node) in model.nodes
+        if key != model.root_node
+            node.ext[:Benders_cuts_binary] = Tuple{Int64, Symbol}[]
         end
     end
 

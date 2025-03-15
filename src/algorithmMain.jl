@@ -24,8 +24,9 @@ the algorithm are given (and possibly pre-defined) in algo_params.
 function solve(
     model::SDDP.PolicyGraph,
     algo_params::DynamicSDDiP.AlgoParams,
-    applied_solvers::DynamicSDDiP.AppliedSolvers
-)
+    applied_solvers::DynamicSDDiP.AppliedSolvers,
+    problem_params::DynamicSDDiP.ProblemParams
+    )
 
     ############################################################################
     # INITIALIZATION (SIMILAR TO SDDP.jl)
@@ -40,9 +41,19 @@ function solve(
     if algo_params.print_level > 0
         print_helper(print_banner, log_file_handle)
     end
+    if algo_params.run_numerical_stability_report
+        report = sprint(
+            io -> SDDP.numerical_stability_report(
+                io,
+                model,
+                print = algo_params.print_level > 0,
+            ),
+        )
+        SDDP.print_helper(print, log_file_handle, report)
+    end
 
     if algo_params.print_level > 1
-        print_helper(print_parameters, log_file_handle, algo_params, applied_solvers)
+        print_helper(print_parameters, log_file_handle, algo_params, applied_solvers, problem_params)
     end
 
     # Maybe add run_numerical_stability_report as in SDDP.jl later
@@ -52,8 +63,9 @@ function solve(
     # Convert the vector to an AbstractStoppingRule. Otherwise if the user gives
     # something like stopping_rules = [SDDP.IterationLimit(100)], the vector
     # will be concretely typed and we can't add a TimeLimit.
-    #stopping_rules = algo_params.stopping_rules
-    #stopping_rules = convert(Vector{SDDP.AbstractStoppingRule}, stopping_rules)
+    # stopping_rules = algo_params.stopping_rules
+    # stopping_rules = convert(Vector{SDDP.AbstractStoppingRule}, stopping_rules)
+
     if length(algo_params.stopping_rules) == 0
         @warn(
             "You haven't specified a stopping rule! You can only terminate " *
@@ -63,17 +75,19 @@ function solve(
 
     # Prepare binary_precision
     #---------------------------------------------------------------------------
-    regime = algo_params.state_approximation_regime
-    if isa(regime,DynamicSDDiP.BinaryApproximation) && isempty(regime.binary_precision)
-        # If no binary_precision dict has been defined explicitly, it is
-        # initialized as empty. Then, for each state take a default precision.
-        for (name, state_comp) in model.nodes[1].states
-            if JuMP.is_binary(state_comp.out) || JuMP.is_integer(state_comp.out)
-                regime.binary_precision[name] = 1
-            else
-                ub = JuMP.upper_bound(state_comp.out)
-                lb = 0 # all states are assumed to satisfy non-negativity constraints
-                regime.binary_precision[name] = (ub-lb)/7
+    for cut_generation_regime in algo_params.cut_generation_regimes
+        regime = cut_generation_regime.state_approximation_regime
+        if isa(regime,DynamicSDDiP.BinaryApproximation) && isempty(regime.binary_precision)
+            # If no binary_precision dict has been defined explicitly, it is
+            # initialized as empty. Then, for each state take a default precision.
+            for (name, state_comp) in model.nodes[1].states
+                if JuMP.is_binary(state_comp.out) || JuMP.is_integer(state_comp.out)
+                    regime.binary_precision[name] = 1.0
+                else
+                    ub = JuMP.upper_bound(state_comp.out)
+                    lb = 0.0 # all states are assumed to satisfy non-negativity constraints
+                    regime.binary_precision[name] = (ub-lb)/127.0
+                end
             end
         end
     end
@@ -103,6 +117,10 @@ function solve(
         log_file_handle
     )
 
+    # Prepare dictionary to log status of Lagrangian dual solution
+    #---------------------------------------------------------------------------
+    model.ext[:lag_status_dict] = Dict([(:opt, 0), (:conv, 0), (:sub, 0), (:iter, 0), (:unbounded, 0), (:bound_issues, 0), (:feas_issues, 0), (:mn_opt, 0), (:mn_iter, 0), (:mn_issue, 0), (:subgr_stalling, 0)])
+
     ############################################################################
     # RE-INITIALIZE THE EXISTING VALUE FUNCTION AND PREPARE CUT SELECTION
     ############################################################################
@@ -117,9 +135,12 @@ function solve(
     #---------------------------------------------------------------------------
     # fortunately, node.bellman_function requires no specific type
     for (key, node) in model.nodes
+        # Set solver
+        set_solver_initially!(node.subproblem, algo_params, applied_solvers, :main_subproblem, algo_params.solver_approach)
 
         if key != model.root_node
 
+            # Determine correct objective sense and bounds for bellman function
             if model.objective_sense == MOI.MIN_SENSE
                 lower_bound = JuMP.lower_bound(node.bellman_function.global_theta.theta)
                 upper_bound = Inf
@@ -128,17 +149,43 @@ function solve(
                 lower_bound = -Inf
             end
 
+            # Initialize bellman function
             bellman_function = BellmanFunction(lower_bound = lower_bound, upper_bound = upper_bound)
             node.bellman_function = DynamicSDDiP.initialize_bellman_function(bellman_function, model, node)
             node.bellman_function.cut_type = algo_params.cut_type
 
-            if algo_params.cut_selection_regime == DynamicSDDiP.CutSelection
-                node.bellman_function.global_theta.cut_oracle.deletion_minimum =
+            # Prepare multi-cut case
+            if node.bellman_function.cut_type == SDDP.MULTI_CUT
+                # Count number of local thetas (number of sets of dual variables later)
+                counter = 0
+                for child in node.children
+                    if isapprox(child.probability, 0.0, atol = 1e-6)
+                        continue
+                    end
+                    child_node = model[child.term]
+                    for noise in SDDP.sample_backward_noise_terms(algo_params.backward_sampling_scheme, child_node)
+                        counter = counter + 1
+                    end
+                end
+                _add_locals_if_necessary(node, node.bellman_function, counter)
+            end
+
+            if isa(algo_params.cut_selection_regime, DynamicSDDiP.CutSelection)
+                node.bellman_function.global_theta.deletion_minimum =
                     algo_params.cut_selection_regime.cut_deletion_minimum
                 for oracle in node.bellman_function.local_thetas
-                    oracle.cut_oracle.deletion_minimum = algo_params.cut_selection_regime.cut_deletion_minimum
+                    oracle.deletion_minimum = algo_params.cut_selection_regime.cut_deletion_minimum
                 end
             end
+
+            # Set-up counter for Benders cuts (Chen & Luedtke approach)
+            # Int64: number of cut, Symbol: realization number or :all for single-cuts
+            node.ext[:Benders_cuts_original] = Tuple{Int64, Symbol}[]
+            node.ext[:Benders_cuts_binary] = Tuple{Int64, Symbol}[]
+
+            # Identify constraints containing state variables and store them in node.ext[:state_constraints]
+            identify_state_constraints!(node)
+
         end
     end
 
@@ -159,8 +206,6 @@ function solve(
     finally
     end
 
-    #@infiltrate
-
     ############################################################################
     # lOG MODEL RESULTS
     ############################################################################
@@ -169,9 +214,12 @@ function solve(
     if algo_params.print_level > 0
         print_helper(print_footer, log_file_handle, results)
         if algo_params.print_level > 1
-            print_helper(TimerOutputs.print_timer, log_file_handle, DynamicSDDiP_TIMER)
-            print_helper(println, log_file_handle)
+            # print_helper(TimerOutputs.print_timer, log_file_handle, DynamicSDDiP_TIMER)
+            TimerOutputs.print_timer(log_file_handle, DynamicSDDiP_TIMER, allocations=true)
+            TimerOutputs.print_timer(stdout, DynamicSDDiP_TIMER, allocations=true)
         end
+
+        print_helper(print_lag_status, log_file_handle, model.ext[:lag_status_dict])
     end
     close(log_file_handle)
     return
@@ -181,9 +229,13 @@ end
 Solves the `model` using DynamicSDDiP in a serial scheme.
 """
 
-function solve_DynamicSDDiP(parallel_scheme::SDDP.Serial, model::SDDP.PolicyGraph{T},
-    options::DynamicSDDiP.Options, algo_params::DynamicSDDiP.AlgoParams,
-    applied_solvers::DynamicSDDiP.AppliedSolvers) where {T}
+function solve_DynamicSDDiP(
+    parallel_scheme::SDDP.Serial,
+    model::SDDP.PolicyGraph{T},
+    options::DynamicSDDiP.Options,
+    algo_params::DynamicSDDiP.AlgoParams,
+    applied_solvers::DynamicSDDiP.AppliedSolvers
+    ) where {T}
 
     ############################################################################
     # SET UP STATE VARIABLE INFORMATION
@@ -216,7 +268,7 @@ function solve_DynamicSDDiP(parallel_scheme::SDDP.Serial, model::SDDP.PolicyGrap
 
     end
 
-    @infiltrate algo_params.infiltrate_state == :all
+    Infiltrator.@infiltrate algo_params.infiltrate_state == :all
 
     ############################################################################
     # LOG ITERATION HEADER
@@ -242,9 +294,13 @@ end
 Loop function of DynamicSDDiP.
 """
 
-function master_loop(parallel_scheme::SDDP.Serial, model::SDDP.PolicyGraph{T},
-    options::DynamicSDDiP.Options, algo_params::DynamicSDDiP.AlgoParams,
-    applied_solvers::DynamicSDDiP.AppliedSolvers) where {T}
+function master_loop(
+    parallel_scheme::SDDP.Serial,
+    model::SDDP.PolicyGraph{T},
+    options::DynamicSDDiP.Options,
+    algo_params::DynamicSDDiP.AlgoParams,
+    applied_solvers::DynamicSDDiP.AppliedSolvers
+    ) where {T}
 
     ############################################################################
     # INITIALIZE PARAMETERS REQUIRED FOR REFINEMENTS
@@ -273,12 +329,10 @@ function master_loop(parallel_scheme::SDDP.Serial, model::SDDP.PolicyGraph{T},
         log_iteration(algo_params, options.log_file_handle, options.log)
 
         # initialize parameters
-        previous_solution = result.current_sol
-        previous_bound = result.lower_bound
         sigma_increased = false
         bound_check = true
 
-        @infiltrate algo_params.infiltrate_state in [:all, :sigma]
+        Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :sigma]
 
         # check for convergence and if not achieved, update parameters
         convergence_results = convergence_handler(
@@ -315,13 +369,16 @@ Convergence handler if regularization is used.
 
 function convergence_handler(
     result::DynamicSDDiP.IterationResult,
-    model::SDDP.PolicyGraph{T}, options::DynamicSDDiP.Options,
+    model::SDDP.PolicyGraph{T},
+    options::DynamicSDDiP.Options,
     algo_params::DynamicSDDiP.AlgoParams,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
-    sigma_increased::Bool, bound_check::Bool,
+    sigma_increased::Bool,
+    bound_check::Bool,
     previous_solution::Union{Vector{Dict{Symbol,Float64}},Nothing},
     previous_bound::Union{Float64,Nothing},
-    regularization_regime::DynamicSDDiP.Regularization) where {T}
+    regularization_regime::DynamicSDDiP.Regularization
+    ) where {T}
 
     ############################################################################
     # IF CONVERGENCE IS ACHIEVED, COMPARE TRUE AND REGULARIZED PROBLEM
@@ -331,7 +388,7 @@ function convergence_handler(
             sigma_test_results = forward_sigma_test(model, options, algo_params, applied_solvers, result.scenario_path, sigma_increased)
         end
         sigma_increased = sigma_test_results.sigma_increased
-        @infiltrate algo_params.infiltrate_state in [:all, :sigma]
+        Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :sigma]
 
         if sigma_increased
             # reset previous values, as model is changed and convergence not achieved
@@ -367,7 +424,15 @@ function convergence_handler(
 
         # CHECK IF SIGMA SHOULD BE INCREASED (DUE TO LB > UB)
         ########################################################################
-        if result.upper_bound - result.lower_bound < - 1e-8 # NOTE
+        # Check if deterministic stopping is used
+        deterministic_stopping = false
+        for stopping_rule in algo_params.stopping_rules
+            if isa(stopping_rule, DynamicSDDiP.DeterministicStopping)
+                deterministic_stopping = true
+            end
+        end
+
+        if result.upper_bound - result.lower_bound < - 1e-8 && deterministic_stopping
                 regularization_regime.sigma = regularization_regime.sigma * regularization_regime.sigma_factor
                 sigma_increased = true
                 previous_solution = nothing
@@ -375,6 +440,9 @@ function convergence_handler(
                 bound_check = false
         else
             sigma_increased = false
+            # Update of previous_solution and previous_bound
+            previous_solution = result.current_sol
+            previous_bound = result.lower_bound
         end
 
     end
@@ -392,20 +460,22 @@ end
 Convergence handler if regularization is not used.
 """
 
-function convergence_handler(result::DynamicSDDiP.IterationResult,
+function convergence_handler(
+    result::DynamicSDDiP.IterationResult,
     model::SDDP.PolicyGraph{T}, options::DynamicSDDiP.Options,
     algo_params::DynamicSDDiP.AlgoParams,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     sigma_increased::Bool, bound_check::Bool,
     previous_solution::Union{Vector{Dict{Symbol,Float64}},Nothing},
     previous_bound::Union{Float64,Nothing},
-    regularization_regime::DynamicSDDiP.NoRegularization) where {T}
+    regularization_regime::DynamicSDDiP.NoRegularization
+    ) where {T}
 
     ############################################################################
     # IF CONVERGENCE IS ACHIEVED, COMPARE TRUE AND REGULARIZED PROBLEM
     ############################################################################
     if result.has_converged
-        @infiltrate algo_params.infiltrate_state in [:all, :sigma]
+        Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :sigma]
         ########################################################################
         # THE ALGORITHM TERMINATES
         ########################################################################
@@ -429,8 +499,20 @@ function convergence_handler(result::DynamicSDDiP.IterationResult,
 
         # CHECK IF LB > UB
         ########################################################################
-        if result.upper_bound - result.lower_bound < - 1e-8 # NOTE
+        # Check if deterministic stopping is used
+        deterministic_stopping = false
+        for stopping_rule in algo_params.stopping_rules
+            if isa(stopping_rule, DynamicSDDiP.DeterministicStopping)
+                deterministic_stopping = true
+            end
+        end
+
+        if result.upper_bound - result.lower_bound < - 1e-8 && deterministic_stopping
             error("LB < UB for DynamicSDDiP. Terminating.")
+        else
+            # Update previous_solution and previous_bound
+            previous_solution = result.current_sol
+            previous_bound = result.lower_bound
         end
 
     end
@@ -467,54 +549,56 @@ function iteration(
     end
 
     ############################################################################
+    # CHECK IF LATE BINARIZATION OF THE STATE SPACE SHOULD BE APPLIED
+    ############################################################################
+    if isa(algo_params.late_binarization_regime,DynamicSDDiP.LateBinarization)
+        if model.ext[:iteration] == algo_params.late_binarization_regime.iteration_to_start
+            apply_late_binarization_nodes!(model, algo_params)
+
+            #algo_params.cut_generation_regimes[1].duality_regime.iteration_limit = 50
+        end
+    end
+
+    ############################################################################
     # FORWARD PASS
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "forward_pass" begin
         forward_trajectory = DynamicSDDiP.forward_pass(model, options, algo_params, applied_solvers, algo_params.forward_pass)
     end
 
-    #@infiltrate
-
     ############################################################################
     # BINARY REFINEMENT
     ############################################################################
-    # If the forward pass solution and the lower bound did not change during
-    # the last iteration, then increase the binary precision (for all stages)
-    refinement_check = false
+    solution_check = true
     binary_refinement = :none
 
-    TimerOutputs.@timeit DynamicSDDiP_TIMER "bin_refinement" begin
-        if !isnothing(previous_solution) && bound_check
-                refinement_check = DynamicSDDiP.binary_refinement_check(
-                    model,
-                    previous_solution,
-                    forward_trajectory.sampled_states,
-                    refinement_check,
-                    algo_params.state_approximation_regime
-                )
-        end
-        if refinement_check
-            binary_refinement = DynamicSDDiP.binary_refinement(
-                model,
-                algo_params.state_approximation_regime.binary_precision,
-                binary_refinement
-            )
-        end
-    end
+    # TimerOutputs.@timeit DynamicSDDiP_TIMER "bin_refinement" begin
+    #     binary_refinement = DynamicSDDiP.binary_refinement(
+    #         model,
+    #         previous_solution,
+    #         forward_trajectory.sampled_states,
+    #         algo_params,
+    #         solution_check,
+    #         binary_refinement,
+    #         bound_check
+    #     )
+    # end
+
     # bound_check = true
-    @infiltrate algo_params.infiltrate_state in [:all]
+    Infiltrator.@infiltrate algo_params.infiltrate_state in [:all]
 
     ############################################################################
     # BACKWARD PASS
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "backward_pass" begin
-        cuts = DynamicSDDiP.backward_pass(
+        DynamicSDDiP.backward_pass(
             model,
             options,
             algo_params,
             applied_solvers,
             forward_trajectory.scenario_path,
             forward_trajectory.sampled_states,
+            forward_trajectory.epi_states,
             # forward_trajectory.objective_states,
             # forward_trajectory.belief_states,
         )
@@ -523,13 +607,17 @@ function iteration(
     ############################################################################
     # CALCULATE LOWER BOUND
     ############################################################################
-    #@infiltrate
     TimerOutputs.@timeit DynamicSDDiP_TIMER "calculate_bound" begin
         first_stage_results = calculate_bound(model)
     end
     bound = first_stage_results.bound
 
-    #@infiltrate
+    # if model.ext[:iteration] == 1
+    #      Infiltrator.@infiltrate
+    # end
+    #println(last(model.nodes[1].bellman_function.local_thetas[1].cuts).cut_constraint)
+    #println(last(model.nodes[1].bellman_function.global_theta.cuts).cut_constraint)
+    Infiltrator.@infiltrate
 
     ############################################################################
     # CHECK IF BEST KNOWN SOLUTION HAS BEEN IMPROVED
@@ -580,10 +668,13 @@ function iteration(
              binary_refinement,
              subproblem_size,
              algo_params,
+             model.ext[:agg_lag_iterations],
+             model.ext[:corr_lag_iterations],
+             model.ext[:corr_realizations],
              model.ext[:lag_iterations],
-             model.ext[:lag_status],
              model.ext[:total_cuts],
              model.ext[:active_cuts],
+             model.ext[:total_solves],
          ),
      )
 
@@ -592,7 +683,7 @@ function iteration(
     ############################################################################
     has_converged, status = convergence_test(model, options.log, algo_params.stopping_rules)
 
-    @infiltrate algo_params.infiltrate_state in [:all]
+    Infiltrator.@infiltrate algo_params.infiltrate_state in [:all]
 
     return DynamicSDDiP.IterationResult(
         bound,
@@ -601,6 +692,5 @@ function iteration(
         forward_trajectory.scenario_path,
         has_converged,
         status,
-        cuts,
     )
 end

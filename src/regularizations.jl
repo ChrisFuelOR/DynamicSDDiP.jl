@@ -31,7 +31,7 @@ function regularize_subproblem!(node::SDDP.Node, node_index::Int64,
         push!(reg_data[:slacks], reg_data[:fixed_state_value][name] - state_comp.in)
         JuMP.unfix(state_comp.in)
         variable_info = node.ext[:state_info_storage][name].in
-        follow_state_unfixing!(state_comp, variable_info)
+        follow_state_unfixing!(state_comp, variable_info, regularization_regime.copy_regime)
         number_of_states = i
     end
 
@@ -66,8 +66,40 @@ function regularize_subproblem!(node::SDDP.Node, node_index::Int64,
     append!(reg_data[:reg_constraints], const_plus)
     append!(reg_data[:reg_constraints], const_minus)
 
-    const_norm = JuMP.@constraint(subproblem, v >= sum(alpha[i] for i in 1:number_of_states))
-    push!(reg_data[:reg_constraints], const_norm)
+    add_norm_constraint!(subproblem, v, alpha, reg_data, number_of_states, regularization_regime.norm)
+
+    return
+end
+
+"""
+Function which adds the remaining constraint for the regularization based
+    on the chosen norm.
+"""
+
+function add_norm_constraint!(
+    subproblem::JuMP.Model,
+    v::JuMP.VariableRef,
+    alpha::Vector{JuMP.VariableRef},
+    reg_data::Dict{Symbol,Any},
+    number_of_states::Int,
+    norm::DynamicSDDiP.L₁
+    )
+
+    constraint_norm = JuMP.@constraint(subproblem, v >= sum(alpha[i] for i in 1:number_of_states))
+    push!(reg_data[:reg_constraints], constraint_norm)
+end
+
+function add_norm_constraint!(
+    subproblem::JuMP.Model,
+    v::JuMP.VariableRef,
+    alpha::Vector{JuMP.VariableRef},
+    reg_data::Dict{Symbol,Any},
+    number_of_states::Int,
+    norm::DynamicSDDiP.L∞
+    )
+
+    constraints_norm = JuMP.@constraint(subproblem, [i=1:number_of_states], v >= alpha[i])
+    append!(reg_data[:reg_constraints], constraints_norm)
 
     return
 end
@@ -77,6 +109,7 @@ Trivial modification of the forward pass problem if no regularization is used.
 """
 function regularize_subproblem!(node::SDDP.Node, node_index::Int64,
     subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.NoRegularization)
+
     return
 end
 
@@ -102,10 +135,10 @@ function deregularize_subproblem!(node::SDDP.Node, subproblem::JuMP.Model, regul
 
     # DELETE ALL REGULARIZATION-BASED VARIABLES AND CONSTRAINTS
     ############################################################################
-    delete(subproblem, reg_data[:reg_variables])
+    JuMP.delete(subproblem, reg_data[:reg_variables])
 
     for constraint in reg_data[:reg_constraints]
-        delete(subproblem, constraint)
+        JuMP.delete(subproblem, constraint)
     end
 
     delete!(node.ext, :regularization_data)
@@ -117,6 +150,7 @@ end
 Trivial modification of the forward pass problem if no regularization is used.
 """
 function deregularize_subproblem!(node::SDDP.Node, subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.NoRegularization)
+
     return
 end
 
@@ -124,7 +158,14 @@ end
 """
 Regularizing the backward pass problem in binary space if regularization is used.
 """
-function regularize_binary!(node::SDDP.Node, node_index::Int64, subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.Regularization)
+function regularize_binary!(
+    node::SDDP.Node,
+    node_index::Int64,
+    subproblem::JuMP.Model,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
+    regularization_regime::DynamicSDDiP.Regularization,
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation
+    )
 
     bw_data = node.ext[:backward_data]
     binary_states = bw_data[:bin_states]
@@ -136,32 +177,27 @@ function regularize_binary!(node::SDDP.Node, node_index::Int64, subproblem::JuMP
     reg_data[:slacks] = Any[]
     reg_data[:reg_variables] = JuMP.VariableRef[]
     reg_data[:reg_constraints] = JuMP.ConstraintRef[]
+    reg_data[:weights] = Float64[]
+
+    # sigma to be used in binary space
+    sigma_bin = regularization_regime.sigma[node_index]
 
     ############################################################################
-    # DETERMINE SIGMA TO BE USED IN BINARY SPACE
-    ############################################################################
-    U_max = 0
-    for (i, (name, state_comp)) in enumerate(node.states)
-
-        # TODO: is .out correct here?
-        variable_info = node.ext[:state_info_storage][name].out
-
-        if variable_info.upper_bound > U_max
-            U_max = variable_info.upper_bound
-        end
-    end
-
-    # Here, not sigma, but a different regularization parameter is used
-    sigma_bin = regularization_regime.sigma[node_index] * U_max
-
-    ############################################################################
-    # UNFIX THE STATE VARIABLES
+    # UNFIX THE STATE VARIABLES & DETERMINE WEIGHT
     ############################################################################
     for (i, (name, state_comp)) in enumerate(binary_states)
+        # unfix the state variable and store previous value
         reg_data[:fixed_state_value][name] = JuMP.fix_value(state_comp)
         push!(reg_data[:slacks], reg_data[:fixed_state_value][name] - state_comp)
         JuMP.unfix(state_comp)
-        follow_state_unfixing_binary!(state_comp)
+        follow_state_unfixing_binary!(state_comp, cut_generation_regime.duality_regime.copy_regime)
+
+        # determine and store the corresponding weight
+        associated_original_state = node.ext[:backward_data][:bin_x_names][name]
+    	beta = state_approximation_regime.binary_precision[associated_original_state]
+    	associated_k = node.ext[:backward_data][:bin_k][name]
+        #push!(reg_data[:weights], 2)
+        push!(reg_data[:weights], 2^(associated_k-1) * beta)
     end
 
     ############################################################################
@@ -197,17 +233,59 @@ function regularize_binary!(node::SDDP.Node, node_index::Int64, subproblem::JuMP
     append!(reg_data[:reg_constraints], const_plus)
     append!(reg_data[:reg_constraints], const_minus)
 
-    const_norm = JuMP.@constraint(subproblem, v >= sum(alpha[i] for i in 1:number_of_states))
-    push!(reg_data[:reg_constraints], const_norm)
+    add_norm_constraint_binary!(subproblem, v, alpha, reg_data, number_of_states, regularization_regime.norm_lifted)
 
     return
 end
 
 """
+Function which adds the remaining constraint for the regularization based
+    on the chosen norm.
+"""
+
+function add_norm_constraint_binary!(
+    subproblem::JuMP.Model,
+    v::JuMP.VariableRef,
+    alpha::Vector{JuMP.VariableRef},
+    reg_data::Dict{Symbol,Any},
+    number_of_states::Int,
+    norm_lifted::DynamicSDDiP.L₁
+    )
+
+    constraint_norm = JuMP.@constraint(subproblem, v >= sum(reg_data[:weights][i] * alpha[i] for i in 1:number_of_states))
+    push!(reg_data[:reg_constraints], constraint_norm)
+
+    return
+end
+
+function add_norm_constraint_binary!(
+    subproblem::JuMP.Model,
+    v::JuMP.VariableRef,
+    alpha::Vector{JuMP.VariableRef},
+    reg_data::Dict{Symbol,Any},
+    number_of_states::Int,
+    norm_lifted::DynamicSDDiP.L∞
+    )
+
+    constraints_norm = JuMP.@constraint(subproblem, [i=1:number_of_states], v >= reg_data[:weights][i] * alpha[i])
+    append!(reg_data[:reg_constraints], constraints_norm)
+
+    return
+end
+
+
+"""
 Trivial regularization of the backward pass problem in binary space
 if no regularization is used.
 """
-function regularize_binary!(node::SDDP.Node, node_index::Int64, subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.NoRegularization)
+function regularize_binary!(
+    node::SDDP.Node,
+    node_index::Int64,
+    subproblem::JuMP.Model,
+    cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
+    regularization_regime::DynamicSDDiP.NoRegularization,
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation
+    )
 
     return
 end
@@ -238,10 +316,10 @@ function deregularize_binary!(node::SDDP.Node, subproblem::JuMP.Model, regulariz
     ############################################################################
     # DELETE ALL REGULARIZATION-BASED VARIABLES AND CONSTRAINTS
     ############################################################################
-    delete(subproblem, reg_data[:reg_variables])
+    JuMP.delete(subproblem, reg_data[:reg_variables])
 
     for constraint in reg_data[:reg_constraints]
-        delete(subproblem, constraint)
+        JuMP.delete(subproblem, constraint)
     end
 
     delete!(node.ext, :regularization_data)
@@ -255,6 +333,109 @@ Trivial regaining of the unregularized problem in binary space if no regularizat
 was used.
 """
 function deregularize_binary!(node::SDDP.Node, subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.NoRegularization)
+
+    return
+end
+
+
+################################################################################
+
+"""
+Regularization caller for backward pass if BinaryApproximation is used
+"""
+function regularize_bw!(node::SDDP.Node, node_index::Int64,
+    subproblem::JuMP.Model, cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
+    regularization_regime::DynamicSDDiP.Regularization,
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation)
+
+    regularize_binary!(node, node_index, subproblem, cut_generation_regime, regularization_regime, state_approximation_regime)
+
+    return
+end
+
+"""
+Regularization caller for backward pass if NoStateApproximation is used
+"""
+function regularize_bw!(node::SDDP.Node, node_index::Int64,
+    subproblem::JuMP.Model, cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
+    regularization_regime::DynamicSDDiP.Regularization,
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation)
+
+    regularize_subproblem!(node, node_index, subproblem, regularization_regime)
+
+    return
+end
+
+"""
+Regularization caller if no regularization is used
+"""
+function regularize_bw!(node::SDDP.Node, node_index::Int64,
+    subproblem::JuMP.Model, cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
+    regularization_regime::DynamicSDDiP.NoRegularization,
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation)
+
+    regularize_binary!(node, node_index, subproblem, cut_generation_regime, regularization_regime, state_approximation_regime)
+
+    return
+end
+
+"""
+Regularization caller if no regularization is used
+"""
+function regularize_bw!(node::SDDP.Node, node_index::Int64,
+    subproblem::JuMP.Model, cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
+    regularization_regime::DynamicSDDiP.NoRegularization,
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation)
+
+    regularize_subproblem!(node, node_index, subproblem, regularization_regime)
+
+    return
+end
+
+################################################################################
+
+"""
+Deregularization caller for backward pass if BinaryApproximation is used
+"""
+function deregularize_bw!(node::SDDP.Node,
+    subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.Regularization,
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation)
+
+    deregularize_binary!(node, subproblem, regularization_regime)
+end
+
+"""
+Deregularization caller for backward pass if NoStateApproximation is used
+"""
+function deregularize_bw!(node::SDDP.Node,
+    subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.Regularization,
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation)
+
+    deregularize_subproblem!(node, subproblem, regularization_regime)
+
+    return
+end
+
+"""
+Deregularization caller if no regularization is used
+"""
+function deregularize_bw!(node::SDDP.Node,
+    subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.NoRegularization,
+    state_approximation_regime::DynamicSDDiP.BinaryApproximation)
+
+    deregularize_subproblem!(node, subproblem, regularization_regime)
+
+    return
+end
+
+"""
+Deregularization caller if no regularization is used
+"""
+function deregularize_bw!(node::SDDP.Node,
+    subproblem::JuMP.Model, regularization_regime::DynamicSDDiP.NoRegularization,
+    state_approximation_regime::DynamicSDDiP.NoStateApproximation)
+
+    deregularize_subproblem!(node, subproblem, regularization_regime)
 
     return
 end

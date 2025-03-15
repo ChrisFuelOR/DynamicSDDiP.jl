@@ -6,26 +6,35 @@
 
 module DynamicSDDiP
 
-#import JuMP
+import JuMP
+import MathOptInterface
 import SDDP
-import Gurobi
 import Revise
 import TimerOutputs
 import GAMS
+import Gurobi
 #import SCIP
-import MathOptInterface
-using Printf
-using Dates
+import Printf
+import Dates
+import Statistics
+import Infiltrator
 
-import Reexport
-Reexport.@reexport using JuMP
+const MOI = MathOptInterface
 
-using Infiltrator
+#const GURB_ENV = Gurobi.Env()
+
+const GURB_ENV = Ref{Gurobi.Env}()
+#const ws = GAMS.GAMSWorkspace()
+
+function __init__()
+    GURB_ENV[] = Gurobi.Env()
+    return
+end
 
 # Write your package code here.
-include("state.jl")
 include("typedefs.jl")
-include("JuMP.jl")
+include("state.jl")
+#include("JuMP.jl")
 
 include("logging.jl")
 
@@ -42,7 +51,22 @@ include("sigmaTest.jl")
 include("algorithmMain.jl")
 include("forwardPass.jl")
 include("backwardPass.jl")
+include("lagrange_unified_preparation.jl")
+include("lagrange_unified_core.jl")
+include("lagrange_preparation.jl")
 include("duals.jl")
+include("lagrange_augmented.jl")
 include("lagrange.jl")
+
+include("backwardPass_classic.jl")
+
+include("lagrange_unified.jl")
+
+include("backwardPass_aggregated.jl")
+include("duals_aggregated.jl")
+include("lagrange_unified_preparation_aggregated.jl")
+include("lagrange_unified_aggregated.jl")
+
+
 
 end
