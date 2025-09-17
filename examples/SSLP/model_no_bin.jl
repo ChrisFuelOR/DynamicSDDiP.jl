@@ -147,8 +147,8 @@ function model_no_bin_definition(problem_params::DynamicSDDiP.ProblemParams, sce
             SDDP.@stageobjective(subproblem, -sum(q[i,j] * y[i,j] for i in 1:number_of_clients for j in 1:number_of_servers) + sum(q0[j] * overflow[j] for j in 1:number_of_servers))
 
             # Add constraints
-            JuMP.@constraint(subproblem, cons1[j in 1:number_of_servers], sum(d[i,j] * y[i,j] for i in 1:number_of_clients) - rest[j] <= u * x[j].in))
-            JuMP.@constraint(subproblem, cons2[i in 1:number_of_clients], sum(y[i,j] for j in 1:number_of_servers) == h[i]))
+            JuMP.@constraint(subproblem, cons1[j in 1:number_of_servers], sum(d[i,j] * y[i,j] for i in 1:number_of_clients) - rest[j] <= u * x[j].in)
+            JuMP.@constraint(subproblem, cons2[i in 1:number_of_clients], sum(y[i,j] for j in 1:number_of_servers) == h[i])
 
             # PARAMETERIZE THE RANDOM VARIABLES
             ########################################################################

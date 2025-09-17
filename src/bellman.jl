@@ -1388,6 +1388,12 @@ function _add_cut(
         # ADD CUT TO SUBPROBLEM (we are already at the previous stage)
         ############################################################################
         _add_cut_constraints_to_models(node, V, cut, algo_params, cut_generation_regime, infiltrate_state)
+        #println(π₀ᵏ, ", ", minimum(values(πᵏ)), ", ", maximum(values(πᵏ)), ", ", sum(values(πᵏ)), ", ", sum(abs(a) for a in values(πᵏ)))
+
+        sampled_state_trial = DynamicSDDiP.SampledState(xᵏ, cut, NaN)
+        height = _eval_height(node, cut, sampled_state_trial, applied_solvers, algo_params)
+        file_handle = open(chop(algo_params.log_file, tail = 4) * "_analysis.log", "a")
+        print_helper(print_analysis_part_2, file_handle, height, minimum(values(πᵏ))/π₀ᵏ, maximum(values(πᵏ))/π₀ᵏ, sum(abs(a) for a in values(πᵏ))/π₀ᵏ)
 
         ############################################################################
         # UPDATE CUT SELECTION
@@ -1438,9 +1444,9 @@ function _add_cut_constraints_to_models(
         JuMP.@constraint(model, expr <= cut.intercept)
     end
 
-    if node.index == 3
-        println(expr, ", ", cut.intercept)
-    end
+    #if node.index == 3
+    #    println(expr, ", ", cut.intercept)
+    #end
 
     return
 
@@ -1522,6 +1528,8 @@ function check_for_cut_away(
             cut_away = true
         end
     end
+    # println(height, ", ", cut_away)
+
     return cut_away
 
 end

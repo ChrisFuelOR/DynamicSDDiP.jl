@@ -490,3 +490,16 @@ function print_det_equiv(io, problem_params::DynamicSDDiP.ProblemParams, value::
 
     flush(io)
 end
+
+function print_analysis_part_1(io, iter::Int, stage::Int, realization::Int, primal_obj::Float64)
+
+    print(io, iter, ", ", stage, ", ", realization, ", ", primal_obj, ", ")
+    flush(io)
+end
+
+function print_analysis_part_2(io, height::Float64, min_val::Float64, max_val::Float64, abs_val::Float64)
+
+    print(io, height, ", ", min_val, ", ", max_val, ", ", abs_val)
+    println(io)
+    flush(io)
+end

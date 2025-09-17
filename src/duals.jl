@@ -175,6 +175,9 @@ function get_dual_solution(
         dual_obj = _getStrengtheningInformation(node, dual_vars, algo_params, cut_generation_regime, applied_solvers)
     end
 
+    file_handle = open(chop(algo_params.log_file, tail = 4) * "_analysis.log", "a")
+    print_helper(print_analysis_part_1, file_handle, node.subproblem.ext[:sddp_policy_graph].ext[:iteration], node.index, i, Inf)
+
     ############################################################################
     # SET DUAL VARIABLES AND STATES CORRECTLY FOR RETURN
     ############################################################################
@@ -297,9 +300,11 @@ function get_dual_solution(
         lag_obj = results.lag_obj
         lag_iterations = results.iterations
         lag_status = results.lag_status
+        #print(primal_obj, ", ")
 
         #println(node_index, ", ", primal_obj, ", ", lag_obj, ", ", lag_iterations, ", ", lag_status, ", ", sum(abs.(dual_vars)))
-        #Infiltrator.@infiltrate
+        file_handle = open(chop(algo_params.log_file, tail = 4) * "_analysis.log", "a")
+        print_helper(print_analysis_part_1, file_handle, node.subproblem.ext[:sddp_policy_graph].ext[:iteration], node.index, i, primal_obj)
 
         subproblem.ext[:sddp_policy_graph].ext[:agg_lag_iterations] += results.iterations
 
@@ -401,6 +406,8 @@ function get_dual_solution(
     end
 
     primal_original_obj = JuMP.objective_value(subproblem)
+    # Infiltrator.@infiltrate
+    #print(primal_original_obj, ", ")
 
     ############################################################################
     # GET CORE POINT RESP. NORMALIZATION COEFFICIENTS
@@ -521,6 +528,9 @@ function get_dual_solution(
         #println(node_index, " ,", i, " ,", primal_unified_obj, " ,", lag_obj, " ,", lag_status, " ,", lag_iterations)
         #Infiltrator.@infiltrate node_index == 100
         #Infiltrator.@infiltrate node_index == 99
+
+        file_handle = open(chop(algo_params.log_file, tail = 4) * "_analysis.log", "a")
+        print_helper(print_analysis_part_1, file_handle, node.subproblem.ext[:sddp_policy_graph].ext[:iteration], node.index, i, primal_original_obj)
 
         subproblem.ext[:sddp_policy_graph].ext[:agg_lag_iterations] += results.iterations
 
@@ -680,7 +690,7 @@ function solve_primal_projection_problem(
     # CHECK TERMINATION STATUS TO GET BOUNDS FOR LAGRANGIAN DUAL
     if JuMP.termination_status(node.subproblem) == MOI.OPTIMAL
         primal_unified_obj = JuMP.objective_value(node.subproblem)
-        Infiltrator.@infiltrate
+        #Infiltrator.@infiltrate
     else
         # Infeasibility is an indicator for unboundedness of the Lagrangian dual
         # We do not differentiate termination statuses here, because we need artificial bounds anyway
