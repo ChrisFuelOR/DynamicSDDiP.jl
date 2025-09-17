@@ -1392,7 +1392,7 @@ function _add_cut(
 
         sampled_state_trial = DynamicSDDiP.SampledState(xᵏ, cut, NaN)
         height = _eval_height(node, cut, sampled_state_trial, applied_solvers, algo_params)
-        file_handle = open(chop(algo_params.log_file, tail = 4) * "_analysis_v1.log", "a")
+        file_handle = open(chop(algo_params.log_file, tail = 4) * "_analysis_v2.log", "a")
         print_helper2(print_analysis_part_2, file_handle, height, minimum(values(πᵏ))/π₀ᵏ, maximum(values(πᵏ))/π₀ᵏ, sum(abs(a) for a in values(πᵏ))/π₀ᵏ)
 
         ############################################################################
