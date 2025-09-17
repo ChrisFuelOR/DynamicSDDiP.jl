@@ -91,6 +91,10 @@ function print_helper(f, io, args...)
     f(io, args...)
 end
 
+function print_helper2(f, io, args...)
+    f(io, args...)
+end
+
 function print_banner(io)
     println(io)
     println(io)
@@ -494,6 +498,7 @@ end
 function print_analysis_part_1(io, iter::Int, stage::Int, realization::Int, primal_obj::Float64)
 
     print(io, iter, ", ", stage, ", ", realization, ", ", primal_obj, ", ")
+    println(io)
     flush(io)
 end
 

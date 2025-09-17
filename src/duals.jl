@@ -175,8 +175,8 @@ function get_dual_solution(
         dual_obj = _getStrengtheningInformation(node, dual_vars, algo_params, cut_generation_regime, applied_solvers)
     end
 
-    file_handle = open(chop(algo_params.log_file, tail = 4) * "_analysis.log", "a")
-    print_helper(print_analysis_part_1, file_handle, node.subproblem.ext[:sddp_policy_graph].ext[:iteration], node.index, i, Inf)
+    file_handle = open(chop(algo_params.log_file, tail = 4) * "_analysis_v1.log", "a")
+    print_helper2(print_analysis_part_1, file_handle, node.subproblem.ext[:sddp_policy_graph].ext[:iteration], node.index, i, Inf)
 
     ############################################################################
     # SET DUAL VARIABLES AND STATES CORRECTLY FOR RETURN
@@ -303,8 +303,8 @@ function get_dual_solution(
         #print(primal_obj, ", ")
 
         #println(node_index, ", ", primal_obj, ", ", lag_obj, ", ", lag_iterations, ", ", lag_status, ", ", sum(abs.(dual_vars)))
-        file_handle = open(chop(algo_params.log_file, tail = 4) * "_analysis.log", "a")
-        print_helper(print_analysis_part_1, file_handle, node.subproblem.ext[:sddp_policy_graph].ext[:iteration], node.index, i, primal_obj)
+        file_handle = open(chop(algo_params.log_file, tail = 4) * "_analysis_v1.log", "a")
+        print_helper2(print_analysis_part_1, file_handle, node.subproblem.ext[:sddp_policy_graph].ext[:iteration], node.index, i, primal_obj)
 
         subproblem.ext[:sddp_policy_graph].ext[:agg_lag_iterations] += results.iterations
 
@@ -529,8 +529,8 @@ function get_dual_solution(
         #Infiltrator.@infiltrate node_index == 100
         #Infiltrator.@infiltrate node_index == 99
 
-        file_handle = open(chop(algo_params.log_file, tail = 4) * "_analysis.log", "a")
-        print_helper(print_analysis_part_1, file_handle, node.subproblem.ext[:sddp_policy_graph].ext[:iteration], node.index, i, primal_original_obj)
+        file_handle = open(chop(algo_params.log_file, tail = 4) * "_analysis_v1.log", "a")
+        print_helper2(print_analysis_part_1, file_handle, node.subproblem.ext[:sddp_policy_graph].ext[:iteration], node.index, i, primal_original_obj)
 
         subproblem.ext[:sddp_policy_graph].ext[:agg_lag_iterations] += results.iterations
 
