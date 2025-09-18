@@ -497,7 +497,7 @@ end
 
 function print_analysis_part_1(io, iter::Int, stage::Int, realization::Int, primal_obj::Float64, lag_status::Symbol)
 
-    print(io, iter, ", ", stage, ", ", realization, ", ", primal_obj, ", ", ", ", lag_status)
+    print(io, iter, ", ", stage, ", ", realization, ", ", primal_obj, ", ", lag_status)
     println(io)
     flush(io)
 end
