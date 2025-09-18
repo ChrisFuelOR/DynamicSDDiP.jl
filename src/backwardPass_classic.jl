@@ -132,17 +132,59 @@ function solve_all_children(
             # IF SOLUTIONS FOR THIS NODE ARE CACHED ALREADY, USE THEM
             ####################################################################
             if haskey(items.cached_solutions, (child.term, noise.term))
-                sol_index = items.cached_solutions[(child.term, noise.term)]
-                push!(items.duals, items.duals[sol_index])
-                push!(items.dual_0_var, items.dual_0_var[sol_index])
-                push!(items.supports, items.supports[sol_index])
+                # sol_index = items.cached_solutions[(child.term, noise.term)]
+                # push!(items.duals, items.duals[sol_index])
+                # push!(items.dual_0_var, items.dual_0_var[sol_index])
+                # push!(items.supports, items.supports[sol_index])
+                # push!(items.nodes, child_node.index)
+                # push!(items.probability, items.probability[sol_index])
+                # push!(items.objectives, items.objectives[sol_index])
+                # push!(items.belief, belief)
+                # push!(items.bin_state, items.bin_state[sol_index])
+                # push!(items.lag_iterations, items.lag_iterations[sol_index])
+                # push!(items.add_cut_flags, items.add_cut_flags[sol_index])
+
+                ################################################################
+                # DETERMINE ASSOCIATED EPI_STATE
+                ################################################################
+                if algo_params.cut_type == SDDP.SINGLE_CUT
+                    epi_state = epi_states[1]
+                    #epi_state = Inf
+                elseif algo_params.cut_type == SDDP.MULTI_CUT
+                    epi_state = epi_states[i]
+                end
+
+                ################################################################
+                # SOLVE THE BACKWARD PASS PROBLEM
+                ################################################################
+                TimerOutputs.@timeit DynamicSDDiP_TIMER "solve_BP" begin
+                    subproblem_results = solve_subproblem_backward(
+                        model,
+                        child_node,
+                        node_index+1,
+                        outgoing_state,
+                        epi_state,
+                        noise.term,
+                        i,
+                        scenario_path,
+                        add_cut_flag,
+                        algo_params,
+                        cut_generation_regime,
+                        applied_solvers
+                    )
+                end
+                push!(items.duals, subproblem_results.duals)
+                push!(items.dual_0_var, subproblem_results.dual_0_var)
+                push!(items.supports, noise)
                 push!(items.nodes, child_node.index)
-                push!(items.probability, items.probability[sol_index])
-                push!(items.objectives, items.objectives[sol_index])
+                push!(items.probability, child.probability * noise.probability)
+                push!(items.objectives, subproblem_results.objective)
                 push!(items.belief, belief)
-                push!(items.bin_state, items.bin_state[sol_index])
-                push!(items.lag_iterations, items.lag_iterations[sol_index])
-                push!(items.add_cut_flags, items.add_cut_flags[sol_index])
+                push!(items.bin_state, subproblem_results.bin_state)
+                push!(items.lag_iterations, subproblem_results.iterations)
+                push!(items.add_cut_flags, subproblem_results.add_cut_flag)
+                items.cached_solutions[(child.term, noise.term)] = length(items.duals)
+
             else
                 ################################################################
                 # DETERMINE ASSOCIATED EPI_STATE

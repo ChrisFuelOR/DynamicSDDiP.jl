@@ -413,6 +413,10 @@ function _add_multi_cut(
                 applied_solvers,
                 cut_generation_regime.state_approximation_regime,
             )
+        
+        else
+            file_handle = open(chop(algo_params.log_file, tail = 4) * "_analysis_v2.log", "a")
+            print_helper2(print_analysis_part_3, file_handle)
 
         end
     end
@@ -1383,17 +1387,17 @@ function _add_cut(
     ############################################################################
     cut_away = check_for_cut_away(node, cut, V, xᵏ, epi_state, algo_params, applied_solvers, cut_generation_regime)
 
+    sampled_state_trial = DynamicSDDiP.SampledState(xᵏ, cut, NaN)
+    height = _eval_height(node, cut, sampled_state_trial, applied_solvers, algo_params)
+    file_handle = open(chop(algo_params.log_file, tail = 4) * "_analysis_v2.log", "a")
+    print_helper2(print_analysis_part_2, file_handle, height, cut.epi_state, minimum(values(πᵏ))/π₀ᵏ, maximum(values(πᵏ))/π₀ᵏ, sum(abs(a) for a in values(πᵏ))/π₀ᵏ, cut_away)
+
     if cut_away || !cut_generation_regime.cut_away_approach
         ############################################################################
         # ADD CUT TO SUBPROBLEM (we are already at the previous stage)
         ############################################################################
         _add_cut_constraints_to_models(node, V, cut, algo_params, cut_generation_regime, infiltrate_state)
         #println(π₀ᵏ, ", ", minimum(values(πᵏ)), ", ", maximum(values(πᵏ)), ", ", sum(values(πᵏ)), ", ", sum(abs(a) for a in values(πᵏ)))
-
-        sampled_state_trial = DynamicSDDiP.SampledState(xᵏ, cut, NaN)
-        height = _eval_height(node, cut, sampled_state_trial, applied_solvers, algo_params)
-        file_handle = open(chop(algo_params.log_file, tail = 4) * "_analysis_v2.log", "a")
-        print_helper2(print_analysis_part_2, file_handle, height, minimum(values(πᵏ))/π₀ᵏ, maximum(values(πᵏ))/π₀ᵏ, sum(abs(a) for a in values(πᵏ))/π₀ᵏ)
 
         ############################################################################
         # UPDATE CUT SELECTION
