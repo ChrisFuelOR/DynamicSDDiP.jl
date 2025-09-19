@@ -89,7 +89,7 @@ function algo_config(
     #     #cut_away_approach = false,
     )
 
-    cut_generation_regimes = [cut_generation_regime_2, cut_selection_regime_1]
+    cut_generation_regimes = [cut_generation_regime_2]
 
     # Regularization configuration
     regularization_regime = DynamicSDDiP.NoRegularization()
