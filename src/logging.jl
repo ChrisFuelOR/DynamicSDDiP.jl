@@ -499,19 +499,19 @@ function print_analysis_part_1(io, iter::Int, stage::Int, realization::Int, prim
 
     print(io, iter, ", ", stage, ", ", realization, ", ", primal_obj, ", ", lag_status)
     println(io)
-    flush(io)
+    close(io)
 end
 
 function print_analysis_part_2(io, height::Float64, epi_state::Float64, min_val::Float64, max_val::Float64, abs_val::Float64, cut_away::Bool)
 
     print(io, height, ", ", epi_state, ", ", cut_away, ", ", min_val, ", ", max_val, ", ", abs_val)
     println(io)
-    flush(io)
+    close(io)
 end
 
 function print_analysis_part_3(io)
 
     print(io, "add_cut_flag = false")
     println(io)
-    flush(io)
+    close(io)
 end

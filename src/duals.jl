@@ -474,7 +474,7 @@ function get_dual_solution(
         if isa(normalization_regime.unbounded_regime, DynamicSDDiP.Unbounded_Opt_SB)
             # Get strengthened Benders cut
             dual_results = get_dual_solution(node, node_index, i, epi_state, add_cut_flag, algo_params, cut_generation_regime, applied_solvers, DynamicSDDiP.StrengthenedDuality())
-            
+
             # if status is not as intended, the algorithm terminates with an error
             lagrangian_status_check(subproblem.ext[:sddp_policy_graph], :unbounded, duality_regime.dual_status_regime)
 
