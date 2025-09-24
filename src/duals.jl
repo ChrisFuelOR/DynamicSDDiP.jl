@@ -187,7 +187,7 @@ function get_dual_solution(
     end
 
     file_handle = open(chop(algo_params.log_file, tail = 4) * "_analysis_v1.log", "a")
-    print_helper2(print_analysis_part_1, file_handle, node.subproblem.ext[:sddp_policy_graph].ext[:iteration], node.index, i, primal_obj, :SB)
+    #print_helper2(print_analysis_part_1, file_handle, node.subproblem.ext[:sddp_policy_graph].ext[:iteration], node.index, i, primal_obj, :SB)
 
     ############################################################################
     # SET DUAL VARIABLES AND STATES CORRECTLY FOR RETURN
@@ -315,7 +315,7 @@ function get_dual_solution(
 
         #println(node_index, ", ", primal_obj, ", ", lag_obj, ", ", lag_iterations, ", ", lag_status, ", ", sum(abs.(dual_vars)))
         file_handle = open(chop(algo_params.log_file, tail = 4) * "_analysis_v1.log", "a")
-        print_helper2(print_analysis_part_1, file_handle, node.subproblem.ext[:sddp_policy_graph].ext[:iteration], node.index, i, primal_obj, lag_status)
+        #print_helper2(print_analysis_part_1, file_handle, node.subproblem.ext[:sddp_policy_graph].ext[:iteration], node.index, i, primal_obj, lag_status)
 
         subproblem.ext[:sddp_policy_graph].ext[:agg_lag_iterations] += results.iterations
 
@@ -541,7 +541,7 @@ function get_dual_solution(
         #Infiltrator.@infiltrate node_index == 99
 
         file_handle = open(chop(algo_params.log_file, tail = 4) * "_analysis_v1.log", "a")
-        print_helper2(print_analysis_part_1, file_handle, node.subproblem.ext[:sddp_policy_graph].ext[:iteration], node.index, i, primal_original_obj, lag_status)
+        #print_helper2(print_analysis_part_1, file_handle, node.subproblem.ext[:sddp_policy_graph].ext[:iteration], node.index, i, primal_original_obj, lag_status)
 
         subproblem.ext[:sddp_policy_graph].ext[:agg_lag_iterations] += results.iterations
 
