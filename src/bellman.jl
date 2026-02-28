@@ -619,8 +619,7 @@ function _add_cut_constraints_to_models(
         unnecessary to introduce a new (relaxed) binary variable then.
         However, I am not absolutely sure if we in fact do not require
         the other constraints. Therefore, in this version, I also included
-        them for binary state variables. At least, if StrongDuality is used,
-        they are required anyway.
+        them for binary state variables.
         """
 
         variable_info = node.ext[:state_info_storage][state_name].out
@@ -746,7 +745,7 @@ function represent_cut_projection_closure!(
     ########################################################
     infiltrate_state::Symbol,
     ########################################################
-    cut_projection_regime::Union{DynamicSDDiP.SOS1, DynamicSDDiP.BigM, DynamicSDDiP.KKT}
+    cut_projection_regime::Union{DynamicSDDiP.SOS1, DynamicSDDiP.BigM}
     )
 
     ############################################################################
@@ -838,57 +837,6 @@ function represent_cut_projection_closure!(
     K_tilde += K
 
     return K_tilde
-
-end
-
-"""
-Function representing complementarity constraints using projection_regime KKT.
-"""
-function add_complementarity_constraints!(
-    model::JuMP.Model,
-    node::SDDP.Node,
-    ########################################################################
-    state_index::Int64,
-    ########################################################################
-    cut_variables::Vector{JuMP.VariableRef},
-    cut_constraints::Vector{JuMP.ConstraintRef},
-    sigma::Union{Nothing,Float64},
-    iteration::Int64,
-    beta::Float64,
-    ########################################################################
-    related_coefficients::Vector{Float64},
-    ########################################################################
-    γ::Vector{JuMP.VariableRef},
-    μ::Vector{JuMP.VariableRef},
-    ν::Vector{JuMP.VariableRef},
-    ########################################################################
-    K::Int64,
-    ########################################################################
-    infiltrate_state::Symbol,
-    ########################################################################
-    cut_projection_regime::DynamicSDDiP.KKT,
-)
-
-    Infiltrator.@infiltrate infiltrate_state in [:bellman, :all]
-
-    ############################################################################
-    # ADD COMPLEMENTARITY CONSTRAINTS
-    ############################################################################
-    complementarity_constraint_1 = JuMP.@constraint(
-        model,
-        [k=1:K],
-        ν[k] * γ[k] == 0
-    )
-    append!(cut_constraints, complementarity_constraint_1)
-
-    complementarity_constraint_2 = JuMP.@constraint(
-        model,
-        [k=1:K],
-        μ[k] * (γ[k]-1) == 0
-    )
-    append!(cut_constraints, complementarity_constraint_2)
-
-    return
 
 end
 
@@ -1021,7 +969,7 @@ end
 
 
 """
-Function representing complementarity constraints using projection_regime KKT.
+Function representing complementarity constraints using projection_regime SOS1.
 """
 function add_complementarity_constraints!(
     model::JuMP.Model,
@@ -1075,86 +1023,6 @@ function add_complementarity_constraints!(
 end
 
 
-"""
-Defining the constraints and variables corresponding to representing
-the cut projection closure if StrongDuality is exploited.
-"""
-function represent_cut_projection_closure!(
-    model::JuMP.Model,
-    node::SDDP.Node,
-    ########################################################
-    state_comp::JuMP.VariableRef,
-    state_name::Symbol,
-    state_index::Int64,
-    ########################################################
-    coefficients::Dict{Symbol,Float64},
-    binary_state::Dict{Symbol,BinaryState},
-    sigma::Union{Nothing,Float64},
-    cut_variables::Vector{JuMP.VariableRef},
-    cut_constraints::Vector{JuMP.ConstraintRef},
-    iteration::Int64,
-    beta::Float64,
-    ########################################################
-    all_coefficients::Vector{Float64},
-    all_lambda::Vector{JuMP.VariableRef},
-    all_eta::Vector{JuMP.VariableRef},
-    all_mu::Vector{JuMP.VariableRef},
-    ########################################################
-    K::Int64,
-    K_tilde::Int64,
-    ########################################################
-    infiltrate_state::Symbol,
-    ########################################################
-    cut_projection_regime::DynamicSDDiP.StrongDuality
-    )
-
-    ############################################################################
-    # STORE THE RELATED CUT COEFFICIENTS π
-    ############################################################################
-    related_coefficients = Vector{Float64}(undef, K)
-
-    for (i, (name, value)) in enumerate(coefficients)
-        if binary_state[name].x_name == state_name
-            index = binary_state[name].k
-            related_coefficients[index] = coefficients[name]
-        end
-    end
-    append!(all_coefficients, related_coefficients)
-
-    ############################################################################
-    # ADD REQUIRED VARIABLES (CPC-CONSTRAINTS 4, 5)
-    ############################################################################
-    μ = JuMP.@variable(model, [k in 1:K], lower_bound=0, base_name = "μ_" * string(state_index) * "_it" * string(iteration))
-    η = JuMP.@variable(model, base_name = "η_" * string(state_index) * "_it" * string(iteration))
-
-    # Store those variables in the storing vectors
-    append!(all_mu, μ)
-    push!(all_eta, η)
-
-    # Store those variables as cut_variables for the existing cut
-    append!(cut_variables, μ)
-    push!(cut_variables, η)
-
-    ############################################################################
-    # ADD DUAL FEASIBILITY CONSTRAINTS (CPC-CONSTRAINT 2d)
-    ############################################################################
-    primal_feas_constraints = JuMP.@constraint(
-        model,
-        [k=1:K],
-        μ[k] + 2^(k-1) * beta * η >= related_coefficients[k]
-    )
-    append!(cut_constraints, primal_feas_constraints)
-
-    ############################################################################
-    # INCREASE K_tilde
-    ############################################################################
-    K_tilde += K
-
-    return K_tilde
-
-end
-
-
 ################################################################################
 # AUXILIARY FUNCTIONS
 ################################################################################
@@ -1186,7 +1054,7 @@ function validity_checks!(
     all_eta::Vector{JuMP.VariableRef},
     all_coefficients::Vector{Float64},
     number_of_states::Int64,
-    cut_projection_regime::Union{DynamicSDDiP.SOS1,DynamicSDDiP.BigM,DynamicSDDiP.KKT},
+    cut_projection_regime::Union{DynamicSDDiP.SOS1,DynamicSDDiP.BigM},
     )
 
     @assert (K_tilde == size(collect(values(cut.coefficients)), 1)
@@ -1201,29 +1069,6 @@ function validity_checks!(
     return
 end
 
-function validity_checks!(
-    cut::DynamicSDDiP.NonlinearCut,
-    V::DynamicSDDiP.CutApproximation,
-    K_tilde::Int64,
-    all_lambda::Vector{JuMP.VariableRef},
-    all_mu::Vector{JuMP.VariableRef},
-    all_eta::Vector{JuMP.VariableRef},
-    all_coefficients::Vector{Float64},
-    number_of_states::Int64,
-    cut_projection_regime::DynamicSDDiP.StrongDuality,
-    )
-
-    @assert (K_tilde == size(collect(values(cut.coefficients)), 1)
-                    == size(all_coefficients, 1)
-                    == size(all_mu, 1)
-                    )
-
-    @assert (number_of_states == size(all_eta, 1)
-                              == length(V.states)
-                              )
-
-    return
-end
 
 function get_cut_expression(
     model::JuMP.Model,
@@ -1236,7 +1081,7 @@ function get_cut_expression(
     scaling_coeff::Float64,
     number_of_states::Int64,
     number_of_duals::Int64,
-    cut_projection_regime::Union{DynamicSDDiP.SOS1,DynamicSDDiP.BigM,DynamicSDDiP.KKT},
+    cut_projection_regime::Union{DynamicSDDiP.SOS1,DynamicSDDiP.BigM},
     )
 
     expr = JuMP.@expression(
@@ -1247,28 +1092,6 @@ function get_cut_expression(
     return expr
 end
 
-function get_cut_expression(
-    model::JuMP.Model,
-    node::SDDP.Node,
-    V::DynamicSDDiP.CutApproximation,
-    all_lambda::Vector{JuMP.VariableRef},
-    all_mu::Vector{JuMP.VariableRef},
-    all_eta::Vector{JuMP.VariableRef},
-    all_coefficients::Vector{Float64},
-    scaling_coeff::Float64,
-    number_of_states::Int64,
-    number_of_duals::Int64,
-    cut_projection_regime::DynamicSDDiP.StrongDuality,
-    )
-
-    expr = JuMP.@expression(
-        model,
-        scaling_coeff * V.theta - sum(all_mu[j]  for j in 1:size(all_mu, 1))
-        - sum(x * all_eta[i]  for (i, (_,x)) in enumerate(V.states))
-    )
-
-    return expr
-end
 
 function add_strong_duality_cut!(
     model::JuMP.Model,
@@ -1312,7 +1135,7 @@ function add_strong_duality_cut!(
     all_coefficients::Vector{Float64},
     number_of_states::Int64,
     number_of_duals::Int64,
-    cut_projection_regime::Union{DynamicSDDiP.BigM,DynamicSDDiP.KKT,DynamicSDDiP.StrongDuality},
+    cut_projection_regime::DynamicSDDiP.BigM,
     )
 
     return

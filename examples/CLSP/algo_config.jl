@@ -17,10 +17,8 @@ function algo_config(
 
     # Stopping rules to be used
     #stopping_rules = [SDDP.TimeLimit(time_limit), SDDP.IterationLimit(1000), SDDP.BoundStalling(20,1e-4)]
-    stopping_rules = [SDDP.TimeLimit(time_limit), SDDP.BoundStalling(20,1e-4)]
-    #stopping_rules = [SDDP.IterationLimit(5)]
-
-    #stopping_rules = [ SDDP.IterationLimit(20), SDDP.BoundStalling(20,1e-4)]
+    #stopping_rules = [SDDP.TimeLimit(time_limit), SDDP.BoundStalling(20,1e-4)]
+    stopping_rules = [ SDDP.IterationLimit(10)]
 
     # Duality / Cut computation configuration
     dual_initialization_regime = DynamicSDDiP.ZeroDuals()
@@ -30,11 +28,10 @@ function algo_config(
 
     dual_choice_regime = DynamicSDDiP.StandardChoice()
     if isa(normalization_regime, DynamicSDDiP.L∞_Deep)
-        dual_choice_regime = DynamicSDDiP.MinimalNormChoice()
+        dual_choice_regime = DynamicSDDiP.StandardChoice()
     end
 
-
-    #dual_space_regime = DynamicSDDiP.BendersSpanSpaceRestriction(20, :multi_cut)
+    # dual_space_regime = DynamicSDDiP.BendersSpanSpaceRestriction(20, :multi_cut)
     dual_space_regime = DynamicSDDiP.NoDualSpaceRestriction()
     copy_regime = DynamicSDDiP.ConvexHullCopy()
 
@@ -42,7 +39,7 @@ function algo_config(
         duality_regime = DynamicSDDiP.UnifiedLagrangianDuality(
             atol = 1e-4,
             rtol = 1e-4,
-            iteration_limit = 5,
+            iteration_limit = 1000,
             dual_initialization_regime = dual_initialization_regime,
             dual_bound_regime = dual_bound_regime,
             dual_solution_regime = dual_solution_regime,
@@ -78,15 +75,13 @@ function algo_config(
         state_approximation_regime = state_approximation_regime,
         duality_regime = duality_regime,
         #cut_away_approach = false,
-        iteration_to_start = 1,
-        #iteration_to_stop = 30,
+        #iteration_to_start = 21,
+        #iteration_to_stop = 21,
     )
 
     cut_generation_regime_1 = DynamicSDDiP.CutGenerationRegime(
-         state_approximation_regime = state_approximation_regime,
-         duality_regime = DynamicSDDiP.StrengthenedDuality(),
-    #     #iteration_to_start = 1,
-    #     #cut_away_approach = false,
+        state_approximation_regime = state_approximation_regime,
+        duality_regime = DynamicSDDiP.StrengthenedDuality(),
     )
 
     cut_generation_regimes = [cut_generation_regime_2]

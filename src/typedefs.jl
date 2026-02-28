@@ -171,23 +171,11 @@ BigM means that the complementarity constraints of the KKT conditions of
     the cut projection closure are reformulated using a big-M approach.
 SOS1 means that the complemnentarity constraints of the KKT conditions of
     the cut projection closure are reformulated using SOS1 constraints.
-KKT means that the complementarity constraints of the KKT conditions are used
-    in their original bilinear form.
-StrongDuality means that by using strong duality the cuts are integrated in a
-    bilinear way.
 Default is BigM.
-
-Note that for KKT and StrongDuality the subproblems become nonlinear, and thus
-    an MINLP solver (e.g. Gurobi) has to be used to solve them.
-    Moreover, in these cases, only zeros should be used as initialization
-    method and only Lagrangian cuts should be determined, since the LP
-    relaxation is no LP anymore and may yield useless results.
 """
 
 mutable struct BigM <: AbstractCutProjectionRegime end
 mutable struct SOS1 <: AbstractCutProjectionRegime end
-mutable struct KKT <: AbstractCutProjectionRegime end
-mutable struct StrongDuality <: AbstractCutProjectionRegime end
 
 ################################################################################
 # BINARY APPROXIMATION

@@ -56,10 +56,6 @@ function identify_solver!(
         solver = applied_solvers.solver_cut_selection
     end
 
-    # TODO: If non-convex cuts have been created for which Strong Duality
-    # or KKT cut_projection_regime is used, then we have to make sure that
-    # a nonlinear solver is used for the subproblems from there on.
-
     return solver
 
 end
