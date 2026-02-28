@@ -42,7 +42,7 @@ function algo_config(
         duality_regime = DynamicSDDiP.UnifiedLagrangianDuality(
             atol = 1e-4,
             rtol = 1e-4,
-            iteration_limit = 1000,
+            iteration_limit = 5,
             dual_initialization_regime = dual_initialization_regime,
             dual_bound_regime = dual_bound_regime,
             dual_solution_regime = dual_solution_regime,
@@ -117,9 +117,6 @@ function algo_config(
     # Define solvers to be used
     applied_solvers = DynamicSDDiP.AppliedSolvers()
 
-    #K_dict = Dict{Symbol, Int64}()
-    K = 10
-
     # Definition of algo_params
     algo_params = DynamicSDDiP.AlgoParams(
         stopping_rules = stopping_rules,
@@ -128,8 +125,6 @@ function algo_config(
         cut_selection_regime = cut_selection_regime,
         cut_generation_regimes = cut_generation_regimes,
         simulation_regime = simulation_regime,
-        late_binarization_regime = DynamicSDDiP.NoLateBinarization(),
-        #late_binarization_regime = DynamicSDDiP.LateBinarization(K, 41),
         cut_type = cut_type,
         log_file = log_file,
         silent = silent,

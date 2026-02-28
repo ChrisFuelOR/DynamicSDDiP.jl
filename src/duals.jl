@@ -5,8 +5,8 @@
 # The reproduced function and other functions in this file are also released
 # under Mozilla Public License 2.0
 
-# Copyright (c) 2021 Christian Fuellner <christian.fuellner@kit.edu>
-# Copyright (c) 2021 Oscar Dowson <o.dowson@gmail.com>
+# Copyright (c) 2026 Christian Fuellner <christian.fuellner@kit.edu>
+# Copyright (c) 2026 Oscar Dowson <o.dowson@gmail.com>
 
 # This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
 # If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -533,12 +533,6 @@ function get_dual_solution(
         lag_iterations = results.iterations
         lag_status = results.lag_status
         dual_0_var = results.dual_0_var
-
-        #println(round(primal_original_obj, digits=2), ", ", round(primal_unified_obj, digits=2), ", ", round(epi_state, digits=2), ", ", round(lag_obj, digits=2), ", ", lag_iterations, ", ", lag_status, ", ", round(dual_0_var, digits=5), ", ", round(normalization_coeff.ω₀, digits=2), ", ", sum(abs.(dual_vars/dual_0_var)))    
-        #println(lag_iterations, ", ", lag_status, ", ", dual_0_var, ", ", sum(abs.(dual_vars)))
-        #println(node_index, " ,", i, " ,", primal_unified_obj, " ,", lag_obj, " ,", lag_status, " ,", lag_iterations)
-        #Infiltrator.@infiltrate node_index == 100
-        #Infiltrator.@infiltrate node_index == 99
 
         file_handle = open(chop(algo_params.log_file, tail = 4) * "_analysis_v1.log", "a")
         #print_helper2(print_analysis_part_1, file_handle, node.subproblem.ext[:sddp_policy_graph].ext[:iteration], node.index, i, primal_original_obj, lag_status)

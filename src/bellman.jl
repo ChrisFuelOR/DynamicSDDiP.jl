@@ -494,7 +494,7 @@ function _add_cut(
     cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     state_approximation_regime::DynamicSDDiP.BinaryApproximation,
-) where {N,T}
+)
 
     ############################################################################
     # CHECK FOR BAD-SCALED CUTS
@@ -1334,8 +1334,6 @@ function _add_cut(
     xᵏ_b::Dict{Symbol,Float64}, # anchor point for cut using BinaryApproximation
     xᵏ::Dict{Symbol,Float64}, # trial point (anchor point for cut without BinaryApproximation), outgoing_state
     epi_state::Float64,
-    # obj_y::Union{Nothing,NTuple{N,Float64}},
-    # belief_y::Union{Nothing,Dict{T,Float64}},
     sigma::Union{Nothing,Float64},
     iteration::Int64,
     infiltrate_state::Symbol,
@@ -1343,7 +1341,7 @@ function _add_cut(
     cut_generation_regime::DynamicSDDiP.CutGenerationRegime,
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     state_approximation_regime::DynamicSDDiP.NoStateApproximation,
-) where {N,T}
+)
 
     ############################################################################
     # CHECK FOR BAD-SCALED CUTS

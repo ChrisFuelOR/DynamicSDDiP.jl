@@ -171,8 +171,10 @@ function add_norm_constraints!(node::SDDP.Node, approx_model::JuMP.Model,
 
     # This means that the supremum norm is bounded in the dual
     for i in 1:number_of_states
-        JuMP.set_upper_bound(π⁺[i], dual_bound * weights[i])
-        JuMP.set_upper_bound(π⁻[i], dual_bound * weights[i])
+        if !isinf(dual_bound)
+            JuMP.set_upper_bound(π⁺[i], dual_bound * weights[i])
+            JuMP.set_upper_bound(π⁻[i], dual_bound * weights[i])
+        end
     end
 
     return

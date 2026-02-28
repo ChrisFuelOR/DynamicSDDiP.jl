@@ -8,8 +8,8 @@
 # The reproduced function and other functions in this file are also released
 # under Mozilla Public License 2.0
 
-# Copyright (c) 2021 Christian Fuellner <christian.fuellner@kit.edu>
-# Copyright (c) 2021 Oscar Dowson <o.dowson@gmail.com>
+# Copyright (c) 2026 Christian Fuellner <christian.fuellner@kit.edu>
+# Copyright (c) 2026 Oscar Dowson <o.dowson@gmail.com>
 
 # This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
 # If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -76,8 +76,6 @@ Kelley means that a classical cutting-plane method is used to solve the dual
     problem.
 LevelBundle means that a level bundle method with specified parameters is
     used to solve the dual problem.
-Subgradient means that a basic subgradient method (as in Bertsekas "Nonlinear
-    Programming") is used to solve the dual problem.
 Default is Kelley.
 
 The parameter use_subopt_sol allows to speed-up the solution by adding additional
@@ -105,24 +103,6 @@ mutable struct LevelBundle <: AbstractDualSolutionRegime
         return new(level_factor, switch_to_kelley, use_subopt_sol)
     end
 end
-
-mutable struct Subgradient <: AbstractDualSolutionRegime
-    beta_up::Float64
-    beta_down::Float64
-    gamma::Float64
-    wait::Int
-    max_times_unchanged::Int
-    function Subgradient(;
-        beta_up = 1.5,
-        beta_down = 0.95,
-        gamma = 2,
-        wait = 10,
-        max_times_unchanged = 10,
-        )
-        return new(beta_up, beta_down, gamma, wait, max_times_unchanged)
-    end
-end
-
 
 ################################################################################
 # BOUNDS IN LAGRANGIAL DUAL
@@ -240,26 +220,6 @@ end
 #TODO: Maybe change this to K instead of precision
 
 mutable struct NoStateApproximation <: AbstractStateApproximationRegime end
-
-################################################################################
-# LATE BINARIZATION
-################################################################################
-abstract type AbstractLateBinarizationRegime end
-
-"""
-LateBinarization means that after a predefined number of iterations a static
-    (not dynamic as above!) binarization of the state space is applied.
-NoLateBinarization means that this discretization is not used.
-Default is NoLateBinarization.
-"""
-
-mutable struct LateBinarization <: AbstractLateBinarizationRegime
-    #K_dict::Dict{Symbol, Int64} # number of binary variables
-    K::Int64 # number of binary variables (same for all continuous states)
-    iteration_to_start::Int64
-end
-
-mutable struct NoLateBinarization <: AbstractLateBinarizationRegime end
 
 ################################################################################
 # COPY RESTRICTION
@@ -675,8 +635,6 @@ mutable struct CutGenerationRegime
     duality_regime::AbstractDualityRegime
     iteration_to_start::Int64
     iteration_to_stop::Union{Int64,Float64} #TODO
-    gap_to_start::Float64       # not used so far
-    gap_to_stop::Float64        # not used so far
     cut_away_approach::Bool
     cut_away_tol::Float64
 
@@ -685,8 +643,6 @@ mutable struct CutGenerationRegime
         duality_regime = LagrangianDuality(),
         iteration_to_start = 1,
         iteration_to_stop = Inf,
-        gap_to_start = Inf,
-        gap_to_stop = 0.0,
         cut_away_approach = true,
         cut_away_tol = 1e-4,
     )
@@ -695,8 +651,6 @@ mutable struct CutGenerationRegime
             duality_regime,
             iteration_to_start,
             iteration_to_stop,
-            gap_to_start,
-            gap_to_stop,
             cut_away_approach,
             cut_away_tol,
         )
@@ -781,7 +735,6 @@ copy_regime defines the constraints that the copy variable z of the state x has
     is used). For the backward pass with BinaryApproximation, this is separately
     defined by the duality_regime.
 """
-#TODO: Maybe define the copy_regime one time in a completeley separate way.
 
 ################################################################################
 # SIMULATION
@@ -945,7 +898,6 @@ mutable struct AlgoParams
     cut_selection_regime::AbstractCutSelectionRegime
     cut_generation_regimes::Vector{CutGenerationRegime}
     simulation_regime::AbstractSimulationRegime
-    late_binarization_regime::AbstractLateBinarizationRegime
     ############################################################################
     risk_measure::SDDP.AbstractRiskMeasure
     forward_pass::SDDP.AbstractForwardPass
@@ -974,7 +926,6 @@ mutable struct AlgoParams
         cut_selection_regime = CutSelection(),
         cut_generation_regimes = [CutGenerationRegime()],
         simulation_regime = NoSimulation(),
-        late_binarization_regime = NoLateBinarization(),
         risk_measure = SDDP.Expectation(),
         forward_pass = SDDP.DefaultForwardPass(),
         sampling_scheme = SDDP.InSampleMonteCarlo(),
@@ -1001,7 +952,6 @@ mutable struct AlgoParams
             cut_selection_regime,
             cut_generation_regimes,
             simulation_regime,
-            late_binarization_regime,
             risk_measure,
             forward_pass,
             sampling_scheme,

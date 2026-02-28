@@ -20,7 +20,7 @@ function backward_pass_node(
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     duality_regime::DynamicSDDiP.UnifiedLagrangianDuality,
     cut_aggregation_regime::DynamicSDDiP.SingleCutRegime,
-    ) where {T,NoiseType}
+    ) where {T}
 
     ############################################################################
     # SOLVE PRIMAL PROBLEMS FOR ALL CHILDREN

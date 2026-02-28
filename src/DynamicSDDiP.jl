@@ -1,4 +1,4 @@
-# Copyright (c) 2021 Christian Fuellner <christian.fuellner@kit.edu>
+# Copyright (c) 2026 Christian Fuellner <christian.fuellner@kit.edu>
 
 # This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
 # If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -13,20 +13,16 @@ import Revise
 import TimerOutputs
 import GAMS
 import Gurobi
-#import SCIP
 import Printf
 import Dates
 import Statistics
 import Infiltrator
 
 const MOI = MathOptInterface
-
-#const GURB_ENV = Gurobi.Env()
-
 const GURB_ENV = Ref{Gurobi.Env}()
-#const ws = GAMS.GAMSWorkspace()
 
 function __init__()
+    global GRB_ENV
     GURB_ENV[] = Gurobi.Env()
     return
 end
@@ -34,10 +30,8 @@ end
 # Write your package code here.
 include("typedefs.jl")
 include("state.jl")
-#include("JuMP.jl")
 
 include("logging.jl")
-
 include("stopping.jl")
 include("objective.jl")
 include("bellman.jl")
@@ -66,7 +60,5 @@ include("backwardPass_aggregated.jl")
 include("duals_aggregated.jl")
 include("lagrange_unified_preparation_aggregated.jl")
 include("lagrange_unified_aggregated.jl")
-
-
 
 end

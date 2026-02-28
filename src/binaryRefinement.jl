@@ -65,7 +65,6 @@ function binary_refinement(
 
     return binary_refinement_status
 
-    # TODO binary_refinement symbol should exist separately for all regimes
 end
 
 

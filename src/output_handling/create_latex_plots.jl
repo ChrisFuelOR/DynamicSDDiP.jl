@@ -23,11 +23,11 @@ function create_latex_plots()
 	# TO BE ADAPTED FOR EACH NEW PLOT
 	############################################################################
 
-	input_folder_path = "C:/Users/cg4102/Documents/julia_logs/Restructuring/Final paper (IJOC)/CLSP/16_20/"
+	input_folder_path = "C:/Users/cg4102/Documents/julia_logs/Dynamic SDDiP - Restructuring/Final paper (Revision)/CFLP_scaled/Normal/"
     #input_folder_path = "C:/Users/cg4102/Documents/julia_logs/Restructuring/Final paper/CLSP"
     #input_folder_path = "C:/Users/cg4102/Documents/julia_logs/Restructuring/Final paper/CLSP_Large"
-    file_path_latex = "C:/Users/cg4102/Documents/julia_plots/Lag-Paper IJOC 2024/CLSP/Test.tex"
-	plottype = :lag_it
+    file_path_latex = "C:/Users/cg4102/Documents/julia_plots/Lag-Paper IJOC 2024/Test.tex"
+	plottype = :lb_time
 
     # Create header of LaTeX file
 	create_latex_header(file_path_latex, [0.0, 200.0, 0.0, 25000.0], plottype)
@@ -77,10 +77,10 @@ function create_latex_plots()
 		# PlotConfig(input_folder_path * "CLSP_Large_O_16_20_B_multi_ws03 (2).log", plottype, "olive", 1.0, "oplus", "solid", "solid", 20, "1pt", raw"BMulti", nothing),
 		# PlotConfig(input_folder_path * "CLSP_Large_O_16_20_SB_multi_ws03 (2).log", plottype, "red", 1.0, "otimes", "solid", "solid", 20, "1pt", raw"SBMulti", nothing),
 		
-		PlotConfig(input_folder_path * "CLSP_RR_16_20_Lsup_MNC2.log", plottype, "black", 1.0, "o", "dotted", "solid", 2, "1pt", raw"Lsup", nothing),
-		PlotConfig(input_folder_path * "CLSP_RR2_16_20_Eps_sbopt_v2.log", plottype, "black", 1.0, "o", "dotted", "solid", 2, "1pt", raw"Eps", nothing),
-		PlotConfig(input_folder_path * "CLSP_RR2_16_20_Mid_sbopt_v2.log", plottype, "black", 1.0, "o", "dotted", "solid", 2, "1pt", raw"Mid", nothing),
-		PlotConfig(input_folder_path * "CLSP_RR2_16_20_Relint_sbopt_v2.log", plottype, "black", 1.0, "o", "dotted", "solid", 2, "1pt", raw"Relint", nothing),
+		#PlotConfig(input_folder_path * "CLSP_RR_16_20_Lsup_MNC3.log", plottype, "black", 1.0, "o", "dotted", "solid", 2, "1pt", raw"Lsup", nothing),
+		#PlotConfig(input_folder_path * "CLSP_RR2_16_20_Eps_sbopt_v2.log", plottype, "black", 1.0, "o", "dotted", "solid", 2, "1pt", raw"Eps", nothing),
+		#PlotConfig(input_folder_path * "CLSP_RR2_16_20_Mid_sbopt_v2.log", plottype, "black", 1.0, "o", "dotted", "solid", 2, "1pt", raw"Mid", nothing),
+		#PlotConfig(input_folder_path * "CLSP_RR2_16_20_Relint_sbopt_v2.log", plottype, "black", 1.0, "o", "dotted", "solid", 2, "1pt", raw"Relint", nothing),
 		
 
 		#PlotConfig(input_folder_path * "CLSP_RR_Large_O_16_20_CL_L1.log", plottype, "blue", 1.0, "none", "solid", raw"L1", nothing),
@@ -92,17 +92,17 @@ function create_latex_plots()
 		#PlotConfig(input_folder_path * "CLSP_RR_Large_O_16_20_Conv_90_CL.log", plottype, "cyan", 1.0, "none", "solid", raw"Relint", nothing),
 
 		# ###################################################################### CFLP #############################################################################################################################
-		# PlotConfig(input_folder_path * "CFLP_S_Single_SB.log", plottype, "black", 1.0, "o", "dotted", "solid", 2, "1pt", raw"Single", nothing),
-		# PlotConfig(input_folder_path * "CFLP_S_Multi_SB.log", plottype, "black", 1.0, "o", "solid", "solid", 2, "1pt", raw"Multi", nothing),
+		PlotConfig(input_folder_path * "CFLP_S_Single_v2.log", plottype, "black", 1.0, "o", "dotted", "solid", 2, "1pt", raw"Single", nothing),
+		PlotConfig(input_folder_path * "CFLP_S_Multi_v2.log", plottype, "black", 1.0, "o", "solid", "solid", 2, "1pt", raw"Multi", nothing),
 		# PlotConfig(input_folder_path * "CFLP_S_L1_SB.log", plottype, "blue", 1.0, "asterisk", "solid", "solid", 2, "1pt", raw"L1", nothing),
 		# PlotConfig(input_folder_path * "CFLP_S_L1sup_SB.log", plottype, "green!70!black", 1.0, "mercedes star", "solid", "solid", 2, "1pt", raw"L1sup", nothing),
 		# PlotConfig(input_folder_path * "CFLP_S_Lsup_SB.log", plottype, "green", 1.0, "10-pointed star", "solid", "solid", 2, "1pt", raw"Lsup", nothing),
-		# PlotConfig(input_folder_path * "CFLP_S_Mid_N_sbopt_SB.log", plottype, "yellow!50!brown", 1.0, "square", "solid", "solid", 2, "1pt", raw"Mid", nothing),
-		# PlotConfig(input_folder_path * "CFLP_S_Eps_N_sbopt_SB.log", plottype, "magenta", 1.0, "triangle", "solid", "solid", 2, "1pt", raw"Eps", nothing),
-		# PlotConfig(input_folder_path * "CFLP_S_Relint_N_sbopt_SB.log", plottype, "cyan", 1.0, "diamond", "solid", "solid", 2, "1pt", raw"Relint", nothing),
-		# PlotConfig(input_folder_path * "CFLP_S_Conv_50_N_SB.log", plottype, "violet", 1.0, "pentagon", "solid", "solid", 2, "1pt", raw"Conv(50)", nothing),
-		# PlotConfig(input_folder_path * "CFLP_S_Conv_75_N_SB.log", plottype, "violet", 1.0, "pentagon", "dashed", "solid", 2, "1pt", raw"Conv(75)", nothing),
-		# PlotConfig(input_folder_path * "CFLP_S_Conv_90_N_SB.log", plottype, "violet", 1.0, "pentagon", "dotted", "solid", 2, "1pt", raw"Conv(90)", nothing),
+		PlotConfig(input_folder_path * "CFLP_Mid_Imp_2025.log", plottype, "yellow!50!brown", 1.0, "square", "solid", "solid", 2, "1pt", raw"Mid", nothing),
+		PlotConfig(input_folder_path * "CFLP_Eps_Imp_2025.log", plottype, "magenta", 1.0, "triangle", "solid", "solid", 2, "1pt", raw"Eps", nothing),
+		PlotConfig(input_folder_path * "CFLP_Relint_Imp_2025.log", plottype, "cyan", 1.0, "diamond", "solid", "solid", 2, "1pt", raw"Relint", nothing),
+		PlotConfig(input_folder_path * "CFLP_Conv_50_2025.log", plottype, "violet", 1.0, "pentagon", "solid", "solid", 2, "1pt", raw"Conv(50)", nothing),
+		PlotConfig(input_folder_path * "CFLP_Conv_75_2025.log", plottype, "violet", 1.0, "pentagon", "dashed", "solid", 2, "1pt", raw"Conv(75)", nothing),
+		PlotConfig(input_folder_path * "CFLP_Conv_90_2025.log", plottype, "violet", 1.0, "pentagon", "dotted", "solid", 2, "1pt", raw"Conv(90)", nothing),
 		# PlotConfig(input_folder_path * "CFLP_S_B.log", plottype, "olive", 1.0, "oplus", "dotted", "solid", 20, "1pt", raw"B", nothing),
 		# PlotConfig(input_folder_path * "CFLP_S_SB.log", plottype, "red", 1.0, "otimes", "dotted", "solid", 20, "1pt", raw"SB", nothing),
 		# PlotConfig(input_folder_path * "CFLP_S_B_Multi.log", plottype, "olive", 1.0, "oplus", "solid", "solid", 20, "1pt", raw"BMulti", nothing),

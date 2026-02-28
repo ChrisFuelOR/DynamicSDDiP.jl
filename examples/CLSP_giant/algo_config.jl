@@ -131,8 +131,6 @@ function algo_config(
     # Define solvers to be used
     applied_solvers = DynamicSDDiP.AppliedSolvers()
 
-    K = 10
-
     # Definition of algo_params
     algo_params = DynamicSDDiP.AlgoParams(
         stopping_rules = stopping_rules,
@@ -141,8 +139,6 @@ function algo_config(
         cut_selection_regime = cut_selection_regime,
         cut_generation_regimes = cut_generation_regimes,
         simulation_regime = simulation_regime,
-        late_binarization_regime = DynamicSDDiP.NoLateBinarization(),
-        #late_binarization_regime = DynamicSDDiP.LateBinarization(K, 21),
         cut_type = cut_type,
         log_file = log_file,
         silent = silent,

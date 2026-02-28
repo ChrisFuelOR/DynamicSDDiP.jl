@@ -19,7 +19,7 @@ function backward_pass_node(
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     duality_regime::Union{DynamicSDDiP.LagrangianDuality, DynamicSDDiP.LinearDuality, DynamicSDDiP.StrengthenedDuality},
     cut_aggregation_regime::Union{DynamicSDDiP.SingleCutRegime, DynamicSDDiP.MultiCutRegime}
-    ) where {T,NoiseType}
+    ) where {T}
 
     ########################################################################
     # SOLVE ALL CHILDREN PROBLEMS
@@ -30,8 +30,6 @@ function backward_pass_node(
         node_index,
         items,
         1.0,
-        # belief_state,
-        # objective_state,
         outgoing_state,
         epi_states,
         algo_params.backward_sampling_scheme,
@@ -56,8 +54,6 @@ function backward_pass_node(
     node_index::Int64,
     index::Int64,
     items::BackwardPassItems,
-    # belief_state,
-    # objective_state,
     outgoing_state::Dict{Symbol,Float64},
     epi_states::Vector{Float64},
     scenario_path,
@@ -67,7 +63,7 @@ function backward_pass_node(
     applied_solvers::DynamicSDDiP.AppliedSolvers,
     duality_regime::DynamicSDDiP.UnifiedLagrangianDuality,
     cut_aggregation_regime::DynamicSDDiP.MultiCutRegime,
-    ) where {T,NoiseType}
+    ) where {T}
 
     ########################################################################
     # SOLVE ALL CHILDREN PROBLEMS

@@ -7,8 +7,8 @@
 # The reproduced function and other functions in this file are also released
 # under Mozilla Public License 2.0
 
-# Copyright (c) 2021 Christian Fuellner <christian.fuellner@kit.edu>
-# Copyright (c) 2021 Oscar Dowson <o.dowson@gmail.com>
+# Copyright (c) 2026 Christian Fuellner <christian.fuellner@kit.edu>
+# Copyright (c) 2026 Oscar Dowson <o.dowson@gmail.com>
 
 # This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
 # If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -44,10 +44,6 @@ function forward_pass(model::SDDP.PolicyGraph{T}, options::DynamicSDDiP.Options,
     for (depth, (node_index, noise)) in enumerate(scenario_path)
         node = model[node_index]
         epi_states_stage = Float64[]
-
-        # Reset cut counter
-        # node.ext[:total_cuts] = 0
-        #node.ext[:active_cuts] = 0
 
         ########################################################################
         # SET SOLVER
@@ -164,10 +160,6 @@ function solve_subproblem_forward(
 
     get_epi_states(node, epi_states_stage, algo_params.cut_aggregation_regime)
     Infiltrator.@infiltrate algo_params.infiltrate_state in [:all]
-
-    # if node_index == 6
-    #     Infiltrator.@infiltrate
-    # end
 
     if haskey(model.ext, :total_solves)
         model.ext[:total_solves] += 1

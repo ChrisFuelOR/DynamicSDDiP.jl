@@ -10,8 +10,8 @@
 # The reproduced function and other functions in this file are also released
 # under Mozilla Public License 2.0
 
-# Copyright (c) 2021 Christian Fuellner <christian.fuellner@kit.edu>
-# Copyright (c) 2021 Oscar Dowson <o.dowson@gmail.com>
+# Copyright (c) 2026 Christian Fuellner <christian.fuellner@kit.edu>
+# Copyright (c) 2026 Oscar Dowson <o.dowson@gmail.com>
 
 # This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
 # If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -28,8 +28,6 @@ function backward_pass(
     scenario_path::Vector{Tuple{T,NoiseType}},
     sampled_states::Vector{Dict{Symbol,Float64}},
     epi_states::Dict{Symbol,Vector{Float64}},
-    # objective_states::Vector{NTuple{N,Float64}},
-    # belief_states::Vector{Tuple{Int,Dict{T,Float64}}}) where {T,NoiseType,N}
     ) where {T,NoiseType}
 
     ############################################################################
@@ -154,7 +152,6 @@ function backward_pass(
                 if isa(cut_generation_regime.duality_regime, DynamicSDDiP.LinearDuality) || isa(cut_generation_regime.duality_regime, DynamicSDDiP.StrengthenedDuality)
                     update_Benders_cut_list!(node, items.add_cut_flags, algo_params.cut_aggregation_regime, cut_generation_regime.state_approximation_regime)
                 end
-                # TODO: A similar approach can be used for Lagrangian cuts
 
                 ################################################################
                 # LOGGING

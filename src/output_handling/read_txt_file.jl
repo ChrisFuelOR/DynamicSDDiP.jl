@@ -108,4 +108,7 @@ function read_txt_file(file_name::String)
 end
 
 
-read_txt_file("C:/Users/cg4102/Documents/julia_logs/to_plot/clsp_binary_L1_16.log")
+# read_txt_file("C:/Users/cg4102/Documents/julia_logs/to_plot/clsp_binary_L1_16.log")
+read_txt_file("C:/Users/cg4102/Documents/julia_logs/Dynamic SDDiP - Restructuring/Final paper (Revision)/CLSP/4_20/CLSP_RR_4_20_Lsup_MNC3.log")
+
+
