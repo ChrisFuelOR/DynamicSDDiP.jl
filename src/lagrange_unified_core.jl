@@ -1,3 +1,9 @@
+# Copyright (c) 2026 Christian Fuellner <christian.fuellner@kit.edu>
+
+# This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+# If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+
 function integer_relax(
     subproblem::JuMP.Model,
     integer_regime::DynamicSDDiP.NoIntegerRelax
@@ -185,9 +191,6 @@ function get_normalization_coefficients(
     	ω = ω ./ norm_factor
     	ω₀ = ω₀ / norm_factor
 	end
-
-	#println(core_point_candidate, ", ", ω, ", ", ω₀)
-    #Infiltrator.@infiltrate
 	
 	return (ω = ω, ω₀ = ω₀)
 

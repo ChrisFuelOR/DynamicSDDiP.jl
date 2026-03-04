@@ -83,8 +83,6 @@ function forward_pass(model::SDDP.PolicyGraph{T}, options::DynamicSDDiP.Options,
     return (
         scenario_path = scenario_path,
         sampled_states = sampled_states,
-        # objective_states = objective_states,
-        # belief_states = belief_states,
         cumulative_value = cumulative_value,
         epi_states = epi_states,
     )
@@ -150,7 +148,6 @@ function solve_subproblem_forward(
         end
 
         if node.ext[:state_info_storage][state_name].out.binary || node.ext[:state_info_storage][state_name].out.integer
-            #Infiltrator.@infiltrate
             state[state_name] = round(value)
         end
     end

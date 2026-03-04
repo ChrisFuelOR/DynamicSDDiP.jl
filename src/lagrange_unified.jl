@@ -1,3 +1,8 @@
+# Copyright (c) 2026 Christian Fuellner <christian.fuellner@kit.edu>
+
+# This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+# If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 """
 Solving the Lagrangian relaxation problem, i.e. the inner problem of the
 unified Lagrangian dual
@@ -294,11 +299,6 @@ function solve_unified_lagrangian_dual(
         π_k .= JuMP.value.(π)
         π0_k = JuMP.value.(π₀)
 
-        # if node_index == 3 && i == 1 && node.subproblem.ext[:sddp_policy_graph].ext[:iteration] >= 2
-        #     Infiltrator.@infiltrate
-        #     println(node_index, ", ", iter, ", ", L_star, ", ", t_k)
-        # end
-
         # Sometimes the solver (e.g. Gurobi) provides a float point approximation
         # of zero, which is slightly negative, e.g. 1.144917E-16, even though
         # π0_k >= 0 is enforced as a constraint.
@@ -313,7 +313,6 @@ function solve_unified_lagrangian_dual(
         L_k_subopt = Vector{Float64}()
 
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
-        #println(L_star, ", ", t_k, ", ", iter, ", ", π0_k, ", ", π_k)
 
         ########################################################################
         if L_star > t_k + atol/10.0
@@ -358,8 +357,6 @@ function solve_unified_lagrangian_dual(
         end
     end
 
-    #println(node_index, ",", lag_status, ", ", L_star, ", ", t_k, ", ", iter, ", ", π0_k, ", ", π_k)
-
     ############################################################################
     # APPLY MINIMAL NORM CHOICE APPROACH IF INTENDED
     ############################################################################
@@ -373,8 +370,6 @@ function solve_unified_lagrangian_dual(
             iter = mn_results.iter
             lag_status = mn_results.lag_status
         end
-    # elseif isa(cut_generation_regime.duality_regime.dual_choice_regime, DynamicSDDiP.MinimalNormChoice)
-        # println("Proceeding without minimal norm choice.")
     end
 
     ############################################################################
@@ -607,7 +602,6 @@ function solve_unified_lagrangian_dual(
 
             # Try recovering from numerical issues
             if (JuMP.termination_status(approx_model) != MOI.OPTIMAL)
-                #Infiltrator.@infiltrate
                 #elude_numerical_issues!(approx_model, algo_params)
                 feas_flag = true
                 break
@@ -724,14 +718,7 @@ function solve_unified_lagrangian_dual(
             L_star = s * L_k
         end
 
-        # if node_index == 3 && i == 1 && node.subproblem.ext[:sddp_policy_graph].ext[:iteration] >= 2
-        #     Infiltrator.@infiltrate
-        #     println(node_index, ", ", iter, ", ", L_star, ", ", t_k)
-        # end
-        # println( iter, ", ", L_star, ", ", t_k, ", ", π0_k)
-
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
-        #Infiltrator.@infiltrate
 
         # Delete the level lower bound for the original approx_model again
         JuMP.delete_lower_bound(t)
@@ -806,8 +793,6 @@ function solve_unified_lagrangian_dual(
             iter = mn_results.iter
             lag_status = mn_results.lag_status
         end
-    # elseif isa(cut_generation_regime.duality_regime.dual_choice_regime, DynamicSDDiP.MinimalNormChoice)
-        # println("Proceeding without minimal norm choice.")
     end
 
     ############################################################################

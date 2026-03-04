@@ -396,13 +396,8 @@ ChenLuedtke means that the second normalization approach by Chen & Luedtke
     of Benders multipliers.
 
 In the second group of normalization approaches, a linear function of the dual
-multipliers (a linear pseudonorm) is bounded. In all but the first approach
-(Fischetti), the coefficients of the linear pseudonorm are determined as the
-direction between a core point in the epigraph and the current incumbent
-(see Brandenberg & Stursberg for some theory behind this approach).
-These approaches are also similar to the traditional strategy by Magnanti
-and Wong to compute Pareto-optimal cuts. The approaches differ in the 
-heuristics used to obtain a core point candidate.
+multipliersis bounded. In all approaches, the coefficients of the linear function are 
+determined as the direction between a core point in the epigraph and the current incumbent.
 
 Core_Midpoint means that the normalization is based on a core point which is
     the midpoint of the state space. This requires that all state variables
@@ -649,10 +644,6 @@ end
 """
 iteration_to_start:     first iteration at which this regime is applied
 iteration_to_stop:      last iteration at which this regime is applied
-gap_to_start:           relative optimality gap at which this regime is first
-                        applied (tricky for stochastic case)
-gap_to_stop:            relative optimality gap at which this regime is last
-                        applied (tricky for stochastic case)
 cut_away_approach:      if true, cuts of this regime will only be added
                         to the respective subproblem if they lead to an
                         improvement (i.e. cut away the current incumbent)
@@ -931,7 +922,7 @@ mutable struct AlgoParams
         infiltrate_state = :none,
         seed = nothing,
         run_description = "",
-        solver_approach = DynamicSDDiP.GAMS_Solver(),
+        solver_approach = DynamicSDDiP.Direct_Solver(),
     )
         return new(
             stopping_rules,

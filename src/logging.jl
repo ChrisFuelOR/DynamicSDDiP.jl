@@ -190,7 +190,6 @@ function print_iteration_header(io)
     rule = "─"
     rule_length = 200
 
-    #total_table_width = sum(textwidth.((sec_ncalls, time_headers, alloc_headers))) + 3
     printstyled(io, "", rule^rule_length, "\n"; bold=true)
 
     header = "It.#"

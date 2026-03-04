@@ -16,8 +16,8 @@
 # The reproduced function and other functions in this file are also released
 # under Mozilla Public License 2.0
 
-# Copyright (c) 2021 Christian Fuellner <christian.fuellner@kit.edu>
-# Copyright (c) 2021 Oscar Dowson <o.dowson@gmail.com>
+# Copyright (c) 2026 Christian Fuellner <christian.fuellner@kit.edu>
+# Copyright (c) 2026 Oscar Dowson <o.dowson@gmail.com>
 
 # This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
 # If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -30,15 +30,11 @@ mutable struct SampledState
     state::Dict{Symbol,Float64}
     dominating_cut::DynamicSDDiP.Cut
     best_objective::Float64
-    #obj_y::Union{Nothing,NTuple{N,Float64} where {N}}
-    #belief_y::Union{Nothing,Dict{T,Float64} where {T}}
 end
 
 mutable struct CutApproximation
     theta::JuMP.VariableRef
     states::Dict{Symbol,JuMP.VariableRef}
-    # objective_states::Union{Nothing,NTuple{N,JuMP.VariableRef} where {N}}
-    # belief_states::Union{Nothing,Dict{T,JuMP.VariableRef} where {T}}
     # Storage for cut selection
     cuts::Vector{DynamicSDDiP.Cut}
     sampled_states::Vector{DynamicSDDiP.SampledState}
@@ -48,15 +44,11 @@ mutable struct CutApproximation
     function CutApproximation(
         theta::JuMP.VariableRef,
         states::Dict{Symbol,JuMP.VariableRef},
-        # objective_states,
-        # belief_states,
         deletion_minimum::Int,
     )
         return new(
             theta,
             states,
-            # objective_states,
-            # belief_states,
             DynamicSDDiP.Cut[],
             DynamicSDDiP.SampledState[],
             DynamicSDDiP.Cut[],
@@ -136,10 +128,7 @@ function initialize_bellman_function(
     # this check will be skipped by dispatch.
     # SDDP._add_initial_bounds(node.objective_state, Θᴳ)
     x′ = Dict(key => var.out for (key, var) in node.states)
-    ## obj_μ = node.objective_state !== nothing ? node.objective_state.μ : nothing
-    ## belief_μ = node.belief_state !== nothing ? node.belief_state.μ : nothing
     return BellmanFunction(
-        ## CutApproximation(Θᴳ, x′, obj_μ, belief_μ, deletion_minimum),
         DynamicSDDiP.CutApproximation(Θᴳ, x′, deletion_minimum),
         CutApproximation[],
         cut_type,
@@ -187,7 +176,7 @@ function refine_bellman_function(
                                     )
 
     ############################################################################
-    # RISK-RELATED PREPARATIOn
+    # RISK-RELATED PREPARATION
     ############################################################################
     # Preliminaries that are common to all cut types.
     risk_adjusted_probability = similar(nominal_probability)
@@ -314,13 +303,7 @@ function _add_average_cut(
         ############################################################################
         # ADD THE CUT USING THE NEW EXPECTED COEFFICIENTS
         ############################################################################
-        # Now add the average-cut to the subproblem. We include the objective-state
-        # component μᵀy and the belief state (if it exists).
-        #obj_y =
-        #    node.objective_state === nothing ? nothing : node.objective_state.state
-        #belief_y =
-        #    node.belief_state === nothing ? nothing : node.belief_state.belief
-
+        # Now add the average-cut to the subproblem. 
         _add_cut(
             node,
             node.bellman_function.global_theta,
@@ -331,8 +314,6 @@ function _add_average_cut(
             anchor_points,
             trial_points,
             epi_states[1],
-            # obj_y,
-            # belief_y,
             sigma,
             iteration,
             algo_params.infiltrate_state,
@@ -373,9 +354,6 @@ function _add_multi_cut(
     N = length(risk_adjusted_probability)
     @assert N == length(objective_realizations) == length(dual_variables) == length(epi_states)
 
-    #μᵀy = get_objective_state_component(node)
-    #JuMP.add_to_expression!(μᵀy, get_belief_state_component(node))
-
     ############################################################################
     # GET CORRECT SIGMA
     ############################################################################
@@ -403,8 +381,6 @@ function _add_multi_cut(
                 anchor_points,
                 trial_points,
                 epi_states[i],
-                # obj_y,
-                # belief_y,
                 sigma,
                 iteration,
                 algo_params.infiltrate_state,
@@ -416,8 +392,6 @@ function _add_multi_cut(
         
         else
             file_handle = open(chop(algo_params.log_file, tail = 4) * "_analysis_v2.log", "a")
-            #print_helper2(print_analysis_part_3, file_handle)
-
         end
     end
 
@@ -444,7 +418,7 @@ function _add_multi_cut(
         sum(
             risk_adjusted_probability[i] *
             bellman_function.local_thetas[i].theta for i in 1:N
-        ) #- (1 - sum(risk_adjusted_probability)) * μᵀy + offset
+        )
     )
 
     if iteration == 1
@@ -454,18 +428,6 @@ function _add_multi_cut(
             JuMP.@constraint(model, bellman_function.global_theta.theta <= cut_expr)
         end
     end
-
-    # # TODO(odow): should we use `cut_expr` instead?
-    # ξ = copy(risk_adjusted_probability)
-    # if !(ξ in bellman_function.risk_set_cuts) || μᵀy != JuMP.AffExpr(0.0)
-    #     push!(bellman_function.risk_set_cuts, ξ)
-    #     if JuMP.objective_sense(model) == MOI.MIN_SENSE
-    #         @constraint(model, bellman_function.global_theta.theta >= cut_expr)
-    #     else
-    #         @constraint(model, bellman_function.global_theta.theta <= cut_expr)
-    #     end
-    # end
-    #
 
     return
 end
@@ -485,8 +447,6 @@ function _add_cut(
     xᵏ_b::Dict{Symbol,Float64}, # anchor point for cut using BinaryApproximation
     xᵏ::Dict{Symbol,Float64}, # trial point (anchor point for cut without BinaryApproximation), outgoing_state
     epi_state::Float64,
-    # obj_y::Union{Nothing,NTuple{N,Float64}},
-    # belief_y::Union{Nothing,Dict{T,Float64}},
     sigma::Union{Nothing,Float64},
     iteration::Int64,
     infiltrate_state::Symbol,
@@ -529,8 +489,6 @@ function _add_cut(
             sigma_use,
             JuMP.VariableRef[],
             JuMP.ConstraintRef[],
-            # obj_y,
-            # belief_y,
             1,
             iteration,
             algo_params.cut_aggregation_regime,
@@ -614,8 +572,7 @@ function _add_cut_constraints_to_models(
     for (state_index, (state_name, state_comp)) in enumerate(node.states)
         """
         If a state is binary already, it may be possible to abstain from
-        introducing the cut projection / KKT constraints. That's actually
-        what I did in the NCNBD implementation. For example, it seems
+        introducing the cut projection / KKT constraints. For example, it seems
         unnecessary to introduce a new (relaxed) binary variable then.
         However, I am not absolutely sure if we in fact do not require
         the other constraints. Therefore, in this version, I also included
@@ -702,13 +659,6 @@ function _add_cut_constraints_to_models(
         JuMP.@constraint(model, expr <= cut.intercept)
     end
     push!(cut.cut_constraints, constraint_ref)
-
-    ############################################################################
-    # ADD SOS1 STRONG DUALITY CONSTRAINT
-    ############################################################################
-    #add_strong_duality_cut!(model, node, cut, V, all_lambda, all_mu, all_eta,
-    #    all_coefficients, number_of_states, number_of_duals,
-    #    cut_generation_regime.state_approximation_regime.cut_projection_regime)
 
     return
 
@@ -1093,54 +1043,6 @@ function get_cut_expression(
 end
 
 
-function add_strong_duality_cut!(
-    model::JuMP.Model,
-    node::SDDP.Node,
-    cut::DynamicSDDiP.NonlinearCut,
-    V::DynamicSDDiP.CutApproximation,
-    all_lambda::Vector{JuMP.VariableRef},
-    all_mu::Vector{JuMP.VariableRef},
-    all_eta::Vector{JuMP.VariableRef},
-    all_coefficients::Vector{Float64},
-    number_of_states::Int64,
-    number_of_duals::Int64,
-    cut_projection_regime::DynamicSDDiP.SOS1,
-    )
-
-    strong_duality_expr = JuMP.@expression(
-        model,
-        sum(all_coefficients[j] * all_lambda[j]  for j in 1:number_of_duals)
-        - sum(all_mu[j]  for j in 1:number_of_duals)
-        - sum(node.ext[:state_info_storage][sym].out.lower_bound * all_eta[i]  for (i, (sym, x)) in enumerate(V.states))
-    )
-
-    constraint_ref = if JuMP.objective_sense(model) == MOI.MIN_SENSE
-        JuMP.@constraint(model, strong_duality_expr >= 0)
-    else
-        JuMP.@constraint(model, strong_duality_expr <= 0)
-    end
-    push!(cut.cut_constraints, constraint_ref)
-
-    return
-end
-
-function add_strong_duality_cut!(
-    model::JuMP.Model,
-    node::SDDP.Node,
-    cut::DynamicSDDiP.NonlinearCut,
-    V::DynamicSDDiP.CutApproximation,
-    all_lambda::Vector{JuMP.VariableRef},
-    all_mu::Vector{JuMP.VariableRef},
-    all_eta::Vector{JuMP.VariableRef},
-    all_coefficients::Vector{Float64},
-    number_of_states::Int64,
-    number_of_duals::Int64,
-    cut_projection_regime::DynamicSDDiP.BigM,
-    )
-
-    return
-end
-
 ################################################################################
 
 """
@@ -1211,14 +1113,12 @@ function _add_cut(
     sampled_state_trial = DynamicSDDiP.SampledState(xᵏ, cut, NaN)
     height = _eval_height(node, cut, sampled_state_trial, applied_solvers, algo_params)
     file_handle = open(chop(algo_params.log_file, tail = 4) * "_analysis_v2.log", "a")
-    #print_helper2(print_analysis_part_2, file_handle, height, epi_state, minimum(values(πᵏ))/π₀ᵏ, maximum(values(πᵏ))/π₀ᵏ, sum(abs(a) for a in values(πᵏ))/π₀ᵏ, cut_away)
 
     if cut_away || !cut_generation_regime.cut_away_approach
         ############################################################################
         # ADD CUT TO SUBPROBLEM (we are already at the previous stage)
         ############################################################################
         _add_cut_constraints_to_models(node, V, cut, algo_params, cut_generation_regime, infiltrate_state)
-        #println(π₀ᵏ, ", ", minimum(values(πᵏ)), ", ", maximum(values(πᵏ)), ", ", sum(values(πᵏ)), ", ", sum(abs(a) for a in values(πᵏ)))
 
         ############################################################################
         # UPDATE CUT SELECTION
@@ -1269,10 +1169,6 @@ function _add_cut_constraints_to_models(
         JuMP.@constraint(model, expr <= cut.intercept)
     end
 
-    #if node.index == 3
-    #    println(expr, ", ", cut.intercept)
-    #end
-
     return
 
 end
@@ -1312,10 +1208,6 @@ function _add_locals_if_necessary(
                 DynamicSDDiP.CutApproximation(
                     local_theta,
                     global_theta.states,
-                    #node.objective_state === nothing ? nothing :
-                    #node.objective_state.μ,
-                    #node.belief_state === nothing ? nothing :
-                    #node.belief_state.μ,
                     global_theta.deletion_minimum,
                 ),
             )
@@ -1353,7 +1245,6 @@ function check_for_cut_away(
             cut_away = true
         end
     end
-    # println(height, ", ", cut_away)
 
     return cut_away
 

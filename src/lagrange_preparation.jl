@@ -1,3 +1,8 @@
+# Copyright (c) 2026 Christian Fuellner <christian.fuellner@kit.edu>
+
+# This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+# If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 
 function relax_copy_constraints!(
     node::SDDP.Node,
@@ -92,7 +97,6 @@ function determine_weights!(node::SDDP.Node, approx_model::JuMP.Model,
         associated_original_state = node.ext[:backward_data][:bin_x_names][key]
     	beta = state_approximation_regime.binary_precision[associated_original_state]
     	associated_k = node.ext[:backward_data][:bin_k][key]
-        #weights[i] = 2
         weights[i] = 2^(associated_k-1) * beta
     end
 

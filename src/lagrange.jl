@@ -6,8 +6,8 @@
 # The reproduced function and other functions in this file are also released
 # under Mozilla Public License 2.0
 
-# Copyright (c) 2021 Christian Fuellner <christian.fuellner@kit.edu>
-# Copyright (c) 2021 Oscar Dowson, Lea Kapelevich
+# Copyright (c) 2026 Christian Fuellner <christian.fuellner@kit.edu>
+# Copyright (c) 2026 Oscar Dowson, Lea Kapelevich
 
 # This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
 # If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -20,7 +20,7 @@
 # Lea Kapelevich released under the MIT Expat License.
 # This specific function is also relased under MIT Expat License.
 
-# Copyright (c) 2021 Christian Fuellner <christian.fuellner@kit.edu>
+# Copyright (c) 2026 Christian Fuellner <christian.fuellner@kit.edu>
 # Copyright (c) 2017: LEAXPS-15\lkape.
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -212,7 +212,7 @@ function solve_lagrangian_dual(
     feas_flag = false
 
     # set up optimal value of approx_model (former f_approx)
-    t_k = 0 # why zero?
+    t_k = 0
     #-inf is not possible, since then the while loop would not start at all
 
     while iter < iteration_limit && !isapprox(L_star, t_k, atol = atol, rtol = rtol)
@@ -317,9 +317,6 @@ function solve_lagrangian_dual(
         end
     end
 
-    #println(node_index, ",", lag_status, ", ", L_star, ", ", t_k, ", ", primal_obj, ", ", iter) #, ", ", π_k)
-    #println()
-
     ############################################################################
     # APPLY MINIMAL NORM CHOICE APPROACH IF INTENDED
     ############################################################################
@@ -333,8 +330,6 @@ function solve_lagrangian_dual(
             iter = mn_results.iter
             lag_status = mn_results.lag_status
         end
-    # elseif isa(cut_generation_regime.duality_regime.dual_choice_regime, DynamicSDDiP.MinimalNormChoice)
-        # println("Proceeding without minimal norm choice.")
     end
 
     ############################################################################
@@ -574,7 +569,7 @@ function solve_lagrangian_dual(
     π_k_dummy = zeros(length(π_k))
 
     # set up optimal value of approx_model (former f_approx)
-    t_k = 0 # why zero?
+    t_k = 0
     #-inf is not possible, since then the while loop would not start at all
 
     while iter < iteration_limit && !isapprox(L_star, t_k, atol = atol, rtol = rtol)
@@ -643,9 +638,6 @@ function solve_lagrangian_dual(
         t_k = JuMP.objective_value(approx_model)
         π_k_dummy .= JuMP.value.(π)
         Infiltrator.@infiltrate algo_params.infiltrate_state in [:all, :lagrange]
-
-        #print("UB: ", f_approx, ", LB: ", f_actual)
-        #println()
 
         ########################################################################
         # COMPUTE GAP AND FORM A NEW LEVEL
@@ -749,10 +741,6 @@ function solve_lagrangian_dual(
         h_k_subopt = Vector{Vector{Float64}}()
         L_k_subopt = Vector{Float64}()
 
-        # Infiltrator.@infiltrate node_index == 100 
-        # Infiltrator.@infiltrate node_index == 63 
-        #print(node_index, ", ", iter, ", ", L_star, ", ", t_k)
-
         ########################################################################
         if L_star > t_k + atol/10.0
             #error("Could not solve for Lagrangian duals. LB > UB.")
@@ -805,8 +793,6 @@ function solve_lagrangian_dual(
             iter = mn_results.iter
             lag_status = mn_results.lag_status
         end
-    # elseif isa(cut_generation_regime.duality_regime.dual_choice_regime, DynamicSDDiP.MinimalNormChoice)
-        # println("Proceeding without minimal norm choice.")
     end
 
     ############################################################################
