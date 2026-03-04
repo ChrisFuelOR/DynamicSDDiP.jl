@@ -166,7 +166,7 @@ In the backward pass subproblems a Lipschitz regularization with parameter `sigm
     Note that if `sigma` is not chosen sufficiently large, it is not guaranteed that the original MS-MILP is solved when the regularization is applied. Therefore, we can specify a factor by which `sigma` is increased whenever the algorithm gets stuck without converging (`sigma_factor`). This has to be carefully checked (see file `sigmaTest.jl`) and is particularly challenging for stochastic problems. So far, we have only used it for multistage deterministic problems.
 
 !!! note "remark"
-    Whereas a regularization can always be applied, this is mostly relevant for the generation of non-convex cuts, and thus in combination with a temporary state binarization (see above). This also explains why we can specify different norms for the forward and backward pass: In the backward pass we may work in a lifted space that requires a different norm. For more details, we refer to our [preprint on this topic](https://optimization-online.org/2024/08/on-lipschitz-regularization-and-lagrangian-cuts-in-multistage-stochastic-mixed-integer-linear-programming/)].
+    Whereas a regularization can always be applied, this is mostly relevant for the generation of non-convex cuts, and thus in combination with a temporary state binarization (see above). This also explains why we can specify different norms for the forward and backward pass: In the backward pass we may work in a lifted space that requires a different norm (also note that our code automatically uses a weighted variant of `norm_lifted`). For more details, we refer to our [preprint on this topic](https://optimization-online.org/2024/08/on-lipschitz-regularization-and-lagrangian-cuts-in-multistage-stochastic-mixed-integer-linear-programming/)].
 
 For the experiments in this paper, the regularization_regime was always set to DynamicSDDiP.NoRegularization().
 
@@ -259,7 +259,7 @@ Here, `number_of_stages` refers to the number $T$ of stages in the problem. `num
 
 ## Solvers
 
-The struct `AppliedSolvers` allows to specify details of the solvers that are used for the subproblems within SDDiP, including some solver options. In particular, it is possible to define different solvers for LPs, MILPs, MINLPs etc.
+The struct `AppliedSolvers` allows to specify details of the solvers that are used for the subproblems within SDDiP, including some solver options. In particular, it is possible to define different solvers for different types of problems (LPs, MILPs, MINLPs etc) but also for different phases of the algorithm (subproblems vs. Lagrangian relaxation).
 
 ````@example params
 struct AppliedSolvers
@@ -278,7 +278,12 @@ struct AppliedSolvers
 end
 ````
 
+Note that we can also specify the tolerance `solver_tol` for solving subproblems. This is the same for all problems, though. Moreover, (for now only for Gurobi) we can specify a time limit `solver_time` in seconds.
+
 In our experiments for this paper, we used Gurobi for all occuring subproblems.
+
+!!! note "Remark"
+    Note that when `GAMS.jl` should be used, we have to use `GAMS_Solver` instead of `Direct_Solver` for the `AbstractSolverApproach`. Then, we can still define the solvers to be used within GAMS in structs of type `AppliedSolvers`.
 
 ---
 

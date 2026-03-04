@@ -6,7 +6,7 @@ import SDDP
 
 
 const INPUT_DIR = joinpath(@__DIR__, "src")
-const EXAMPLE_DIR = joinpath(@__DIR__, "src/example")
+const EXAMPLE_DIR = joinpath(@__DIR__, "src/examples")
 
 _sorted_files(dir, ext) = sort(filter(f -> endswith(f, ext), readdir(dir)))
 
@@ -26,17 +26,17 @@ for filename_jl in list_of_sorted_files(INPUT_DIR, INPUT_DIR, ".jl")
     # Literate.notebook(filename_jl, INPUT_DIR; execute = false, credit = false)
 end
 
-# for filename_jl in list_of_sorted_files(EXAMPLE_DIR, EXAMPLE_DIR, ".jl")
-#     filename = replace(filename_jl, dirname(filename_jl) * "/" => "")
+for filename_jl in list_of_sorted_files(EXAMPLE_DIR, EXAMPLE_DIR, ".jl")
+    filename = replace(filename_jl, dirname(filename_jl) * "/" => "")
 
-#     Literate.markdown(
-#         filename_jl,
-#         EXAMPLE_DIR;
-#         documenter = true,
-#     )
+    Literate.markdown(
+        filename_jl,
+        EXAMPLE_DIR;
+        documenter = true,
+    )
 
-#     # Literate.notebook(filename_jl, EXAMPLE_DIR; execute = false, credit = false)
-# end
+    # Literate.notebook(filename_jl, EXAMPLE_DIR; execute = false, credit = false)
+end
 
 # Documenter.makedocs(;
 #     sitename = "DynamicSDDiP.jl",

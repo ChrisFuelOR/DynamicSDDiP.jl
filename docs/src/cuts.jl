@@ -35,7 +35,7 @@ end
 
 # ## The special case of non-convex cuts
 
-# As discussed in [TODO](TODO), DynamicSDDiP.jl also allows for the generation of non-convex cuts. For these cuts, a separate type of struct is used because more information needs to be stored.
+# As discussed in [the preprint](https://optimization-online.org/2024/08/on-lipschitz-regularization-and-lagrangian-cuts-in-multistage-stochastic-mixed-integer-linear-programming/), DynamicSDDiP.jl also allows for the generation of non-convex cuts. For these cuts, a separate type of struct is used because more information needs to be stored.
 
 using JuMP
 using DynamicSDDiP
