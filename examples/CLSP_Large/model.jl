@@ -20,41 +20,41 @@ function model_definition(problem_params::DynamicSDDiP.ProblemParams, scenario_t
     beta = 1.0 #600/(2^K-1)
 
     # Further parameters
-    number_of_products = 3
+    number_of_products = 10
 
     # Time parameters
-    setup_time = [15 10 15]
-    production_time = [1 1 1]
+    setup_time = [15 10 15 10 10 20 20 15 10 15]
+    production_time = [1 1 1 1 1 1 1 1 1 1]
 
     # Cost parameters
-    setup_cost = [60 120 80]
-    inventory_cost = [2 3 1]
-    lostsale_cost = [20 30 10]
+    setup_cost = [60 120 80 100 70 85 130 90 50 75]
+    inventory_cost = [2 3 1 2 2 3 4 1 1 2]
+    lostsale_cost = [20 30 10 15 10 20 10 30 40 25]
 
     # Average demand
-    demand_avg = [40 35 0;
-                  45 35 60;
-                  65 55 45;
-                  35 35 80;
-                  #40 35 0;
-                  45 35 60;
-                  65 55 45;
-                  35 35 80;
-                  #40 35 0;
-                  45 35 60;
-                  65 55 45;
-                  35 35 80;
-                  #
-                  45 35 60;
-                  65 55 45;
-                  35 35 80;
-                  #
-                  45 35 60;
-                  65 55 45;
-                  35 35 80]
+    demand_avg = [40 35 0 20 30 45 25 0 10 20;
+                  45 35 60 30 25 45 60 50 40 65;
+                  65 55 45 35 60 70 55 35 50 40;
+                  35 35 80 30 55 50 45 45 60 40;
+                  #40 35 0 20 30 45 25 0 10 20;
+                  45 35 60 30 25 45 60 50 40 65;
+                  65 55 45 35 60 70 55 35 50 40;
+                  35 35 80 30 55 50 45 45 60 40;
+                  #40 35 0 20 30 45 25 0 10 20;
+                  45 35 60 30 25 45 60 50 40 65;
+                  65 55 45 35 60 70 55 35 50 40;
+                  35 35 80 30 55 50 45 45 60 40;
+                  #40 35 0 20 30 45 25 0 10 20;
+                  45 35 60 30 25 45 60 50 40 65;
+                  65 55 45 35 60 70 55 35 50 40;
+                  35 35 80 30 55 50 45 45 60 40;
+                  #40 35 0 20 30 45 25 0 10 20;
+                  45 35 60 30 25 45 60 50 40 65;
+                  65 55 45 35 60 70 55 35 50 40;
+                  35 35 80 30 55 50 45 45 60 40]
 
     # Production time capacity
-    capacity = 175
+    capacity = 175*3
 
     model = SDDP.LinearPolicyGraph(
         stages = problem_params.number_of_stages,
@@ -113,11 +113,14 @@ function model_definition(problem_params::DynamicSDDiP.ProblemParams, scenario_t
                JuMP.fix(demand[1], ω.xi1 * demand_avg[t,1])
                JuMP.fix(demand[2], ω.xi2 * demand_avg[t,2])
                JuMP.fix(demand[3], ω.xi3 * demand_avg[t,3])
+               JuMP.fix(demand[4], ω.xi4 * demand_avg[t,4])
+               JuMP.fix(demand[5], ω.xi5 * demand_avg[t,5])
+               JuMP.fix(demand[6], ω.xi6 * demand_avg[t,6])
+               JuMP.fix(demand[7], ω.xi7 * demand_avg[t,7])
+               JuMP.fix(demand[8], ω.xi8 * demand_avg[t,8])
+               JuMP.fix(demand[9], ω.xi9 * demand_avg[t,9])
+               JuMP.fix(demand[10], ω.xi10 * demand_avg[t,10])
         end
-
-        # if t > 1
-        #     JuMP.relax_integrality(subproblem)
-        # end
 
         # Switch the model to silent mode
         JuMP.set_silent(subproblem)

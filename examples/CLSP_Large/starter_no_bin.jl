@@ -1,13 +1,13 @@
 import DynamicSDDiP
 import Infiltrator
 import MathOptInterface
-import Random
 using Revise
 using Printf
 
 include("algo_config.jl")
 include("scenario_tree.jl")
 include("model.jl")
+include("model_no_bin.jl")
 include("simulation.jl")
 
 function model_starter(
@@ -35,7 +35,7 @@ function model_starter(
         ########################################################################
         # DEFINE MODEL
         ########################################################################
-        model_output = model_set_up(number_of_stages, number_of_realizations, algo_params=algo_params, applied_solvers=applied_solvers, tree_seed=tree_seed)
+        model_output = model_no_bin_set_up(number_of_stages, number_of_realizations, algo_params=algo_params, applied_solvers=applied_solvers, tree_seed=tree_seed)
         model = model_output.model
         problem_params = model_output.problem_params
 
@@ -48,7 +48,7 @@ function model_starter(
         ########################################################################
         # SIMULATE MODEL
         ########################################################################
-        simulate(model, algo_params, problem_params, algo_params.simulation_regime)
+        #simulate(model, algo_params, problem_params, algo_params.simulation_regime)
 
         ########################################################################
         # SIMULATE MODEL USING FULL SCENARIO TREE
@@ -67,7 +67,8 @@ function model_starter(
 
 end
 
-function det_equiv_starter(
+
+function det_equiv_no_bin_starter(
     num::Int,
     number_of_stages::Int,
     number_of_realizations::Int,
@@ -92,7 +93,7 @@ function det_equiv_starter(
         ############################################################################
         # DEFINE MODEL
         ############################################################################
-        model_output = model_set_up(number_of_stages, number_of_realizations, algo_params=algo_params, applied_solvers=applied_solvers, tree_seed=tree_seed)
+        model_output = model_no_bin_set_up(number_of_stages, number_of_realizations, algo_params=algo_params, applied_solvers=applied_solvers, tree_seed=tree_seed)
         model = model_output.model
         problem_params = model_output.problem_params
 
@@ -128,16 +129,12 @@ end
 function model_starter_runs()
 
     """
-    Specification of model runs that should be run one after the other.
+    Specification of model runs that should be run one after the other (for CLSP larger with 10 state variables).
     """
 
-    # model_starter(1,5,1,:B, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CFLP_NS_B.log", 14400, 11111, 12345)
-
-    # model_starter(7,5,1,:uni_lag, DynamicSDDiP.L₁_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CFLP_L1.log", 14400, 11111, 12345)
-    
-    model_starter(13,100,20,:uni_lag, DynamicSDDiP.Core_Conv(lambda=0.5,copy_regime=DynamicSDDiP.StateSpaceCopy(),normalize_direction=true,unbounded_regime=DynamicSDDiP.Unbounded_Opt_SB()), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CFLP_Conv_50_2025.log", 14400, 11111, 12345)
+    model_starter(10,16,20,:B, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_Large_B_Multi_2025.log", 10800, 11111, 12345)
    
 
 end
 
-# model_starter_runs()
+#model_starter_runs()

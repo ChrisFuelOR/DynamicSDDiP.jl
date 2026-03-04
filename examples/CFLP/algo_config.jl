@@ -17,8 +17,6 @@ function algo_config(
 
     # Stopping rules to be used
     stopping_rules = [SDDP.TimeLimit(time_limit), SDDP.BoundStalling(20,1e-4)]
-    #stopping_rules = [SDDP.IterationLimit(1)]
-    #stopping_rules = [ SDDP.IterationLimit(20), SDDP.BoundStalling(20,1e-4)]
 
     # Duality / Cut computation configuration
     dual_initialization_regime = DynamicSDDiP.ZeroDuals()
@@ -75,8 +73,7 @@ function algo_config(
         state_approximation_regime = state_approximation_regime,
         duality_regime = duality_regime,
         #cut_away_approach = false,
-        iteration_to_start = 1,
-        #iteration_to_stop = 30,
+        # iteration_to_start = 20,
     )
 
     cut_generation_regime_1 = DynamicSDDiP.CutGenerationRegime(
@@ -86,6 +83,7 @@ function algo_config(
          #cut_away_approach = false,
     )
 
+    # cut_generation_regimes = [cut_generation_regime_1, cut_generation_regime_2]
     cut_generation_regimes = [cut_generation_regime_2]
 
     # Regularization configuration
@@ -98,7 +96,6 @@ function algo_config(
     end
 
     # Simulation regime
-    #simulation_regime = DynamicSDDiP.Simulation(sampling_scheme=DynamicSDDiP.OutOfSampleMonteCarlo(number_of_realizations=10,simulation_seed=232323),number_of_replications=1000)
     simulation_regime = DynamicSDDiP.Simulation(sampling_scheme=DynamicSDDiP.InSampleMonteCarlo(),number_of_replications=1000)
     #simulation_regime = DynamicSDDiP.NoSimulation()
 
