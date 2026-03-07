@@ -1,3 +1,8 @@
+# Copyright (c) 2026 Christian Fuellner <christian.fuellner@kit.edu>
+
+# This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+# If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 function set_multiplier_bounds!(node::SDDP.Node, approx_model::JuMP.Model,
     number_of_states::Int, dual_bound::Float64,
     regularization_regime::DynamicSDDiP.Regularization,

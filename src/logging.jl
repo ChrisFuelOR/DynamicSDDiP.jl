@@ -15,8 +15,8 @@
 # The reproduced function and other functions in this file are also released
 # under Mozilla Public License 2.0
 
-# Copyright (c) 2021 Christian Fuellner <christian.fuellner@kit.edu>
-# Copyright (c) 2021 Oscar Dowson <o.dowson@gmail.com>
+# Copyright (c) 2026 Christian Fuellner <christian.fuellner@kit.edu>
+# Copyright (c) 2026 Oscar Dowson <o.dowson@gmail.com>
 
 # This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
 # If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -154,10 +154,6 @@ function print_parameters(io, algo_params::DynamicSDDiP.AlgoParams, applied_solv
     println(io, algo_params.cut_selection_regime)
 
     println(io, "||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||")
-    println(io, "LATE BINARIZATION")
-    println(io, algo_params.late_binarization_regime)
-
-    println(io, "||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||")
     println(io, "APPLIED SOLVERS (LP, MILP, MIQCP, MINLP, NLP, Lagrange)")
     println(io, applied_solvers)
     println(io, algo_params.solver_approach)
@@ -194,7 +190,6 @@ function print_iteration_header(io)
     rule = "─"
     rule_length = 200
 
-    #total_table_width = sum(textwidth.((sec_ncalls, time_headers, alloc_headers))) + 3
     printstyled(io, "", rule^rule_length, "\n"; bold=true)
 
     header = "It.#"
@@ -306,16 +301,17 @@ function print_iteration(io, log::Log, start_time::Float64)
     print(io, "  ")
     print(io, lpad(Printf.@sprintf("%1.6e", log.time - start_time), 13))
     print(io, "  ")
+
     if !isnothing(log.sigma_increased)
     	print(io, Printf.@sprintf("%9s", log.sigma_increased ? "true" : "false"))
     else
-   	    print(io, lpad(Printf.@sprintf(""), 9))
+   	    print(io, Printf.@sprintf("%9s", ""))
     end
     print(io, "  ")
     if !isnothing(log.binary_refinement)
         print(io, Printf.@sprintf("%9s", log.binary_refinement))
     else
-   	    print(io, lpad(Printf.@sprintf(""), 9))
+   	    print(io, Printf.@sprintf("%9s", ""))
     end
     print(io, "  ")
     if !isnothing(log.subproblem_size)
@@ -327,7 +323,7 @@ function print_iteration(io, log::Log, start_time::Float64)
         print(io, "  ")
        	print(io, Printf.@sprintf("%9d", log.subproblem_size[:total_con]))
     else
-        print(io, lpad(Printf.@sprintf(""), 45))
+        print(io, Printf.@sprintf("%45s", ""))
     end
     print(io, "  ")
     print(io, lpad(Printf.@sprintf("%5d", log.total_cuts), 7))
@@ -340,16 +336,6 @@ function print_iteration(io, log::Log, start_time::Float64)
     print(io, lpad(Printf.@sprintf("%5d", log.corr_lag_iterations), 9))
     print(io, "  ")
     print(io, lpad(Printf.@sprintf("%5d", log.corr_realizations), 9))
-
-    #print(io, "       ")
-
-    # if !isnothing(log.lag_iterations)
-    #     print(io, log.lag_iterations)
-    # else
-    #     print(io, lpad(Printf.@sprintf(""), 19))
-    # end
-    # print(io, "  ")
-
     println(io)
 
     flush(io)
@@ -376,18 +362,6 @@ function log_iteration(algo_params::DynamicSDDiP.AlgoParams, log_file_handle::An
 
         print_helper(print_iteration, log_file_handle, log[end], start_time)
     end
-end
-
-
-"""
-    write_log_to_csv(model::PolicyGraph, filename::String)
-
-Write the log of the most recent training to a csv for post-analysis.
-
-Assumes that the model has been trained via [`DynamicSDDiP.solve`](@ref).
-"""
-function write_log_to_csv(model::SDDP.PolicyGraph, filename::String, algo_params::DynamicSDDiP.AlgoParams)
-    # TO-DO
 end
 
 

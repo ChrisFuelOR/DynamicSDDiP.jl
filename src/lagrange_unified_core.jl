@@ -1,3 +1,9 @@
+# Copyright (c) 2026 Christian Fuellner <christian.fuellner@kit.edu>
+
+# This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+# If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+
 function integer_relax(
     subproblem::JuMP.Model,
     integer_regime::DynamicSDDiP.NoIntegerRelax
@@ -185,9 +191,6 @@ function get_normalization_coefficients(
     	ω = ω ./ norm_factor
     	ω₀ = ω₀ / norm_factor
 	end
-
-	#println(core_point_candidate, ", ", ω, ", ", ω₀)
-    #Infiltrator.@infiltrate
 	
 	return (ω = ω, ω₀ = ω₀)
 
@@ -520,8 +523,8 @@ function get_core_point(
 	midpoint = get_state_space_midpoint(node, number_of_states, state_approximation_regime)
 
     # Specific for CLSP ******
-    sums = [0.0, 0.0, 0.0]
-    indices = [0, 0, 0]
+    # sums = [0.0, 0.0, 0.0]
+    # indices = [0, 0, 0]
 
     for (i, (name, state)) in enumerate(node.states)
         # Get info on state bounds
@@ -540,27 +543,27 @@ function get_core_point(
         x_2[i] = x_1[i] > midpoint[i] ? lower_bound : upper_bound
 
         # Specific for CLSP ******
-        for j in 1:3
-            for k in 1:10
-                symb = Symbol("λ[" * string(j) * "," * string(k) * "]")
-                if name == symb
-                    sums[j] += 2^(k-1) * x_2[i]
+        # for j in 1:3
+        #     for k in 1:10
+        #         symb = Symbol("λ[" * string(j) * "," * string(k) * "]")
+        #         if name == symb
+        #             sums[j] += 2^(k-1) * x_2[i]
 
-                    if k == 10
-                        indices[j] = i
-                    end
-                end
-            end
-        end
+        #             if k == 10
+        #                 indices[j] = i
+        #             end
+        #         end
+        #     end
+        # end
 
     end
 
     # Specific for CLSP ******
-    for j in 1:3
-        if sums[j] > 600.0
-            x_2[indices[j]] = 0.0
-        end
-    end
+    # for j in 1:3
+    #     if sums[j] > 600.0
+    #         x_2[indices[j]] = 0.0
+    #     end
+    # end
 
     # Store function value for trial state
     y_1 = primal_obj

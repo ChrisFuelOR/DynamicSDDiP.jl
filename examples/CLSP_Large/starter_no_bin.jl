@@ -1,0 +1,166 @@
+import DynamicSDDiP
+import Infiltrator
+import MathOptInterface
+using Revise
+using Printf
+
+include("algo_config.jl")
+include("scenario_tree.jl")
+include("model.jl")
+include("model_no_bin.jl")
+include("simulation.jl")
+
+function model_starter(
+    num::Int,
+    number_of_stages::Int,
+    number_of_realizations::Int,
+    duality_regime_sym::Symbol,
+    normalization_regime::DynamicSDDiP.AbstractNormalizationRegime,
+    cut_aggregation_regime::DynamicSDDiP.AbstractCutAggregationRegime,
+    cut_selection_regime::DynamicSDDiP.AbstractCutSelectionRegime,
+    log_file::String,
+    time_limit::Int,
+    forward_seed::Int,
+    tree_seed::Int
+)
+
+    try
+        ########################################################################
+        # DEFINE ALGO PARAMS
+        ########################################################################
+        algo_config_output = algo_config(duality_regime_sym, normalization_regime, cut_aggregation_regime, cut_selection_regime, log_file, time_limit, forward_seed)
+        algo_params = algo_config_output.algo_params
+        applied_solvers = algo_config_output.applied_solvers
+
+        ########################################################################
+        # DEFINE MODEL
+        ########################################################################
+        model_output = model_no_bin_set_up(number_of_stages, number_of_realizations, algo_params=algo_params, applied_solvers=applied_solvers, tree_seed=tree_seed)
+        model = model_output.model
+        problem_params = model_output.problem_params
+
+        ########################################################################
+        # SOLVE (TRAIN) MODEL
+        ########################################################################
+        Random.seed!(forward_seed)
+        DynamicSDDiP.solve(model, algo_params, applied_solvers, problem_params)
+
+        ########################################################################
+        # SIMULATE MODEL
+        ########################################################################
+        #simulate(model, algo_params, problem_params, algo_params.simulation_regime)
+
+        ########################################################################
+        # SIMULATE MODEL USING FULL SCENARIO TREE
+        ########################################################################
+        #simulate(model, algo_params, problem_params, DynamicSDDiP.HistoricalSample())
+
+    catch e
+        @printf "Case %d terminated with error" num
+        println()
+        #throw(error(e))
+        showerror(stdout, e, catch_backtrace())
+        println()
+        println("#############################################################")
+        println()
+    end
+
+end
+
+
+function det_equiv_no_bin_starter(
+    num::Int,
+    number_of_stages::Int,
+    number_of_realizations::Int,
+    duality_regime_sym::Symbol,
+    normalization_regime::DynamicSDDiP.AbstractNormalizationRegime,
+    cut_aggregation_regime::DynamicSDDiP.AbstractCutAggregationRegime,
+    cut_selection_regime::DynamicSDDiP.AbstractCutSelectionRegime,
+    log_file::String,
+    time_limit::Int,
+    forward_seed::Int,
+    tree_seed::Int
+)
+
+    try
+        ############################################################################
+        # DEFINE ALGO PARAMS
+        ############################################################################
+        algo_config_output = algo_config(duality_regime_sym, normalization_regime, cut_aggregation_regime, cut_selection_regime, log_file, time_limit, forward_seed)
+        algo_params = algo_config_output.algo_params
+        applied_solvers = algo_config_output.applied_solvers
+
+        ############################################################################
+        # DEFINE MODEL
+        ############################################################################
+        model_output = model_no_bin_set_up(number_of_stages, number_of_realizations, algo_params=algo_params, applied_solvers=applied_solvers, tree_seed=tree_seed)
+        model = model_output.model
+        problem_params = model_output.problem_params
+
+        ############################################################################
+        # SOLVE (TRAIN) MODEL
+        ############################################################################
+        det_equiv = SDDP.deterministic_equivalent(model, Gurobi.Optimizer, time_limit = 7200.0)
+        JuMP.set_objective_sense(det_equiv, MathOptInterface.MIN_SENSE)
+        JuMP.set_optimizer_attribute(det_equiv, "TimeLimit", 7200.0)
+        JuMP.optimize!(det_equiv)
+        print(JuMP.objective_value(det_equiv))
+
+        ############################################################################
+        # LOGGING
+        ############################################################################
+        log_file_handle = open(algo_params.log_file, "a")
+        DynamicSDDiP.print_helper(DynamicSDDiP.print_det_equiv, log_file_handle, problem_params, JuMP.objective_value(det_equiv), JuMP.objective_bound(det_equiv))
+        close(log_file_handle)
+
+    catch e
+        @printf "Case %d (deterministic equivalent) terminated with error" num
+        println()
+        #throw(error(e))
+        showerror(stdout, e, catch_backtrace())
+        println()
+        println("#############################################################")
+        println()
+    end
+
+end
+
+
+function model_starter_runs()
+
+    """
+    Specification of model runs that should be run one after the other (for CLSP larger with 10 state variables).
+    """
+
+    file_path = ""  # TODO C:/Users/cg4102/Documents/julia_logs
+    stages = 16
+    time_limit = 10800
+
+    # Benders and strengthened Benders cuts
+    model_starter(1,stages,20,:B, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), file_path * "log_file.log", time_limit, 11111, 12345)
+    model_starter(1,stages,20,:SB, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), file_path * "log_file.log", time_limit, 11111, 12345)
+    model_starter(1,stages,20,:B, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), file_path * "log_file.log", time_limit, 11111, 12345)
+    model_starter(1,stages,20,:SB, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), file_path * "log_file.log", time_limit, 11111, 12345)
+
+    # Standard Lagrangian cuts
+    model_starter(1,stages,20,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), file_path * "log_file.log", time_limit, 11111, 12345)
+    model_starter(1,stages,20,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), file_path * "log_file.log", time_limit, 11111, 12345)
+
+    # Deep Lagrangian cuts
+    model_starter(1,stages,20,:uni_lag, DynamicSDDiP.L₁_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), file_path * "log_file.log", time_limit, 11111, 12345)
+    model_starter(1,stages,20,:uni_lag, DynamicSDDiP.L₁∞_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), file_path * "log_file.log", time_limit, 11111, 12345)
+    model_starter(1,stages,20,:uni_lag, DynamicSDDiP.L∞_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), file_path * "log_file.log", time_limit, 11111, 12345)
+    
+    # LN Lagrangian cuts - Relint, Mid, Eps
+    eps_regime = DynamicSDDiP.Core_Epsilon(perturb=1e-2)
+    model_starter(1,stages,20,:uni_lag, eps_regime, DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), file_path * "log_file.log", time_limit, 11111, 12345)
+    
+    mid_regime = DynamicSDDiP.Core_Midpoint()
+    model_starter(1,stages,20,:uni_lag, mid_regime, DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), file_path * "log_file.log", time_limit, 11111, 12345)
+    
+    relint_regime = DynamicSDDiP.Core_Midpoint()
+    model_starter(1,stages,20,:uni_lag, relint_regime, DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), file_path * "log_file.log", time_limit, 11111, 12345)
+
+end
+
+#model_starter_runs()

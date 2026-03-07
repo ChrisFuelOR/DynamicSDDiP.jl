@@ -8,8 +8,8 @@
 # The reproduced function and other functions in this file are also released
 # under Mozilla Public License 2.0
 
-# Copyright (c) 2021 Christian Fuellner <christian.fuellner@kit.edu>
-# Copyright (c) 2021 Oscar Dowson <o.dowson@gmail.com>
+# Copyright (c) 2026 Christian Fuellner <christian.fuellner@kit.edu>
+# Copyright (c) 2026 Oscar Dowson <o.dowson@gmail.com>
 
 # This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
 # If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -549,17 +549,6 @@ function iteration(
     end
 
     ############################################################################
-    # CHECK IF LATE BINARIZATION OF THE STATE SPACE SHOULD BE APPLIED
-    ############################################################################
-    if isa(algo_params.late_binarization_regime,DynamicSDDiP.LateBinarization)
-        if model.ext[:iteration] == algo_params.late_binarization_regime.iteration_to_start
-            apply_late_binarization_nodes!(model, algo_params)
-
-            #algo_params.cut_generation_regimes[1].duality_regime.iteration_limit = 50
-        end
-    end
-
-    ############################################################################
     # FORWARD PASS
     ############################################################################
     TimerOutputs.@timeit DynamicSDDiP_TIMER "forward_pass" begin
@@ -570,19 +559,19 @@ function iteration(
     # BINARY REFINEMENT
     ############################################################################
     solution_check = true
-    binary_refinement = :none
+    binary_refinement_status = :none
 
-    # TimerOutputs.@timeit DynamicSDDiP_TIMER "bin_refinement" begin
-    #     binary_refinement = DynamicSDDiP.binary_refinement(
-    #         model,
-    #         previous_solution,
-    #         forward_trajectory.sampled_states,
-    #         algo_params,
-    #         solution_check,
-    #         binary_refinement,
-    #         bound_check
-    #     )
-    # end
+    TimerOutputs.@timeit DynamicSDDiP_TIMER "bin_refinement" begin
+        binary_refinement_status = DynamicSDDiP.binary_refinement(
+            model,
+            previous_solution,
+            forward_trajectory.sampled_states,
+            algo_params,
+            solution_check,
+            binary_refinement_status,
+            bound_check
+        )
+    end
 
     # bound_check = true
     Infiltrator.@infiltrate algo_params.infiltrate_state in [:all]
@@ -599,8 +588,6 @@ function iteration(
             forward_trajectory.scenario_path,
             forward_trajectory.sampled_states,
             forward_trajectory.epi_states,
-            # forward_trajectory.objective_states,
-            # forward_trajectory.belief_states,
         )
     end
 
@@ -611,12 +598,6 @@ function iteration(
         first_stage_results = calculate_bound(model)
     end
     bound = first_stage_results.bound
-
-    # if model.ext[:iteration] == 1
-    #      Infiltrator.@infiltrate
-    # end
-    #println(last(model.nodes[1].bellman_function.local_thetas[1].cuts).cut_constraint)
-    #println(last(model.nodes[1].bellman_function.global_theta.cuts).cut_constraint)
 
     ############################################################################
     # CHECK IF BEST KNOWN SOLUTION HAS BEEN IMPROVED
@@ -664,7 +645,7 @@ function iteration(
              forward_trajectory.sampled_states,
              time() - options.start_time,
              sigma_increased,
-             binary_refinement,
+             binary_refinement_status,
              subproblem_size,
              algo_params,
              model.ext[:agg_lag_iterations],

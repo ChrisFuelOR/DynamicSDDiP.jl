@@ -5,8 +5,8 @@
 # The reproduced function and other functions in this file are also released
 # under Mozilla Public License 2.0
 
-# Copyright (c) 2021 Christian Fuellner <christian.fuellner@kit.edu>
-# Copyright (c) 2021 Oscar Dowson <o.dowson@gmail.com>
+# Copyright (c) 2026 Christian Fuellner <christian.fuellner@kit.edu>
+# Copyright (c) 2026 Oscar Dowson <o.dowson@gmail.com>
 
 # This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
 # If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -258,7 +258,6 @@ function get_dual_solution(
     # REGULARIZE PROBLEM IF REGULARIZATION IS USED
     node.ext[:regularization_data] = Dict{Symbol,Any}()
     regularize_bw!(node, node_index, subproblem, cut_generation_regime, algo_params.regularization_regime, cut_generation_regime.state_approximation_regime)
-    #regularize_bw!(node, node_index, subproblem, cut_generation_regime, DynamicSDDiP.NoRegularization(), cut_generation_regime.state_approximation_regime)
 
     # RESET SOLVER (as it may have been changed in between for some reason)
     if isa(algo_params.regularization_regime, DynamicSDDiP.NoRegularization)
@@ -311,11 +310,6 @@ function get_dual_solution(
         lag_obj = results.lag_obj
         lag_iterations = results.iterations
         lag_status = results.lag_status
-        #print(primal_obj, ", ")
-
-        #println(node_index, ", ", primal_obj, ", ", lag_obj, ", ", lag_iterations, ", ", lag_status, ", ", sum(abs.(dual_vars)))
-        file_handle = open(chop(algo_params.log_file, tail = 4) * "_analysis_v1.log", "a")
-        #print_helper2(print_analysis_part_1, file_handle, node.subproblem.ext[:sddp_policy_graph].ext[:iteration], node.index, i, primal_obj, lag_status)
 
         subproblem.ext[:sddp_policy_graph].ext[:agg_lag_iterations] += results.iterations
 
@@ -417,8 +411,6 @@ function get_dual_solution(
     end
 
     primal_original_obj = JuMP.objective_value(subproblem)
-    # Infiltrator.@infiltrate
-    #print(primal_original_obj, ", ")
 
     ############################################################################
     # GET CORE POINT RESP. NORMALIZATION COEFFICIENTS
@@ -443,7 +435,7 @@ function get_dual_solution(
     # GET PRIMAL SOLUTION AND ADDRESS UNBOUNDEDNESS
     ############################################################################
     """
-    For reverse polar cuts (linear normalization) cuts, we solve approximations of the 
+    For LN Lagrangian cuts, we solve approximations of the 
     primal of the normalized Lagrangian dual problem first.
     
     First, their feasibility/infeasibility helps us to detect if a core point 
@@ -451,7 +443,7 @@ function get_dual_solution(
     Then, we may introduce artificial bounds to the dual problem.
     
     Second, the primal_obj value can be used as an upper bound for the normalized
-    Lagrangian dual problem. For RP cuts such bound is required, as the outer
+    Lagrangian dual problem. For LN Lagrangian cuts such bound is required, as the outer
     problem may be unbounded.
 
     For deep cuts solving the primal projection problem is not implemented
@@ -469,7 +461,6 @@ function get_dual_solution(
     
     # Take a measure to address unboundedness
     if unbounded_result.unbounded_flag
-        #println(normalization_coeff.ω, round(normalization_coeff.ω₀, digits=2), ", ", round(primal_original_obj, digits=2), ", ", normalization_coeff.ω₀ >= primal_original_obj, ", ", epi_state)
 
         if isa(normalization_regime.unbounded_regime, DynamicSDDiP.Unbounded_Opt_SB)
             # Get strengthened Benders cut
@@ -534,15 +525,6 @@ function get_dual_solution(
         lag_status = results.lag_status
         dual_0_var = results.dual_0_var
 
-        #println(round(primal_original_obj, digits=2), ", ", round(primal_unified_obj, digits=2), ", ", round(epi_state, digits=2), ", ", round(lag_obj, digits=2), ", ", lag_iterations, ", ", lag_status, ", ", round(dual_0_var, digits=5), ", ", round(normalization_coeff.ω₀, digits=2), ", ", sum(abs.(dual_vars/dual_0_var)))    
-        #println(lag_iterations, ", ", lag_status, ", ", dual_0_var, ", ", sum(abs.(dual_vars)))
-        #println(node_index, " ,", i, " ,", primal_unified_obj, " ,", lag_obj, " ,", lag_status, " ,", lag_iterations)
-        #Infiltrator.@infiltrate node_index == 100
-        #Infiltrator.@infiltrate node_index == 99
-
-        file_handle = open(chop(algo_params.log_file, tail = 4) * "_analysis_v1.log", "a")
-        #print_helper2(print_analysis_part_1, file_handle, node.subproblem.ext[:sddp_policy_graph].ext[:iteration], node.index, i, primal_original_obj, lag_status)
-
         subproblem.ext[:sddp_policy_graph].ext[:agg_lag_iterations] += results.iterations
 
         # Re-set lag status if we had to introduce artificial bounds due to unboundedness
@@ -577,7 +559,7 @@ function get_dual_solution(
         add_cut_flag = false
 
     elseif !isnothing(normalization_coeff) && all(normalization_coeff.ω .== 0.0) && isapprox(normalization_coeff.ω₀, 0.0, atol=1e-8)
-        """ If the linear pseudonorm is used, but all coefficients are zero,
+        """ If the linear normalization is used, but all coefficients are zero,
         then the Lagrangian dual is not normalized, but unbounded. Analogously,
         a zero function is optimized over the reverse polar set, which can yield
         any point in this unbounded set. Therefore, we are not guaranteed to

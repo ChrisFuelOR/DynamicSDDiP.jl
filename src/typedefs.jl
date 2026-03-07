@@ -8,8 +8,8 @@
 # The reproduced function and other functions in this file are also released
 # under Mozilla Public License 2.0
 
-# Copyright (c) 2021 Christian Fuellner <christian.fuellner@kit.edu>
-# Copyright (c) 2021 Oscar Dowson <o.dowson@gmail.com>
+# Copyright (c) 2026 Christian Fuellner <christian.fuellner@kit.edu>
+# Copyright (c) 2026 Oscar Dowson <o.dowson@gmail.com>
 
 # This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
 # If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -76,8 +76,6 @@ Kelley means that a classical cutting-plane method is used to solve the dual
     problem.
 LevelBundle means that a level bundle method with specified parameters is
     used to solve the dual problem.
-Subgradient means that a basic subgradient method (as in Bertsekas "Nonlinear
-    Programming") is used to solve the dual problem.
 Default is Kelley.
 
 The parameter use_subopt_sol allows to speed-up the solution by adding additional
@@ -105,24 +103,6 @@ mutable struct LevelBundle <: AbstractDualSolutionRegime
         return new(level_factor, switch_to_kelley, use_subopt_sol)
     end
 end
-
-mutable struct Subgradient <: AbstractDualSolutionRegime
-    beta_up::Float64
-    beta_down::Float64
-    gamma::Float64
-    wait::Int
-    max_times_unchanged::Int
-    function Subgradient(;
-        beta_up = 1.5,
-        beta_down = 0.95,
-        gamma = 2,
-        wait = 10,
-        max_times_unchanged = 10,
-        )
-        return new(beta_up, beta_down, gamma, wait, max_times_unchanged)
-    end
-end
-
 
 ################################################################################
 # BOUNDS IN LAGRANGIAL DUAL
@@ -191,23 +171,11 @@ BigM means that the complementarity constraints of the KKT conditions of
     the cut projection closure are reformulated using a big-M approach.
 SOS1 means that the complemnentarity constraints of the KKT conditions of
     the cut projection closure are reformulated using SOS1 constraints.
-KKT means that the complementarity constraints of the KKT conditions are used
-    in their original bilinear form.
-StrongDuality means that by using strong duality the cuts are integrated in a
-    bilinear way.
 Default is BigM.
-
-Note that for KKT and StrongDuality the subproblems become nonlinear, and thus
-    an MINLP solver (e.g. Gurobi) has to be used to solve them.
-    Moreover, in these cases, only zeros should be used as initialization
-    method and only Lagrangian cuts should be determined, since the LP
-    relaxation is no LP anymore and may yield useless results.
 """
 
 mutable struct BigM <: AbstractCutProjectionRegime end
 mutable struct SOS1 <: AbstractCutProjectionRegime end
-mutable struct KKT <: AbstractCutProjectionRegime end
-mutable struct StrongDuality <: AbstractCutProjectionRegime end
 
 ################################################################################
 # BINARY APPROXIMATION
@@ -240,26 +208,6 @@ end
 #TODO: Maybe change this to K instead of precision
 
 mutable struct NoStateApproximation <: AbstractStateApproximationRegime end
-
-################################################################################
-# LATE BINARIZATION
-################################################################################
-abstract type AbstractLateBinarizationRegime end
-
-"""
-LateBinarization means that after a predefined number of iterations a static
-    (not dynamic as above!) binarization of the state space is applied.
-NoLateBinarization means that this discretization is not used.
-Default is NoLateBinarization.
-"""
-
-mutable struct LateBinarization <: AbstractLateBinarizationRegime
-    #K_dict::Dict{Symbol, Int64} # number of binary variables
-    K::Int64 # number of binary variables (same for all continuous states)
-    iteration_to_start::Int64
-end
-
-mutable struct NoLateBinarization <: AbstractLateBinarizationRegime end
 
 ################################################################################
 # COPY RESTRICTION
@@ -344,7 +292,7 @@ mutable struct Core_Midpoint <: AbstractNormalizationRegime
     function Core_Midpoint(;
         copy_regime = StateSpaceCopy(),
         integer_regime = NoIntegerRelax(),
-        unbounded_regime = Unbounded_Opt_Bound(),
+        unbounded_regime = Unbounded_Opt_SB(),
         improvement_regime = NoImprovement(),
         normalize_direction = false,
         )
@@ -361,7 +309,7 @@ mutable struct Core_In_Out <: AbstractNormalizationRegime
     function Core_In_Out(;
         copy_regime = StateSpaceCopy(),
         integer_regime = NoIntegerRelax(),
-        unbounded_regime = Unbounded_Opt_Bound(),
+        unbounded_regime = Unbounded_Opt_SB(),
         improvement_regime = NoImprovement(),
         normalize_direction = false,
         )
@@ -378,7 +326,7 @@ mutable struct Core_Relint <: AbstractNormalizationRegime
     function Core_Relint(;
         copy_regime = StateSpaceCopy(),
         integer_regime = NoIntegerRelax(),
-        unbounded_regime = Unbounded_Opt_Bound(),
+        unbounded_regime = Unbounded_Opt_SB(),
         improvement_regime = NoImprovement(),
         normalize_direction = false,
         )
@@ -397,7 +345,7 @@ mutable struct Core_Epsilon <: AbstractNormalizationRegime
         perturb = 1e-6,
         copy_regime = StateSpaceCopy(),
         integer_regime = NoIntegerRelax(),
-        unbounded_regime = Unbounded_Opt_Bound(),
+        unbounded_regime = Unbounded_Opt_SB(),
         improvement_regime = NoImprovement(),
         normalize_direction = false,
     )
@@ -416,7 +364,7 @@ mutable struct Core_Conv <: AbstractNormalizationRegime
         lambda = 0.5,
         copy_regime = StateSpaceCopy(),
         integer_regime = NoIntegerRelax(),
-        unbounded_regime = Unbounded_Opt_Bound(),
+        unbounded_regime = Unbounded_Opt_SB(),
         improvement_regime = NoImprovement(),
         normalize_direction = false,
     )
@@ -448,13 +396,8 @@ ChenLuedtke means that the second normalization approach by Chen & Luedtke
     of Benders multipliers.
 
 In the second group of normalization approaches, a linear function of the dual
-multipliers (a linear pseudonorm) is bounded. In all but the first approach
-(Fischetti), the coefficients of the linear pseudonorm are determined as the
-direction between a core point in the epigraph and the current incumbent
-(see Brandenberg & Stursberg for some theory behind this approach).
-These approaches are also similar to the traditional strategy by Magnanti
-and Wong to compute Pareto-optimal cuts. The approaches differ in the 
-heuristics used to obtain a core point candidate.
+multipliersis bounded. In all approaches, the coefficients of the linear function are 
+determined as the direction between a core point in the epigraph and the current incumbent.
 
 Core_Midpoint means that the normalization is based on a core point which is
     the midpoint of the state space. This requires that all state variables
@@ -675,8 +618,6 @@ mutable struct CutGenerationRegime
     duality_regime::AbstractDualityRegime
     iteration_to_start::Int64
     iteration_to_stop::Union{Int64,Float64} #TODO
-    gap_to_start::Float64       # not used so far
-    gap_to_stop::Float64        # not used so far
     cut_away_approach::Bool
     cut_away_tol::Float64
 
@@ -685,8 +626,6 @@ mutable struct CutGenerationRegime
         duality_regime = LagrangianDuality(),
         iteration_to_start = 1,
         iteration_to_stop = Inf,
-        gap_to_start = Inf,
-        gap_to_stop = 0.0,
         cut_away_approach = true,
         cut_away_tol = 1e-4,
     )
@@ -695,8 +634,6 @@ mutable struct CutGenerationRegime
             duality_regime,
             iteration_to_start,
             iteration_to_stop,
-            gap_to_start,
-            gap_to_stop,
             cut_away_approach,
             cut_away_tol,
         )
@@ -707,10 +644,6 @@ end
 """
 iteration_to_start:     first iteration at which this regime is applied
 iteration_to_stop:      last iteration at which this regime is applied
-gap_to_start:           relative optimality gap at which this regime is first
-                        applied (tricky for stochastic case)
-gap_to_stop:            relative optimality gap at which this regime is last
-                        applied (tricky for stochastic case)
 cut_away_approach:      if true, cuts of this regime will only be added
                         to the respective subproblem if they lead to an
                         improvement (i.e. cut away the current incumbent)
@@ -781,7 +714,6 @@ copy_regime defines the constraints that the copy variable z of the state x has
     is used). For the backward pass with BinaryApproximation, this is separately
     defined by the duality_regime.
 """
-#TODO: Maybe define the copy_regime one time in a completeley separate way.
 
 ################################################################################
 # SIMULATION
@@ -945,7 +877,6 @@ mutable struct AlgoParams
     cut_selection_regime::AbstractCutSelectionRegime
     cut_generation_regimes::Vector{CutGenerationRegime}
     simulation_regime::AbstractSimulationRegime
-    late_binarization_regime::AbstractLateBinarizationRegime
     ############################################################################
     risk_measure::SDDP.AbstractRiskMeasure
     forward_pass::SDDP.AbstractForwardPass
@@ -974,7 +905,6 @@ mutable struct AlgoParams
         cut_selection_regime = CutSelection(),
         cut_generation_regimes = [CutGenerationRegime()],
         simulation_regime = NoSimulation(),
-        late_binarization_regime = NoLateBinarization(),
         risk_measure = SDDP.Expectation(),
         forward_pass = SDDP.DefaultForwardPass(),
         sampling_scheme = SDDP.InSampleMonteCarlo(),
@@ -992,7 +922,7 @@ mutable struct AlgoParams
         infiltrate_state = :none,
         seed = nothing,
         run_description = "",
-        solver_approach = DynamicSDDiP.GAMS_Solver(),
+        solver_approach = DynamicSDDiP.Direct_Solver(),
     )
         return new(
             stopping_rules,
@@ -1001,7 +931,6 @@ mutable struct AlgoParams
             cut_selection_regime,
             cut_generation_regimes,
             simulation_regime,
-            late_binarization_regime,
             risk_measure,
             forward_pass,
             sampling_scheme,

@@ -104,7 +104,6 @@ function algo_config(
         cut_selection_regime = cut_selection_regime,
         cut_generation_regimes = cut_generation_regimes,
         simulation_regime = simulation_regime,
-        late_binarization_regime = DynamicSDDiP.NoLateBinarization(),
         cut_type = cut_type,
         log_file = log_file,
         silent = silent,
@@ -286,7 +285,11 @@ model_starter(6/5, true, 10.0, DynamicSDDiP.L₁(), DynamicSDDiP.L₁(), Dynamic
 # All ALD runs with only ValueBound.
 # Second batch of tests with backward regularization (sigma = rho used in augmented Lagrangian dual), but with using the primal_obj bound from the unregularized case.  
 # Note that for the augmented Lagrangian dual, we always use the L₁-norm.
+
+ReLU comparison
+model_starter(1.249, true, 5.0, DynamicSDDiP.L₁(), DynamicSDDiP.L₁(), DynamicSDDiP.StateSpaceCopy(), DynamicSDDiP.ConvexHullCopy(), true, 8, false) 
+
 """
 
-model_starter(1.249, true, 5.0, DynamicSDDiP.L₁(), DynamicSDDiP.L₁(), DynamicSDDiP.StateSpaceCopy(), DynamicSDDiP.ConvexHullCopy(), true, 8, false)   # ReLU comparison
+model_starter(6/5, false, Inf, nothing, nothing, DynamicSDDiP.StateSpaceCopy(), DynamicSDDiP.StateSpaceCopy(), false, 0, false)    
 

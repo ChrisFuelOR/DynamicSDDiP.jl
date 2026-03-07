@@ -95,18 +95,15 @@ function model_config()
     )
 
     # Define solvers to be used
-    applied_solvers = DynamicSDDiP.AppliedSolvers(
-        LP = "Gurobi",
-        MILP = "Gurobi",
-        MIQCP = "Gurobi",
-        MINLP = "SCIP",
-        NLP = "Gurobi",
-        Lagrange = "Gurobi",
-    )
+    applied_solvers = DynamicSDDiP.AppliedSolvers()
+
+    # Define problem params
+    problem_params = DynamicSDDiP.ProblemParams(1, 2)
 
     # Start model with used configuration
     model_starter(
         algo_params,
+        problem_params,
         applied_solvers,
     )
 end
@@ -114,6 +111,7 @@ end
 
 function model_starter(
     algo_params::DynamicSDDiP.AlgoParams = DynamicSDDiP.AlgoParams(),
+    problem_params::DynamicSDDiP.ProblemParams = DynamicSDDiP.ProblemParams(2, 1),
     applied_solvers::DynamicSDDiP.AppliedSolvers = DynamicSDDiP.AppliedSolvers(),
     )
 
@@ -125,7 +123,7 @@ function model_starter(
     ############################################################################
     # SOLVE MODEL
     ############################################################################
-    DynamicSDDiP.solve(model, algo_params, applied_solvers)
+    DynamicSDDiP.solve(model, algo_params, applied_solvers, problem_params)
 end
 
 

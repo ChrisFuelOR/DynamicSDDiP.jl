@@ -7,8 +7,8 @@
 # The reproduced function and other functions in this file are also released
 # under Mozilla Public License 2.0
 
-# Copyright (c) 2021 Christian Fuellner <christian.fuellner@kit.edu>
-# Copyright (c) 2021 Oscar Dowson <o.dowson@gmail.com>
+# Copyright (c) 2026 Christian Fuellner <christian.fuellner@kit.edu>
+# Copyright (c) 2026 Oscar Dowson <o.dowson@gmail.com>
 
 # This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
 # If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -110,8 +110,6 @@ function forward_sigma_test(
     return (
         scenario_path = scenario_path,
         sampled_states = sampled_states,
-        # objective_states = objective_states,
-        # belief_states = belief_states,
         cumulative_value = cumulative_value,
         sigma_increased = sigma_increased,
     )

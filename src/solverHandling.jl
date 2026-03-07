@@ -1,4 +1,4 @@
-# Copyright (c) 2021 Christian Fuellner <christian.fuellner@kit.edu>
+# Copyright (c) 2026 Christian Fuellner <christian.fuellner@kit.edu>
 
 # This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
 # If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -55,10 +55,6 @@ function identify_solver!(
     elseif algorithmic_step in [:cut_selection]
         solver = applied_solvers.solver_cut_selection
     end
-
-    # TODO: If non-convex cuts have been created for which Strong Duality
-    # or KKT cut_projection_regime is used, then we have to make sure that
-    # a nonlinear solver is used for the subproblems from there on.
 
     return solver
 
@@ -139,13 +135,12 @@ function set_solver!(
     if solver in ["CPLEX", "BARON"]
         error("Solver can only be used with our GAMS license")
     elseif solver == "Gurobi"
-        JuMP.set_optimizer(subproblem, JuMP.optimizer_with_attributes(
-            () -> Gurobi.Optimizer(GURB_ENV[]),
-            "MIPGap"=>tolerance,
-            "TimeLimit"=>time_limit,
-            "NumericFocus"=>numerical_focus);
-            #bridge_constraints = false
-            )
+        JuMP.set_optimizer(subproblem, JuMP.optimizer_with_attributes(() -> Gurobi.Optimizer(GURB_ENV[])))
+        JuMP.set_attribute(subproblem, "OutputFlag", 0)
+        JuMP.set_attribute(subproblem, "MIPGap", tolerance)
+        JuMP.set_attribute(subproblem, "TimeLimit", time_limit)
+        JuMP.set_attribute(subproblem, "NumericFocus", numerical_focus)
+
     elseif solver == "SCIP"
         JuMP.set_optimizer(subproblem, JuMP.optimizer_with_attributes(
             SCIP.Optimizer(),
