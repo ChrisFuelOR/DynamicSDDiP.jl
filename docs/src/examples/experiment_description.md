@@ -50,11 +50,44 @@ function algo_config(
     time_limit::Int,
     forward_seed::Int,
     )
+end
 ````
 
-We performed a multitude of experiments. However, many of the parameters were chosen the same for all runs reported in the paper, and only a few crucial parameters different between runs. We give a detailed overview on the parameters for each run in [TODO](TODO). Also note that the parameters are logged and part of the log-file of each individual run.
+We performed a multitude of experiments. However, many of the parameters were chosen the same for all runs reported in the paper, and only a few crucial parameters different between runs. Note that the parameters are logged and part of the log-file of each individual run. We also describe the runs in a bit more detail below.
 
-For explanations of the parameters that can be set in `algo_config.jl` see [Setting algorithmic parameters](params.md).
+For explanations of the parameters that can be set in `algo_config.jl` see [Setting algorithmic parameters](../params.md).
+
+## The results
+
+The full results of our experiments are provided in folder `results` of this repository. For each run presented in the paper, there is a dedicated logging file which contains the parameter configuration of the run as well as the results. To understand the logging files, please see the description in [Understanding the logging results](logging.md).
+
+## Reproducing the results
+
+### CFLP
+
+To reproduce the results from our experiments for CFLP, use the `starter.jl` file in folder `CFLP` with the pre-defined runs. The `algo_config.jl` file also contains the exact configuration to reproduce our results.
+
+For runs in combination with SB cuts, make sure to change the `algo_config.jl` file by uncommenting `iteration_to_start = 21` for `cut_generation_regime_2` and by replacing `cut_generation_regimes = [cut_generation_regime_2]` with `cut_generation_regimes = [cut_generation_regime_1, cut_generation_regime_2]`.
+
+If you want to use different logging files for different runs, the file name arguments in `starter.jl` should be adjusted.
+
+### CLSP with Binarization
+
+To reproduce the results from our experiments for CLSP with binarization, use the `starter.jl` file in folder `CLSP` with the pre-defined runs. The `algo_config.jl` file also contains the exact configuration to reproduce our results.
+
+For 4 or 10 stages, make sure to adjust the variables `stages` and `time_limit` accordingly.
+
+For runs in combination with SB cuts, make sure to change the `algo_config.jl` file by uncommenting `iteration_to_start = 21` for `cut_generation_regime_2` and by replacing `cut_generation_regimes = [cut_generation_regime_2]` with `cut_generation_regimes = [cut_generation_regime_1, cut_generation_regime_2]`.
+
+If you want to use different logging files for different runs, the file name arguments in `starter.jl` should be adjusted.
+
+### CLSP without Binarization
+
+To reproduce the results from our experiments for CLSP without binarization, use the `starter_no_bin.jl` file in folder `CLSP_Large` with the pre-defined runs. The `algo_config.jl` file also contains the exact configuration to reproduce our results.
+
+For runs in combination with SB cuts, make sure to change the `algo_config.jl` file by uncommenting `iteration_to_start = 21` for `cut_generation_regime_2` and by replacing `cut_generation_regimes = [cut_generation_regime_2]` with `cut_generation_regimes = [cut_generation_regime_1, cut_generation_regime_2]`.
+
+If you want to use different logging files for different runs, the file name arguments in `starter_no_bin.jl` should be adjusted.
 
 !!! note "Remarks"
     The code also contains the folder `Regularization_Paper_Illustrative` which we used for some toy examples in the [preprint](https://optimization-online.org/2024/08/on-lipschitz-regularization-and-lagrangian-cuts-in-multistage-stochastic-mixed-integer-linear-programming/)].

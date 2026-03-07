@@ -111,7 +111,7 @@ mutable struct Core_Midpoint <: DynamicSDDiP.AbstractNormalizationRegime
 end
 ````
 
- * `copy_regime`: This parameter defines which constraints are imposed for the local copy of the state variable when solving a subproblem to evaluate the value function for the core point candidate. TODO: We always used `StateSpaceCopy` in our experiments. See also [Copy constraint specifics](TODO).
+ * `copy_regime`: This parameter defines which constraints are imposed for the local copy of the state variable when solving a subproblem to evaluate the value function for the core point candidate. We always used `StateSpaceCopy` in our experiments. See also [Handling copy constraints](copy_constraints.md).
  * `integer_regime`: This parameter can be either set to `IntegerRelax` or to `NoIntegerRelax`. It defines whether integer requirements are relaxed when solving a subproblem to evaluate the value function for the core point candidate. This relaxation might be helpful to avoid that the auxiliary subproblem becomes infeasible, for instance if integer requirements are no longer satisfiable with the given core point candidate. This should only be relevant for integer or binary state variables.
  * `unbounded_regime`: This parameter defines which mitigation approach is used whenever some checks indicate that the core point candidate might not be an actual core point of the epigraph. It can be chosen to
      * `Unbounded_Opt_None`: No mitigation approach is taken; we just proceed with the common procedure. The dual problem might become unbounded if the core point candidate is indeed no core point, which would result in the algorithm to terminate with an error.
@@ -243,16 +243,26 @@ The parameter `dual_bond_regime` is then used to control how these bounds are us
 using DynamicSDDiP
 abstract type AbstractDualBoundRegime end
 mutable struct ValueBound <: DynamicSDDiP.AbstractDualBoundRegime end
-mutable struct NormBound <: DynamicSDDiP.bstractDualBoundRegime end
+mutable struct NormBound <: DynamicSDDiP.AbstractDualBoundRegime end
 mutable struct BothBounds <: DynamicSDDiP.AbstractDualBoundRegime end
 ````
 
 When no `user_dual_multiplier_bound` or `user_dual_objective_bound` are specified, the bounds are set to trivial default values.
 
-TODO: In our experiments...
+In our experiments, we usually used `BothBounds`.
 
 !!! note "Remark"
     Our code also allows for the generation of special non-convex cuts. This is however based on the above cut generation approaches as well. For more details, see [Binarization and non-convex cuts](binarization.md).
+
+# Dealing with numerical issues
+
+We have added a few measures to avoid redundant cuts and numerical issues within SDDiP.
+
+ * `cut_away`: Per default we use `cut_away_approach = true` in `CutGenerationRegime`. This way, a new cut is only added to the subproblem if the previous incumbent $(x_{a(n)}^i, \theta_n^i)$ is cut away by at least `cut_away_tol`, which is set to 1e-4 per default.
+ * `add_cut_flag`: Cuts are also not added if
+     * $\pi_{n0} \approx 0$ because a very small scaling factor in the cut can lead to numerical issues,
+     * the optimal value of the normalized Lagrangian dual is very close to 0,
+     * the coefficients of the linear normalization satisfy $(u_n, u_{n0}) \approx 0$.
 
 ---
 

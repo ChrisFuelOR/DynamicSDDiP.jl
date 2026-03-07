@@ -21,7 +21,7 @@ Note that this project also includes features like binary approximation of the s
 # Documentation
 ````
 
-You can find the documentation at [TODO](TODO).
+You can find the documentation at TODO.
 
 ````@example index
 # Help

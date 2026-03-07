@@ -25,9 +25,6 @@ function algo_config(
     dual_status_regime = DynamicSDDiP.Lax()
 
     dual_choice_regime = DynamicSDDiP.StandardChoice()
-    #if isa(normalization_regime, DynamicSDDiP.L∞_Deep)
-#        dual_choice_regime = DynamicSDDiP.MinimalNormChoice()
-#    end
 
     #dual_space_regime = DynamicSDDiP.BendersSpanSpaceRestriction(20, :multi_cut)
     dual_space_regime = DynamicSDDiP.NoDualSpaceRestriction()
@@ -72,8 +69,7 @@ function algo_config(
     cut_generation_regime_2 = DynamicSDDiP.CutGenerationRegime(
         state_approximation_regime = state_approximation_regime,
         duality_regime = duality_regime,
-        #cut_away_approach = false,
-        # iteration_to_start = 20,
+        # iteration_to_start = 21,
     )
 
     cut_generation_regime_1 = DynamicSDDiP.CutGenerationRegime(
@@ -97,7 +93,6 @@ function algo_config(
 
     # Simulation regime
     simulation_regime = DynamicSDDiP.Simulation(sampling_scheme=DynamicSDDiP.InSampleMonteCarlo(),number_of_replications=1000)
-    #simulation_regime = DynamicSDDiP.NoSimulation()
 
     # Suppress solver output
     silent = true

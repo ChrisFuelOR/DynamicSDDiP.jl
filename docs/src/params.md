@@ -7,6 +7,7 @@ EditURL = "params.jl"
 When using DynamicSDDiP.jl, the user has the freedom to specify several algorithmic parameters. To hand these parameters to the algorithm, they should be stored in a struct of type `AlgoParams`, which is defined in `typedefs.jl`.
 
 ````@example params
+using DynamicSDDiP
 using SDDP
 
 mutable struct AlgoParams
@@ -15,7 +16,7 @@ mutable struct AlgoParams
     cut_aggregation_regime::DynamicSDDiP.AbstractCutAggregationRegime
     cut_selection_regime::DynamicSDDiP.AbstractCutSelectionRegime
     cut_generation_regimes::Vector{DynamicSDDiP.CutGenerationRegime}
-    simulation_regime::AbstractSimulationRegime
+    simulation_regime::DynamicSDDiP.AbstractSimulationRegime
     risk_measure::SDDP.AbstractRiskMeasure
     forward_pass::SDDP.AbstractForwardPass
     sampling_scheme::SDDP.AbstractSamplingScheme
@@ -34,6 +35,7 @@ mutable struct AlgoParams
     seed::Union{Nothing,Int}
     run_description::String
     solver_approach::Union{DynamicSDDiP.GAMS_Solver,DynamicSDDiP.Direct_Solver}
+end
 ````
 
 Note that all the parameters starting from `risk_measures` to `cycle_discretization_delta` are standard parameters of the `train` function in SDDP.jl which are required in our code as we are re-using some functionality from SDDP.jl.
@@ -48,6 +50,7 @@ As for SDDP.jl, we can define a list of stopping rules for Dynamic SDDiP. In our
 
 ````@example params
 using SDDP
+time_limit = 10800
 stopping_rules = [SDDP.TimeLimit(time_limit), SDDP.BoundStalling(20,1e-4)]
 ````
 
@@ -96,7 +99,7 @@ in the files `algo_config.jl`.
 
     Users can still apply a static and permanent binary approximation of the state space by adjusting their problem formulation accordingly.
 
-We discuss both concepts in more detail in [Configuring Cut Generation](TODO).
+We discuss both concepts in more detail in [Configuring Cut Generation](cut_generation.md).
 
 With the `duality_regime` and the `state_approximation_regime` set, we can define an overall `cut_generation_regime`. For this purpose, there exists the struct `CutGenerationRegime`. Each object of this type has to contain a specific `duality_regime` and `state_approximation_regime`.
 
@@ -118,12 +121,11 @@ If not specified otherwise, all types of cuts are generated in each iteration. H
 The parameters `iteration_to_start` and `iteration_to_stop` allow to restrict the cut generation regime to a subset of iterations.
 If `Cut_away_approach` is set to `true`, cuts of a regime will only be added to the subproblems if they lead to an improvement, i.e. cut away the current incumbent $(x_{t-1}^i, \theta_t^i)$ by at least `cut_away_tol`. This is supposed to prevent adding redundant cuts.
 
-TODO: Didn't I implement that it was also possible to only add cuts of regime 2 if regime 1 did not yet cut away the incumbent? Or is the epi_state updated?
-
 As an example, we can define to generate both strengthened Benders cuts and Lagrangian cuts, but the latter only starting from iteration 20.
 
 ````@example params
 using DynamicSDDiP
+state_approximation_regime = DynamicSDDiP.NoStateApproximation()
 
 cut_generation_regime_1 = DynamicSDDiP.CutGenerationRegime(
     state_approximation_regime = state_approximation_regime,
@@ -158,7 +160,7 @@ mutable struct NoRegularization <: DynamicSDDiP.AbstractRegularizationRegime end
 ````
 
 If `Regularization` is used, this means that in the forward pass of SDDiP a Lipschitz regularization with Lipschitz constant $\sigma_t$ (defined by parameter `sigma`) and the norm defined in `norm` is applied for each subproblem.
-The copy constraint $z_t = x_{t-1}^i$ is removed and the expression $\sigma_t \lVert z_t - x_{t-1}^i \rVert$ is added to the objective function. In addition, with parameter `copy_regime` we can specify if the variables $z_t$ should satisfy certain constraints in the forward pass problem. For details, we refer to [Copy constraint specifics](TODO).
+The copy constraint $z_t = x_{t-1}^i$ is removed and the expression $\sigma_t \lVert z_t - x_{t-1}^i \rVert$ is added to the objective function. In addition, with parameter `copy_regime` we can specify if the variables $z_t$ should satisfy certain constraints in the forward pass problem. For details, we refer to [Handling Copy Constraints](copy_constraints.md).
 
 In the backward pass subproblems a Lipschitz regularization with parameter `sigma` is applied as well. However, here we can use a different norm which is specified by `norm_lifted`.
 
@@ -184,8 +186,6 @@ mutable struct SingleCutRegime <: DynamicSDDiP.AbstractCutAggregationRegime end
 mutable struct MultiCutRegime <: DynamicSDDiP.AbstractCutAggregationRegime end
 ````
 
-TODO: Why do we have to specify this twice? Change the code such that `SDDP.MULTI_CUT` `SDDP.SINGLE_CUT` is chosen automatically based on our choice in algorithmMain.jl and does not have to be set in algo_config.jl.
-
 !!! note "remark"
     The new types of Lagrangian cuts introduced in our paper require to use a multi-cut approach. Therefore, for the experiments in our paper, only comparative runs using (strengthened) Benders cuts or standard Lagrangian cuts were conducted with `SingleCutRegime`.
 
@@ -202,7 +202,7 @@ end
 mutable struct NoCutSelection <: DynamicSDDiP.AbstractCutSelectionRegime end
 ````
 
-The parameter `cut_deletion_minimum`: TODO.
+The parameter `cut_deletion_minimum` is taken from SDDP.jl and specifies a minimum number of cuts to cache before deleting cuts from the subproblem.
 
 In the experiments for which we report results in this paper, we did not apply cut selection. The reason is that we did not observe improvements in preliminary tests.
 
@@ -226,22 +226,6 @@ solver_approach = DynamicSDDiP.Direct_Solver()
 ````
 
 All previously defined parameters are stored in a struct of type AlgoParams and then passed to the SDDiP algorithm in the run-file.
-
-````@example params
-using DynamicSDDiP
-algo_params = DynamicSDDiP.AlgoParams(
-    cut_aggregation_regime = cut_aggregation_regime,
-    cut_selection_regime = cut_selection_regime,
-    simulation_regime = simulation_regime,
-    log_file = log_file,
-    silent = silent,
-    infiltrate_state = infiltrate_state,
-    solver_approach = solver_approach,
-    numerical_focus = false,
-    seed = forward_seed,
-    run_description = ""
-)
-````
 
 ## Problem parameters
 

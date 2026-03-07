@@ -14,7 +14,7 @@
 
 ## Documentation
 
-# You can find the documentation at [TODO](TODO).
+# You can find the documentation at TODO.
 
 ## Help
 

@@ -292,7 +292,7 @@ mutable struct Core_Midpoint <: AbstractNormalizationRegime
     function Core_Midpoint(;
         copy_regime = StateSpaceCopy(),
         integer_regime = NoIntegerRelax(),
-        unbounded_regime = Unbounded_Opt_Bound(),
+        unbounded_regime = Unbounded_Opt_SB(),
         improvement_regime = NoImprovement(),
         normalize_direction = false,
         )
@@ -309,7 +309,7 @@ mutable struct Core_In_Out <: AbstractNormalizationRegime
     function Core_In_Out(;
         copy_regime = StateSpaceCopy(),
         integer_regime = NoIntegerRelax(),
-        unbounded_regime = Unbounded_Opt_Bound(),
+        unbounded_regime = Unbounded_Opt_SB(),
         improvement_regime = NoImprovement(),
         normalize_direction = false,
         )
@@ -326,7 +326,7 @@ mutable struct Core_Relint <: AbstractNormalizationRegime
     function Core_Relint(;
         copy_regime = StateSpaceCopy(),
         integer_regime = NoIntegerRelax(),
-        unbounded_regime = Unbounded_Opt_Bound(),
+        unbounded_regime = Unbounded_Opt_SB(),
         improvement_regime = NoImprovement(),
         normalize_direction = false,
         )
@@ -345,7 +345,7 @@ mutable struct Core_Epsilon <: AbstractNormalizationRegime
         perturb = 1e-6,
         copy_regime = StateSpaceCopy(),
         integer_regime = NoIntegerRelax(),
-        unbounded_regime = Unbounded_Opt_Bound(),
+        unbounded_regime = Unbounded_Opt_SB(),
         improvement_regime = NoImprovement(),
         normalize_direction = false,
     )
@@ -364,7 +364,7 @@ mutable struct Core_Conv <: AbstractNormalizationRegime
         lambda = 0.5,
         copy_regime = StateSpaceCopy(),
         integer_regime = NoIntegerRelax(),
-        unbounded_regime = Unbounded_Opt_Bound(),
+        unbounded_regime = Unbounded_Opt_SB(),
         improvement_regime = NoImprovement(),
         normalize_direction = false,
     )

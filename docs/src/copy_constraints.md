@@ -10,7 +10,7 @@ Making a decision on this choice is required several times in our implementation
 
 ````@example copy_constraints
 using DynamicSDDiP
-mutable struct StateSpaceCopy <: DynamicSDDiP.bstractCopyRegime end
+mutable struct StateSpaceCopy <: DynamicSDDiP.AbstractCopyRegime end
 mutable struct ConvexHullCopy <: DynamicSDDiP.AbstractCopyRegime end
 mutable struct NoBoundsCopy <: DynamicSDDiP.AbstractCopyRegime end
 ````

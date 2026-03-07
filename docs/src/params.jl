@@ -2,6 +2,7 @@
 
 # When using DynamicSDDiP.jl, the user has the freedom to specify several algorithmic parameters. To hand these parameters to the algorithm, they should be stored in a struct of type `AlgoParams`, which is defined in `typedefs.jl`.
 
+using DynamicSDDiP
 using SDDP
 
 mutable struct AlgoParams
@@ -10,7 +11,7 @@ mutable struct AlgoParams
     cut_aggregation_regime::DynamicSDDiP.AbstractCutAggregationRegime
     cut_selection_regime::DynamicSDDiP.AbstractCutSelectionRegime
     cut_generation_regimes::Vector{DynamicSDDiP.CutGenerationRegime}
-    simulation_regime::AbstractSimulationRegime
+    simulation_regime::DynamicSDDiP.AbstractSimulationRegime
     risk_measure::SDDP.AbstractRiskMeasure
     forward_pass::SDDP.AbstractForwardPass
     sampling_scheme::SDDP.AbstractSamplingScheme
@@ -29,6 +30,7 @@ mutable struct AlgoParams
     seed::Union{Nothing,Int}
     run_description::String
     solver_approach::Union{DynamicSDDiP.GAMS_Solver,DynamicSDDiP.Direct_Solver}
+end
 
 # Note that all the parameters starting from `risk_measures` to `cycle_discretization_delta` are standard parameters of the `train` function in SDDP.jl which are required in our code as we are re-using some functionality from SDDP.jl.
 # We have not changed them within our experiments for this paper, and they also should not be changed from their default setting for DynamicSDDiP.jl to work.
@@ -41,6 +43,7 @@ mutable struct AlgoParams
 # As for SDDP.jl, we can define a list of stopping rules for Dynamic SDDiP. In our experiments, we always used a time limit (`SDDP.TimeLimit`) (which differed for different test cases) and additionally stopped SDDP when the lower bounds did not improve by more than 1e-4 for 20 iterations (`SDDP.BoundStalling`). The second stopping criterion was mostly relevant when using only Benders or strengthened Benders cuts. 
 
 using SDDP
+time_limit = 10800
 stopping_rules = [SDDP.TimeLimit(time_limit), SDDP.BoundStalling(20,1e-4)]
 
 # Alternatively, it is also possible to define an iteration limit (`SDDP.IterationLimit`) or use a deterministic stopping criterion when no uncertainty is prevalent (`DeterministicStopping`; defined in `typedefs.jl`).
@@ -106,6 +109,7 @@ end
 # As an example, we can define to generate both strengthened Benders cuts and Lagrangian cuts, but the latter only starting from iteration 20.
 
 using DynamicSDDiP
+state_approximation_regime = DynamicSDDiP.NoStateApproximation()
 
 cut_generation_regime_1 = DynamicSDDiP.CutGenerationRegime(
     state_approximation_regime = state_approximation_regime,
@@ -202,19 +206,6 @@ solver_approach = DynamicSDDiP.Direct_Solver()
 
 # All previously defined parameters are stored in a struct of type AlgoParams and then passed to the SDDiP algorithm in the run-file.
 
-using DynamicSDDiP
-algo_params = DynamicSDDiP.AlgoParams(
-    cut_aggregation_regime = cut_aggregation_regime,
-    cut_selection_regime = cut_selection_regime,
-    simulation_regime = simulation_regime,
-    log_file = log_file,
-    silent = silent,
-    infiltrate_state = infiltrate_state,
-    solver_approach = solver_approach,
-    numerical_focus = false,
-    seed = forward_seed,
-    run_description = ""
-)
 
 # ## Problem parameters
 

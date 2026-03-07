@@ -23,7 +23,7 @@ for filename_jl in list_of_sorted_files(INPUT_DIR, INPUT_DIR, ".jl")
         documenter = true,
     )
 
-    # Literate.notebook(filename_jl, INPUT_DIR; execute = false, credit = false)
+    Literate.notebook(filename_jl, INPUT_DIR; execute = false, credit = false)
 end
 
 for filename_jl in list_of_sorted_files(EXAMPLE_DIR, EXAMPLE_DIR, ".jl")
@@ -35,25 +35,31 @@ for filename_jl in list_of_sorted_files(EXAMPLE_DIR, EXAMPLE_DIR, ".jl")
         documenter = true,
     )
 
-    # Literate.notebook(filename_jl, EXAMPLE_DIR; execute = false, credit = false)
+    Literate.notebook(filename_jl, EXAMPLE_DIR; execute = false, credit = false)
 end
 
-# Documenter.makedocs(;
-#     sitename = "DynamicSDDiP.jl",
-#     authors = "Christian Fuellner",
-#     clean = true,
-#     pages = [
-#         "Home" => "index.md",
-#         "Code" => [
-#             "model_assumptions.md",
-#         ],
-#         "Hydrothermal Example" => [
-#             "example/experiment_description.md",
-#         ],
-#     ],
-# )
+Documenter.makedocs(;
+    sitename = "DynamicSDDiP.jl",
+    authors = "Christian Fuellner",
+    clean = true,
+    pages = [
+        "Home" => "index.md",
+        "Code" => [
+            "params.md",
+            "cut_generation.md",
+            "copy_constraints.md",
+            "binarization.md",
+            "cuts.md",
+            "algorithm.md",
+        ],
+        "Examples" => [
+            "examples/experiment_description.md",
+            "examples/logging.md",
+        ],
+    ],
+)
 
-# Documenter.deploydocs(;
-#     repo = "github.com/ChrisFuelOR/DynamicSDDiP.jl.git",
-#     push_preview = true,
-# )
+Documenter.deploydocs(;
+    repo = "github.com/ChrisFuelOR/DynamicSDDiP.jl.git",
+    push_preview = true,
+)

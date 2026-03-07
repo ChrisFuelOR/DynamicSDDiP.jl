@@ -132,8 +132,34 @@ function model_starter_runs()
     Specification of model runs that should be run one after the other (for CLSP larger with 10 state variables).
     """
 
-    model_starter(10,16,20,:B, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), "C:/Users/cg4102/Documents/julia_logs/CLSP_Large_B_Multi_2025.log", 10800, 11111, 12345)
-   
+    file_path = ""  # TODO C:/Users/cg4102/Documents/julia_logs
+    stages = 16
+    time_limit = 10800
+
+    # Benders and strengthened Benders cuts
+    model_starter(1,stages,20,:B, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), file_path * "log_file.log", time_limit, 11111, 12345)
+    model_starter(1,stages,20,:SB, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), file_path * "log_file.log", time_limit, 11111, 12345)
+    model_starter(1,stages,20,:B, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), file_path * "log_file.log", time_limit, 11111, 12345)
+    model_starter(1,stages,20,:SB, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), file_path * "log_file.log", time_limit, 11111, 12345)
+
+    # Standard Lagrangian cuts
+    model_starter(1,stages,20,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.SingleCutRegime(), DynamicSDDiP.NoCutSelection(), file_path * "log_file.log", time_limit, 11111, 12345)
+    model_starter(1,stages,20,:lag, DynamicSDDiP.Core_Midpoint(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), file_path * "log_file.log", time_limit, 11111, 12345)
+
+    # Deep Lagrangian cuts
+    model_starter(1,stages,20,:uni_lag, DynamicSDDiP.L₁_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), file_path * "log_file.log", time_limit, 11111, 12345)
+    model_starter(1,stages,20,:uni_lag, DynamicSDDiP.L₁∞_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), file_path * "log_file.log", time_limit, 11111, 12345)
+    model_starter(1,stages,20,:uni_lag, DynamicSDDiP.L∞_Deep(), DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), file_path * "log_file.log", time_limit, 11111, 12345)
+    
+    # LN Lagrangian cuts - Relint, Mid, Eps
+    eps_regime = DynamicSDDiP.Core_Epsilon(perturb=1e-2)
+    model_starter(1,stages,20,:uni_lag, eps_regime, DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), file_path * "log_file.log", time_limit, 11111, 12345)
+    
+    mid_regime = DynamicSDDiP.Core_Midpoint()
+    model_starter(1,stages,20,:uni_lag, mid_regime, DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), file_path * "log_file.log", time_limit, 11111, 12345)
+    
+    relint_regime = DynamicSDDiP.Core_Midpoint()
+    model_starter(1,stages,20,:uni_lag, relint_regime, DynamicSDDiP.MultiCutRegime(), DynamicSDDiP.NoCutSelection(), file_path * "log_file.log", time_limit, 11111, 12345)
 
 end
 

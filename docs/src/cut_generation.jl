@@ -226,7 +226,7 @@ end
 using DynamicSDDiP
 abstract type AbstractDualBoundRegime end
 mutable struct ValueBound <: DynamicSDDiP.AbstractDualBoundRegime end
-mutable struct NormBound <: DynamicSDDiP.bstractDualBoundRegime end
+mutable struct NormBound <: DynamicSDDiP.AbstractDualBoundRegime end
 mutable struct BothBounds <: DynamicSDDiP.AbstractDualBoundRegime end
 
 # When no `user_dual_multiplier_bound` or `user_dual_objective_bound` are specified, the bounds are set to trivial default values.

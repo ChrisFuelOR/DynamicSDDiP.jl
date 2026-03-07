@@ -5,7 +5,7 @@
 # Making a decision on this choice is required several times in our implementation of SDDiP, e.g. when solving the subproblems, solving dual problems, considering regularizations or solving auxiliary problems. Therefore, we have introduced a general data type that can be used in all these situations.
 
 using DynamicSDDiP
-mutable struct StateSpaceCopy <: DynamicSDDiP.bstractCopyRegime end
+mutable struct StateSpaceCopy <: DynamicSDDiP.AbstractCopyRegime end
 mutable struct ConvexHullCopy <: DynamicSDDiP.AbstractCopyRegime end
 mutable struct NoBoundsCopy <: DynamicSDDiP.AbstractCopyRegime end
 

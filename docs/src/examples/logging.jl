@@ -1,4 +1,4 @@
-# # Interpreting the logging results
+# # Understanding the logging results
 
 # For each run in our experiments, several outputs are logged in a dedicated log-file.
 # It consists of the following elements:
