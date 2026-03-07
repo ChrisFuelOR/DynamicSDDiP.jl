@@ -35,7 +35,7 @@ end
 
 # ## The special case of non-convex cuts
 
-# As discussed in [the preprint](https://optimization-online.org/2024/08/on-lipschitz-regularization-and-lagrangian-cuts-in-multistage-stochastic-mixed-integer-linear-programming/), DynamicSDDiP.jl also allows for the generation of non-convex cuts. For these cuts, a separate type of struct is used because more information needs to be stored.
+# As discussed in [another preprint](https://optimization-online.org/2024/08/on-lipschitz-regularization-and-lagrangian-cuts-in-multistage-stochastic-mixed-integer-linear-programming/), DynamicSDDiP.jl also allows for the generation of non-convex cuts. For these cuts, a separate type of struct is used because more information needs to be stored.
 
 using JuMP
 using DynamicSDDiP
@@ -66,10 +66,10 @@ end
 #  * `cut_constraints`: The mixed-integer linear representation of the non-convex cut requires to introduce several (auxiliary) constraints. The references are stored in this vector in order to keep track of which cut they belong to.
 
 # !!! note "Remark"
-#     The dict `coefficients` will have a different dimension as for a `LinearCut`, as the coefficients refer to dual multipliers in the lifted binary space. 
+#     The dict `coefficients` will have a different dimension than for a `LinearCut`, as the coefficients refer to dual multipliers in the lifted binary space. 
 
 # !!! note "Remark"
-#     Note that being able to deal with linear cuts (`LinearCut`) and non-convex cuts ('NonlinearCut`) required a lot of adjustments and re-definitions in the file `bellman.jl` compared to `SDDP.jl`. 
+#     Note that being able to deal with linear cuts (`LinearCut`) and non-convex cuts (`NonlinearCut`) required a lot of adjustments and re-definitions in the file `bellman.jl` compared to SDDP.jl. 
 
 
 

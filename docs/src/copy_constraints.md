@@ -2,7 +2,7 @@
 EditURL = "copy_constraints.jl"
 ```
 
-## Handling copy constraints
+# Handling copy constraints
 
 Recall that in the SDDiP subproblems local copies $z_n$ of states $x_{a(n)}$ are introduced together with constraints $z_n \in Z_{a(n)}$. Depending on the choice of set $Z_{a(n)}$, the properties of the obtained Lagrangian cuts will differ.
 
@@ -17,7 +17,7 @@ mutable struct NoBoundsCopy <: DynamicSDDiP.AbstractCopyRegime end
 
  * `StateSpaceCopy`: This means that the local variables $z_n$ have to satisfy the bounds and integer requirements of the original state variables, i.e. $Z_{a(n)} = X_{a(n)}$.
  * `ConvexHullCopy`: This means that the local variables $z_n$ have to be in the convex hull of the original state space, e.g. $Z_{a(n)} = [0,1]$ for the case of binary state variables. Since we cannot compute the convex hull for complicated state spaces, we assume that the state space is just box-constrained and maybe requires integer or binary states. Hence, using this regime the bounds are kept as they are, but the integer requirements are relaxed.
- * `NoBoundsCopy`: This means that the local variables $z_n$ do not have to satisfy any special constraints, i.e. $Z_{a(n)} = \emptyset$. To avoid unboundedness and infeasibility of the Lagrangian dual problem, in this case we set the lower bound of the states to zero and the upper bound of the states to 1e9. This is equivalent to the approach of relaxing the linking constraint without introducing a copy constraint at all.
+ * `NoBoundsCopy`: This means that the local variables $z_n$ do not have to satisfy any special constraints, i.e. $Z_{a(n)} = \mathbb{R}^{a(n)}$. To avoid unboundedness and infeasibility of the Lagrangian dual problems, in this case we set the lower bound of the states to zero and the upper bound of the states to 1e9. This is equivalent to the approach of relaxing the linking constraint without introducing a copy constraint at all.
 
 ---
 

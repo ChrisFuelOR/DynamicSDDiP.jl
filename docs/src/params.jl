@@ -63,7 +63,7 @@ end
 
 # ## Cut generation approach
 
-# A key aspect of DynamicSDDiP is that we can specify exactly how cuts should be generated in the backward pass of SDDiP. This can be controled using two important concepts.
+# A key aspect of DynamicSDDiP is that we can specify exactly how cuts should be generated in the backward pass of SDDiP. This can be controlled using two important concepts.
 
 # First, we can specify which type of dual problem should be solved. There exist four main structs (`LinearDuality`, `StrengthenedDuality`, `LagrangianDuality`, `UnifiedLagrangianDuality`), each a subtype of `AbstractDualityRegime`. They determine the general solution approach and offer a variety of parameters for further configuration. 
 
@@ -86,7 +86,7 @@ state_approximation_regime = DynamicSDDiP.NoStateApproximation()
 #
 #     Users can still apply a static and permanent binary approximation of the state space by adjusting their problem formulation accordingly.
 
-# We discuss both concepts in more detail in [Configuring Cut Generation](cut_generation.md).
+# We discuss both concepts in more detail in [Configuring the cut generation](cut_generation.md) and [Binarization and non-convex cuts](binarization.md).
 
 # With the `duality_regime` and the `state_approximation_regime` set, we can define an overall `cut_generation_regime`. For this purpose, there exists the struct `CutGenerationRegime`. Each object of this type has to contain a specific `duality_regime` and `state_approximation_regime`.
 
@@ -104,7 +104,7 @@ end
 
 # If not specified otherwise, all types of cuts are generated in each iteration. However, this can be fine-tuned. 
 # The parameters `iteration_to_start` and `iteration_to_stop` allow to restrict the cut generation regime to a subset of iterations. 
-# If `Cut_away_approach` is set to `true`, cuts of a regime will only be added to the subproblems if they lead to an improvement, i.e. cut away the current incumbent $(x_{t-1}^i, \theta_t^i)$ by at least `cut_away_tol`. This is supposed to prevent adding redundant cuts.
+# If `Cut_away_approach` is set to `true`, cuts of a regime will only be added to the subproblems if they lead to an improvement, i.e. cut away the current incumbent $(x_{a(n)}^i, \theta_n^i)$ by at least `cut_away_tol`. This is supposed to prevent adding redundant cuts.
 
 # As an example, we can define to generate both strengthened Benders cuts and Lagrangian cuts, but the latter only starting from iteration 20.
 
@@ -141,16 +141,16 @@ end
 
 mutable struct NoRegularization <: DynamicSDDiP.AbstractRegularizationRegime end
 
-# If `Regularization` is used, this means that in the forward pass of SDDiP a Lipschitz regularization with Lipschitz constant $\sigma_t$ (defined by parameter `sigma`) and the norm defined in `norm` is applied for each subproblem.
-# The copy constraint $z_t = x_{t-1}^i$ is removed and the expression $\sigma_t \lVert z_t - x_{t-1}^i \rVert$ is added to the objective function. In addition, with parameter `copy_regime` we can specify if the variables $z_t$ should satisfy certain constraints in the forward pass problem. For details, we refer to [Handling Copy Constraints](copy_constraints.md).
+# If `Regularization` is used, this means that in the forward pass of SDDiP a Lipschitz regularization with Lipschitz constant $\sigma_n$ (defined by parameter `sigma`) and the norm defined in `norm` is applied for each subproblem.
+# The copy constraint $z_n = x_{a(n)}^i$ is removed and the expression $\sigma_n \lVert z_n - x_{a(n)}^i \rVert$ is added to the objective function. In addition, with parameter `copy_regime` we can specify if the variables $z_n$ should satisfy certain constraints in the forward pass problem. For details, we refer to [Handling Copy Constraints](copy_constraints.md).
 
 # In the backward pass subproblems a Lipschitz regularization with parameter `sigma` is applied as well. However, here we can use a different norm which is specified by `norm_lifted`.
 
-# !!! note "remark
+# !!! note "remark"
 #     Note that if `sigma` is not chosen sufficiently large, it is not guaranteed that the original MS-MILP is solved when the regularization is applied. Therefore, we can specify a factor by which `sigma` is increased whenever the algorithm gets stuck without converging (`sigma_factor`). This has to be carefully checked (see file `sigmaTest.jl`) and is particularly challenging for stochastic problems. So far, we have only used it for multistage deterministic problems.
 
 # !!! note "remark" 
-#     Whereas a regularization can always be applied, this is mostly relevant for the generation of non-convex cuts, and thus in combination with a temporary state binarization (see above). This also explains why we can specify different norms for the forward and backward pass: In the backward pass we may work in a lifted space that requires a different norm (also note that our code automatically uses a weighted variant of `norm_lifted`). For more details, we refer to our [preprint on this topic](https://optimization-online.org/2024/08/on-lipschitz-regularization-and-lagrangian-cuts-in-multistage-stochastic-mixed-integer-linear-programming/)].
+#     Whereas a regularization can always be applied, this is mostly relevant for the generation of non-convex cuts, and thus in combination with a temporary state binarization (see above). This also explains why we can specify different norms for the forward and backward pass: In the backward pass we may work in a lifted space that requires a different norm (also note that our code automatically uses a weighted variant of `norm_lifted`). For more details, we refer to our [preprint on this topic](https://optimization-online.org/2024/08/on-lipschitz-regularization-and-lagrangian-cuts-in-multistage-stochastic-mixed-integer-linear-programming/).
 
 # For the experiments in this paper, the regularization_regime was always set to DynamicSDDiP.NoRegularization().
 
@@ -171,7 +171,7 @@ mutable struct MultiCutRegime <: DynamicSDDiP.AbstractCutAggregationRegime end
 
 # ## Cut selection
 
-# To reduce the size of the subproblems, it is possible to apply a basic cut selection scheme which is borrowed from SDDP.jl. It tries to keep the number of active cuts at a minimum by removing cuts that are dominated at previously visited incumbents. This can be controled by either choosing `CutSelection` or `NoCutSelection`. 
+# To reduce the size of the subproblems, it is possible to apply a basic cut selection scheme which is borrowed from SDDP.jl. It tries to keep the number of active cuts at a minimum by removing cuts that are dominated at previously visited incumbents. This can be controlled by either choosing `CutSelection` or `NoCutSelection`. 
 
 using DynamicSDDiP
 mutable struct CutSelection <: DynamicSDDiP.AbstractCutSelectionRegime
@@ -244,4 +244,4 @@ end
 # In our experiments for this paper, we used Gurobi for all occuring subproblems.
 
 # !!! note "Remark"
-#     Note that when `GAMS.jl` should be used, we have to use `GAMS_Solver` instead of `Direct_Solver` for the `AbstractSolverApproach`. Then, we can still define the solvers to be used within GAMS in structs of type `AppliedSolvers`. 
+#     When `GAMS.jl` should be used, we have to use `GAMS_Solver` instead of `Direct_Solver` for the `AbstractSolverApproach`. Then, we can still define the actual solvers to be used within GAMS in structs of type `AppliedSolvers`. 

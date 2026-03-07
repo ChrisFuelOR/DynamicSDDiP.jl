@@ -14,7 +14,7 @@ Note that this project also includes features like binary approximation of the s
 
 ## Documentation
 
-You can find the documentation at [https://chrisfuelor.github.io/DynamicSDDiP.jl/](https://chrisfuelor.github.io/DynamicSDDiP.jl/)..
+You can find the documentation at [https://chrisfuelor.github.io/DynamicSDDiP.jl/](https://chrisfuelor.github.io/DynamicSDDiP.jl/).
 
 ## Help
 

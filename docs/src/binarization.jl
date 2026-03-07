@@ -4,16 +4,16 @@
 
 #  1. We consider the original state space. If it is not purely binary, then none of the cuts that are generated (see [Configuring the cut generation](cut_generation.md)) are guaranteed to be tight, so we lose any convergence guarantees.
 #  2. We manually approximate the state space with binary variables before running SDDiP (**static binarization**). This increases the state space, but allows for the generation of tight cuts. This is what is proposed in the original [SDDiP paper](https://link.springer.com/article/10.1007/s10107-018-1249-5). 
-#  3. We apply a **temporary binary approximation** in the cut generation process. The cuts are then generated according to [Configuring the cut generation](cut_generation.md) but in a lifted space. The cuts are then projected back to the original state space, so that in the forward pass of SDDiP still the original state space can be considered. The binary approximation can be dynaimcally improved if it is required (this also explains the name of our implementation as **dynamic** SDDiP).
+#  3. We apply a **temporary binary approximation** in the cut generation process. The cuts are then generated according to [Configuring the cut generation](cut_generation.md) but in a lifted space. The cuts are then projected back to the original state space, so that in the forward pass of SDDiP still the original state space can be considered. The binary approximation can be dynamically improved if it is required (this also explains the name of our implementation as **dynamic** SDDiP).
 
 # In our experiments for this paper, we only used linear cuts, and thus applied variants 1.) and 2.). If variant 2.) is used, then the state binarization has to be included in the model definition (see [Computational experiments](examples/experiment_description.md)). In both cases, the `state_approximation_regime` is set to `NoStateApproximation`.
 
-# Variant 3.) is implemented, as this repository was used for the experiments for [paper](https://optimization-online.org/2024/08/on-lipschitz-regularization-and-lagrangian-cuts-in-multistage-stochastic-mixed-integer-linear-programming/) as well. If variant 3.) is used, then `state_approximation_regime` is set to `BinaryApproximation` with some additional parameters (see below). Note that in this case, due to the projection to the original state space, the linear cuts created in the lifted space lead to non-convex approximations. In the linked paper, we call these non-convex cuts **cut projection closure (CPC)**.
+# Variant 3.) is implemented, as this repository was used for the experiments for [paper](https://optimization-online.org/2024/08/on-lipschitz-regularization-and-lagrangian-cuts-in-multistage-stochastic-mixed-integer-linear-programming/) as well. If variant 3.) is used, then `state_approximation_regime` is set to `BinaryApproximation` with some additional parameters (see below). Note that in this case, due to the projection to the original state space, the linear cuts created in the lifted space lead to non-convex approximations. In the linked paper, we call these non-convex cuts **cut projection closures (CPC)**.
 
 
 # ## Binary approximation
 
-# The temporary and dynamic binary approximation mentioned in 3.) above can be controled using a `state_approximation_regime` in `AlgoParams`, see [Setting algorithmic parameters](params.md).
+# The temporary and dynamic binary approximation mentioned in 3.) above can be controlled using a `state_approximation_regime` in `AlgoParams`, see [Setting algorithmic parameters](params.md).
 
 # We have two options:
 
@@ -32,7 +32,7 @@ mutable struct NoStateApproximation <: DynamicSDDiP.AbstractStateApproximationRe
 
 # Importantly, the binarization is applied to each state variable (i.e. each component of $x_{a(n)}^i$) separately.
 
-# The temporary binarization of the state space requires to relate the new binar variables to the original state variables. To this end, the `BinaryState` struct is introduced in the code. 
+# The temporary binarization of the state space requires to relate the new binary variables to the original state variables. To this end, the `BinaryState` struct is introduced in the code. 
 
 struct BinaryState
     value::Float64
@@ -46,11 +46,11 @@ end
 
 # ## Cut projection
 
-# The cut projection approach can be controled using parameter `cut_projection_regime`. 
+# The cut projection approach can be controlled using parameter `cut_projection_regime`. 
 
 # We have two options. Both are based on representing the CPC by KKT conditions.
 
-#  * `BigM`: This means that the complementarity constraints in the KKT conditions are reformulated using a Big-M approach. If a Lipschitz regularization is used, a natural bound for the Big-M parameters can be derived, see [paper](https://optimization-online.org/2024/08/on-lipschitz-regularization-and-lagrangian-cuts-in-multistage-stochastic-mixed-integer-linear-programming/).   
+#  * `BigM`: This means that the complementarity constraints in the KKT conditions are reformulated using a Big-M approach. If a Lipschitz regularization is used, a natural bound for the Big-M parameters can be derived, see [our preprint](https://optimization-online.org/2024/08/on-lipschitz-regularization-and-lagrangian-cuts-in-multistage-stochastic-mixed-integer-linear-programming/).   
 #  * `SOS1`: This means that the complementarity constraints in the KKT conditions are reformulated using SOS-1 constraints.
 
 using DynamicSDDiP

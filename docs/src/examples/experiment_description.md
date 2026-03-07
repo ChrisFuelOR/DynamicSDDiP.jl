@@ -23,7 +23,7 @@ Note that for CLSP we ran tests with a static binary approximation of the state 
 
 ## The starter file
 
-In the starter file, the user can start a specific test run by calling the `model_starter` function (or `det_equiv_starter` if the determinist equivalent should be solved).
+In the starter file, the user can start a specific test run by calling the `model_starter` function (or `det_equiv_starter` if the deterministic equivalent should be solved).
 
 The function comes with several arguments that can be specified by the user and (for the most part) are passed to the `algo_params` struct later. They allow to define several model runs (e.g. for different cut or normalization techniques) at once and run them after each other.
 
@@ -53,13 +53,13 @@ function algo_config(
 end
 ````
 
-We performed a multitude of experiments. However, many of the parameters were chosen the same for all runs reported in the paper, and only a few crucial parameters different between runs. Note that the parameters are logged and part of the log-file of each individual run. We also describe the runs in a bit more detail below.
+Note that all the parameters for a given are also stored in the log-file of this run, see [Understanding the logging output](logging.md). We also describe the runs in a bit more detail below.
 
 For explanations of the parameters that can be set in `algo_config.jl` see [Setting algorithmic parameters](../params.md).
 
 ## The results
 
-The full results of our experiments are provided in folder `results` of this repository. For each run presented in the paper, there is a dedicated logging file which contains the parameter configuration of the run as well as the results. To understand the logging files, please see the description in [Understanding the logging results](logging.md).
+The full results of our experiments are provided in folder `results` of this repository. For each run presented in the paper, there is a dedicated logging file which contains the parameter configuration of the run as well as the results. To understand the logging files, please see the description in [Understanding the logging output](logging.md).
 
 ## Reproducing the results
 
@@ -90,7 +90,10 @@ For runs in combination with SB cuts, make sure to change the `algo_config.jl` f
 If you want to use different logging files for different runs, the file name arguments in `starter_no_bin.jl` should be adjusted.
 
 !!! note "Remarks"
-    The code also contains the folder `Regularization_Paper_Illustrative` which we used for some toy examples in the [preprint](https://optimization-online.org/2024/08/on-lipschitz-regularization-and-lagrangian-cuts-in-multistage-stochastic-mixed-integer-linear-programming/)].
+    Note that you may not be able to reproduce the exact same results from our paper, as the output may differ if DynamicSDDiP is ran on a different machine. However, if the machine has similar specifications as the one we used for our experiments (for technical details, see the paper), the results should not differ by too much].
+
+!!! note "Remarks"
+    The code also contains the folder `Regularization_Paper_Illustrative` which we used for some toy examples in [our second preprint](https://optimization-online.org/2024/08/on-lipschitz-regularization-and-lagrangian-cuts-in-multistage-stochastic-mixed-integer-linear-programming/)].
 
 ---
 
