@@ -11,21 +11,11 @@ The theory behind these cuts as well as extensive computational experiments are 
 
 Note that this project also includes features like binary approximation of the state space, Lipschitz regularization and the generation of special non-convex cuts, obtained by projecting Lagrangian cuts from a lifted binary state space to the original state space (so-called **cut projection closure**). These topics are discussed in another [preprint](https://optimization-online.org/2024/08/on-lipschitz-regularization-and-lagrangian-cuts-in-multistage-stochastic-mixed-integer-linear-programming/).
 
-````@example index
-# License
-````
+## License
 
 `DynamicSDDiP.jl` is licensed under the [MPL 2.0 license](https://github.com/ChrisFuelOR/DynamicSDDiP.jl/blob/main/LICENSE).
 
-````@example index
-# Documentation
-````
-
-You can find the documentation at TODO.
-
-````@example index
-# Help
-````
+## Help
 
 If you need help, please [open a GitHub issue](https://github.com/ChrisFuelOR/DynamicSDDiP.jl/issues).
 

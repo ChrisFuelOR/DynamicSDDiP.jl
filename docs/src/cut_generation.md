@@ -43,7 +43,7 @@ mutable struct LagrangianDuality <:  DynamicSDDiP.AbstractDualityRegime
 end
 ````
 
-Using this type of struct to define a `duality_regime` within `algo_params` (see [Setting algorithmic parameters](params.md)) means that standard **Lagrangian cuts** as known from the original SDDiP work (see [SDDiP paper](https://link.springer.com/article/10.1007/s10107-018-1249-5)) are generated. This is done by solving the Lagrangian dual problems obtained by relaxing the copy constraints within the subproblems.
+Using this type of struct to define a `duality_regime` within `algo_params` (see [Setting algorithmic parameters](params.md)) means that standard **Lagrangian cuts** as known from the original SDDiP work (see [SDDiP paper](https://link.springer.com/article/10.1007/s10107-018-1249-5)) are generated. This is done by solving the Lagrangian dual problems obtained from relaxing the copy constraints within the subproblems.
 
 This type of `duality_regime` can be configured with several parameters that are explained below.
 
@@ -188,13 +188,11 @@ In our experiments for the paper, we always used option `Lax`.
 
 Lagrangian dual problems for mixed-integer problems tend to degeneracy, i.e. having infinitely many optimal solutions. However, different optimal solutions can yield cuts of quite different approximation strength. It is a topic of ongoing research to select dual solutions that yield the strongest possible cuts.
 
-Lagrangian dual problems for mixed-integer problems tend to degeneracy, i.e. having infinitely many optimal solutions. However, different optimal solutions can yield cuts of quite different approximation strength. It is a topic of ongoing research to select dual solutions that yield the strongest possible cuts.
-
 To address the issue of degeneracy, our code allows to define a `dual_choice_regime`.
 
 We have the following options:
 
- * `StandardChoice`: The Lagrangian dual is solved using the method defined in `dual_solution_regime`. The obtained solution (possibly degenerate) is used define a Lagrangian cut.
+ * `StandardChoice`: The Lagrangian dual is solved using the method defined in `dual_solution_regime`. The obtained solution (possibly degenerate) is used to define a Lagrangian cut.
  * `MinimalNormChoice`: After the Lagrangian dual is solved, we solve a second auxiliary problem where we minimize the 1-norm of the dual multipliers over all optimal solutions. Whereas this can help to yield stronger Lagrangian cuts in the light of degeneracy, it also comes with substantial additional effort.
 
 ````@example cut_generation
@@ -233,7 +231,7 @@ end
 
 The user is also allowed to specify bounds on the dual multipliers `user_dual_multiplier_bound` or the objective of the dual `user_dual_objective_bound`.
 
-The parameter `dual_bond_regime` is then used to control how these bounds are used.
+The parameter `dual_bound_regime` is then used to control how these bounds are used.
 
  * `ValueBound`: This means that the optimal value of the Lagrangian dual is bounded using the optimal value of the primal problem (as it is done in SDDP.jl). However, the dual multipliers are not bounded.
  * `NormBound`: This means that each component of the dual multipliers is bounded from below and above. This makes most sense when using a regularization and choosing a dual bound related to the regularization parameter sigma.
@@ -249,7 +247,7 @@ mutable struct BothBounds <: DynamicSDDiP.AbstractDualBoundRegime end
 
 When no `user_dual_multiplier_bound` or `user_dual_objective_bound` are specified, the bounds are set to trivial default values.
 
-In our experiments, we usually used `BothBounds`.
+In our experiments, we usually used `BothBounds` but with trivial bounds.
 
 !!! note "Remark"
     Our code also allows for the generation of special non-convex cuts. This is however based on the above cut generation approaches as well. For more details, see [Binarization and non-convex cuts](binarization.md).
