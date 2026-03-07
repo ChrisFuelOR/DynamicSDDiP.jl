@@ -131,7 +131,7 @@ function model_starter_runs()
     Specification of model runs that should be run one after the other.
     """
 
-    file_path = ""  # TODO C:/Users/cg4102/Documents/julia_logs
+    file_path = ""
     stages = 100
     time_limit = 14400
 

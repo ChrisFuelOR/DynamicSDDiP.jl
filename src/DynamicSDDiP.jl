@@ -27,6 +27,9 @@ function __init__()
     return
 end
 
+import Reexport
+Reexport.@reexport using SDDP
+
 # Write your package code here.
 include("typedefs.jl")
 include("state.jl")
@@ -35,6 +38,10 @@ include("logging.jl")
 include("stopping.jl")
 include("objective.jl")
 include("bellman.jl")
+
+# Overloading SDDP functions
+include("SDDP.jl")
+
 include("cutSelection.jl")
 include("solverHandling.jl")
 include("binarization.jl")
