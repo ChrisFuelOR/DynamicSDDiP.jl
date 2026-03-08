@@ -32,15 +32,15 @@ It consists of the following elements:
      * some information on the total number of iterations required to solve all the Lagrangian dual problems (if any) in the respective iteration
  * A table summarizing timing and memory allocation information for different steps of the algorithm
  * A summary of the final statuses of solving the Lagrangian dual problems (if any)
-     * opt: the problem was solved to optimality
-     * iter: the solution stopped at the iteration limit
-     * conv: the solution method converged to a suboptimal solution
-     * unbounded: the problem was detected as unbounded (relevant for linear normalization); a SB cut is generated instead
-     * bound_issues or feas_issues: the solution method showed some numerical issues; a cut is generated using the best dual multipliers at the time when the issues are detected
-     * sub, subgr_stalling: were relevant in an earlier implementation of a subgradient method; not relevant anymore
-     * mn_opt: a second optimization step was used (``minimal norm choice''); this step terminated with optimality
-     * mn_iter: a second optimization step was used (``minimal norm choice''); this step terminated with the iteration limit
-     * mn_issue: a second optimization step was used (``minimal norm choice''); this step terminated with numerical issues
+     * `opt`: the problem was solved to optimality
+     * `iter`: the solution stopped at the iteration limit
+     * `conv`: the solution method converged to a suboptimal solution
+     * `unbounded`: the problem was detected as unbounded (relevant for linear normalization); a SB cut is generated instead
+     * `bound_issues` or `feas_issues`: the solution method showed some numerical issues; a cut is generated using the best dual multipliers at the time when the issues are detected
+     * `sub`, `subgr_stalling`: were relevant in an earlier implementation of a subgradient method; not relevant anymore
+     * `mn_opt`: a second optimization step was used (``minimal norm choice''); this step terminated with optimality
+     * `mn_iter`: a second optimization step was used (``minimal norm choice''); this step terminated with the iteration limit
+     * `mn_issue`: a second optimization step was used (``minimal norm choice''); this step terminated with numerical issues
  * A section containing the results of an in-sample or out-of-sample simulation conducted after SDDiP has terminated. In each case the information contains
      * the deterministic lower bound
      * the simulated upper bound and a confidence interval
